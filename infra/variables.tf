@@ -30,8 +30,8 @@ variable "mx" {
 }
 
 variable "dmarc_cf_rua" {
-  type        = string
-  description = "Cloudflare DMARC Management report address already in _dmarc.herinean.com (mailto:<id>@dmarc-reports.cloudflare.net)"
+  type        = map(string)
+  description = "Per-zone Cloudflare DMARC Management report address (mailto:<id>@dmarc-reports.cloudflare.net), as Cloudflare created them"
 }
 
 variable "dkim_txt" {

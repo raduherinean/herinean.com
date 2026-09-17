@@ -76,5 +76,20 @@ for d in herinean.com herinean.ro herinean.net herinean.info; do
   expect_dig "$d" CAA 'iodef "mailto:security@herinean.com"'
 done
 
+
+section "mail DNS"
+for d in herinean.com herinean.ro herinean.net herinean.info; do
+  expect_dig "$d" MX '^1 smtp\.google\.com\.'
+  expect_txt "$d" 'v=spf1 include:_spf\.google\.com -all'
+  expect_txt "_dmarc.$d" "v=DMARC1; p=(none|reject); adkim=s; aspf=s; rua=mailto:[a-f0-9]+@dmarc-reports\.cloudflare\.net,mailto:dmarc@$d"
+done
+expect_txt _dmarc.herinean.ro 'p=reject'
+expect_txt _dmarc.herinean.info 'p=reject'
+expect_txt google._domainkey.herinean.com 'v=DKIM1; k=rsa; p='
+expect_txt _mta-sts.herinean.com 'v=STSv1; id='
+expect_txt _smtp._tls.herinean.com 'v=TLSRPTv1; rua=mailto:dmarc@herinean\.com'
+expect_txt herinean.net 'google-site-verification='     # pre-existing, must survive untouched
+expect_txt herinean.ro 'google-site-verification='
+
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
