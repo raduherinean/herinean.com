@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>herinean.com — visual language, phase 1</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..600&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{--paper:#FAF8F4;--paper-2:#F1EDE6;--ink:#1C1A17;--ink-2:#5C574F;--rule:#DCD5C9;--accent:#7D2B22;--accent-visited:#5B322C;--sel:#EBD8D1;--serif:"Source Serif 4",Georgia,serif;--display:"Newsreader",Georgia,serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;--fs--2:0.76rem;--fs--1:0.95rem;--fs-0:1.1875rem;--fs-1:1.484rem;--fs-2:1.855rem;--fs-3:2.319rem;--fs-4:2.899rem;--fs-5:3.624rem}
+@media (prefers-color-scheme:dark){:root{--paper:#191714;--paper-2:#221F1B;--ink:#EAE4DA;--ink-2:#A69C8E;--rule:#38332C;--accent:#E2907E;--accent-visited:#C29C93;--sel:#4A2E27}}
+[data-scheme=light]{--paper:#FAF8F4;--paper-2:#F1EDE6;--ink:#1C1A17;--ink-2:#5C574F;--rule:#DCD5C9;--accent:#7D2B22;--accent-visited:#5B322C;--sel:#EBD8D1;--serif:"Source Serif 4",Georgia,serif;--display:"Newsreader",Georgia,serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;--fs--2:0.76rem;--fs--1:0.95rem;--fs-0:1.1875rem;--fs-1:1.484rem;--fs-2:1.855rem;--fs-3:2.319rem;--fs-4:2.899rem;--fs-5:3.624rem}
+[data-scheme=dark]{--paper:#191714;--paper-2:#221F1B;--ink:#EAE4DA;--ink-2:#A69C8E;--rule:#38332C;--accent:#E2907E;--accent-visited:#C29C93;--sel:#4A2E27}
+[data-scheme=print]{--paper:#fff;--paper-2:#fff;--ink:#000;--ink-2:#333;--rule:#9a9a9a;--accent:#000;--accent-visited:#000;--sel:#ddd}
+body{margin:0;background:#8B867E}
+a{color:var(--accent);text-decoration-line:underline;text-decoration-thickness:.055em;text-underline-offset:.16em}
+a:visited{color:var(--accent-visited)}
+a:hover{text-decoration-thickness:.11em}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+::selection{background:var(--sel)}
+[data-scheme=print] a[href^="http"]::after{content:" <" attr(href) ">";font-family:var(--mono);font-size:.76em;letter-spacing:-.02em}
+[data-scheme=print] [data-print-hide]{display:none}
+@media print{[data-print-hide]{display:none}a[href^="http"]::after{content:" <" attr(href) ">";font-family:var(--mono);font-size:.76em}@page{margin:18mm 16mm}}
+@media (min-width:34.02rem){
+div[data-scroll]{overflow-x:auto;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+table[data-stack]{min-width:34rem}
+table[data-stack] [data-num]{text-align:right}
+}
+@media (max-width:34rem){
+div[data-scroll]{overflow-x:visible;border:0}
+table[data-stack],table[data-stack] tbody,table[data-stack] tr,table[data-stack] td{display:block;width:auto;min-width:0}
+table[data-stack] thead{display:none}
+table[data-stack] tr{border-top:1px solid var(--rule);padding:.85rem 0}
+table[data-stack] td{padding:.1rem 0;text-align:left;border:0}
+table[data-stack] td[data-num]{text-align:left}
+table[data-stack] td[data-label]::before{content:attr(data-label);display:inline-block;width:6rem;color:var(--ink-2)}
+table[data-stack] td:first-child{font-weight:600;margin-bottom:.35rem;line-height:1.3}
+}
+@container (min-width:34.02rem){
+div[data-scroll]{overflow-x:auto;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+table[data-stack]{min-width:34rem}
+table[data-stack] [data-num]{text-align:right}
+}
+@container (max-width:34rem){
+div[data-scroll]{overflow-x:visible;border:0}
+table[data-stack],table[data-stack] tbody,table[data-stack] tr,table[data-stack] td{display:block;width:auto;min-width:0}
+table[data-stack] thead{display:none}
+table[data-stack] tr{border-top:1px solid var(--rule);padding:.85rem 0}
+table[data-stack] td{padding:.1rem 0;text-align:left;border:0}
+table[data-stack] td[data-num]{text-align:left}
+table[data-stack] td[data-label]::before{content:attr(data-label);display:inline-block;width:6rem;color:var(--ink-2)}
+table[data-stack] td:first-child{font-weight:600;margin-bottom:.35rem;line-height:1.3}
+}
+[data-portrait]{border:1px solid var(--rule)}
+@media (prefers-color-scheme:dark){[data-portrait]{border-color:var(--accent)}}
+[data-scheme=dark] [data-portrait]{border-color:var(--accent)}
+</style>
+</head>
+<body>
+<div style="background:#8B867E;padding:64px;width:max-content;display:flex;flex-direction:column;gap:80px;font-family:var(--serif)">
+
+<!-- 0. SYSTEM LEGEND -->
+<section style="width:1280px;background:var(--paper);color:var(--ink);padding:48px 56px;box-sizing:border-box;font-size:var(--fs-0);line-height:1.6">
+<p style="margin:0 0 1.6rem;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)">herinean.com · phase 1 · visual language</p>
+<h1 style="margin:0 0 1rem;font-family:var(--display);font-weight:500;font-size:var(--fs-4);line-height:1.08;letter-spacing:-.015em;max-width:30rem;text-wrap:balance">Rationale</h1>
+<p style="margin:0 0 2rem;max-width:34rem;color:var(--ink-2);text-wrap:pretty">One column, one accent, hairlines. Everything below is reproducible in hand-written CSS with no JavaScript: the whole system is eleven custom properties, two typefaces, a 1.25 type scale and a 0.5rem spacing scale.</p>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0 2rem;border-top:1px solid var(--rule)">
+<div style="padding:1.1rem 0;border-bottom:1px solid var(--rule)">
+<p style="margin:0 0 .35rem;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)">Body face</p>
+<p style="margin:0;line-height:1.4">Source Serif 4 <span style="color:var(--ink-2);font-size:var(--fs--1)">— OFL, variable <span style="font-family:var(--mono);font-size:.9em">opsz</span>, true italic, covers ș ț ă â î. No real small caps, so labels are letter-spaced uppercase.</span></p>
+</div>
+<div style="padding:1.1rem 0;border-bottom:1px solid var(--rule)">
+<p style="margin:0 0 .35rem;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)">Display face</p>
+<p style="margin:0;line-height:1.4">Newsreader <span style="color:var(--ink-2);font-size:var(--fs--1)">— OFL, variable, masthead and titles only. Sharper contrast at large <span style="font-family:var(--mono);font-size:.9em">opsz</span>; same diacritic coverage.</span></p>
+</div>
+<div style="padding:1.1rem 0;border-bottom:1px solid var(--rule)">
+<p style="margin:0 0 .35rem;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)">Mono</p>
+<p style="margin:0;line-height:1.4">IBM Plex Mono <span style="color:var(--ink-2);font-size:var(--fs--1)">— OFL, code, dependency list and placeholder labels only.</span></p>
+</div>
+<div style="padding:1.1rem 0;border-bottom:1px solid var(--rule)">
+<p style="margin:0 0 .35rem;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)">Type scale · 1.25</p>
+<p style="margin:0;font-family:var(--mono);font-size:var(--fs--1);line-height:1.55;color:var(--ink-2)">12.2 / 15.2 / <span style="color:var(--ink)">19</span> / 23.8 / 29.7 / 37.1 / 46.4 / 58 px<br>body 19px, line-height 1.6, measure 38rem</p>
+</div>
+<div style="padding:1.1rem 0;border-bottom:1px solid var(--rule)">
+<p style="margin:0 0 .35rem;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)">Ink &amp; paper</p>
+<p style="margin:0;font-family:var(--mono);font-size:var(--fs--1);line-height:1.55;color:var(--ink-2)">#1C1A17 on #FAF8F4 — 15.1:1<br>#EAE4DA on #191714 — 14.5:1<br>meta #5C574F 6.6:1 / #A69C8E 6.7:1</p>
+</div>
+<div style="padding:1.1rem 0;border-bottom:1px solid var(--rule)">
+<p style="margin:0 0 .35rem;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)">Accent · oxblood</p>
+<div style="display:flex;gap:.6rem;align-items:center">
+<div style="width:34px;height:34px;background:#7D2B22"></div>
+<div style="width:34px;height:34px;background:#E2907E"></div>
+<p style="margin:0;font-family:var(--mono);font-size:var(--fs--1);line-height:1.5;color:var(--ink-2)">#7D2B22 · 8.8:1<br>#E2907E · 7.4:1 (dark)</p>
+</div>
+</div>
+<div style="padding:1.1rem 0;border-bottom:1px solid var(--rule)">
+<p style="margin:0 0 .35rem;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)">Spacing · 0.5rem base</p>
+<p style="margin:0;font-family:var(--mono);font-size:var(--fs--1);line-height:1.55;color:var(--ink-2)">0.5 / 0.85 / 1.05 / 1.6 / 2.2 / 3rem<br><span style="color:var(--ink)">1.05em</span> between paragraphs, 2.2rem above an H2, 2.4rem to a section rule, 3rem to the footer</p>
+</div>
+<div style="padding:1.1rem 0;border-bottom:1px solid var(--rule)">
+<p style="margin:0 0 .35rem;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)">Structure</p>
+<p style="margin:0;font-size:var(--fs--1);line-height:1.5;color:var(--ink-2);text-wrap:pretty">One 1px hairline in <span style="font-family:var(--mono);font-size:.9em">--rule</span>. No cards, shadows, gradients, icons, pills, avatars or animation.</p>
+</div>
+</div>
+<p style="margin:2rem 0 0;max-width:40rem;font-size:var(--fs--1);line-height:1.55;color:var(--ink-2);text-wrap:pretty">Three notes for the build. The accent appears only on links and focus rings; the single exception is the failing colophon row, where the brief asks for a failure style and no second colour exists. The artboards below scale by container query units (<span style="font-family:var(--mono);font-size:.9em">cqw</span>) so both widths can sit side by side on one sheet; production swaps them for <span style="font-family:var(--mono);font-size:.9em">vw</span> in the same three clamps (gutter, title, portrait). Light and dark are selected here by a <span style="font-family:var(--mono);font-size:.9em">data-scheme</span> attribute for comparison only; production ships <span style="font-family:var(--mono);font-size:.9em">:root</span> plus one <span style="font-family:var(--mono);font-size:.9em">prefers-color-scheme: dark</span> override and no toggle.</p>
+</section>
+
+<!-- TYPE SPECIMEN -->
+<section style="display:flex;flex-direction:column;gap:14px">
+<p style="margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#F7F4EE">Type specimen · both faces · both schemes</p>
+<div style="display:flex;gap:32px">
+<div data-scheme="light" style="container-type:inline-size;width:624px;background:var(--paper);color:var(--ink);padding:36px 40px;box-sizing:border-box">
+<p style="margin:0 0 1.4rem;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)">Light</p>
+<div style="display:flex;flex-direction:column;gap:1rem">
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">58 · OG title</span><span style="font-family:var(--display);font-weight:500;font-size:var(--fs-5);line-height:1.02;letter-spacing:-.02em">Worth funding</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">46 · title, wide</span><span style="font-family:var(--display);font-weight:500;font-size:var(--fs-4);line-height:1.1;letter-spacing:-.015em">Radu Herinean</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">37 · title, phone</span><span style="font-family:var(--display);font-weight:500;font-size:var(--fs-3);line-height:1.12;letter-spacing:-.012em">Three questions</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">29.7 · H2</span><span style="font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18">Instrument the decision</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">23.8 · H3</span><span style="font-weight:600;font-size:var(--fs-1);line-height:1.25">Who owns the decision?</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">29.7 · both faces</span><span style="display:flex;flex-direction:column;gap:.1rem"><span style="font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.16">Guvernanță · funding</span><span style="font-size:var(--fs-2);line-height:1.16">Guvernanță · funding</span></span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">19 · body</span><span style="font-size:var(--fs-0);line-height:1.6;text-wrap:pretty">The demo is never the problem — it is the reason the question gets asked <em>badly</em>, and the reason a <a href="https://herinean.com">board approves</a> in twenty minutes.</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">19 · romanian</span><span lang="ro" style="font-size:var(--fs-0);line-height:1.6;text-wrap:pretty">„Șase întrebări despre guvernanță: ce înseamnă să deții o decizie?” — ăâîșțĂÂÎȘȚ</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">15.2 · meta</span><span style="font-size:var(--fs--1);color:var(--ink-2);font-variant-numeric:tabular-nums">27 Sep 2026 · 9 min read · <span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analysis</span> · 0123456789</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">12.2 · mono</span><span style="font-family:var(--mono);font-size:var(--fs--2);color:var(--ink-2)">precision_at_10 &gt;= 0.72 · ș ț ă â î</span></div>
+</div>
+</div>
+<div data-scheme="dark" style="container-type:inline-size;width:624px;background:var(--paper);color:var(--ink);padding:36px 40px;box-sizing:border-box">
+<p style="margin:0 0 1.4rem;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)">Dark</p>
+<div style="display:flex;flex-direction:column;gap:1rem">
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">58 · OG title</span><span style="font-family:var(--display);font-weight:500;font-size:var(--fs-5);line-height:1.02;letter-spacing:-.02em">Worth funding</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">46 · title, wide</span><span style="font-family:var(--display);font-weight:500;font-size:var(--fs-4);line-height:1.1;letter-spacing:-.015em">Radu Herinean</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">37 · title, phone</span><span style="font-family:var(--display);font-weight:500;font-size:var(--fs-3);line-height:1.12;letter-spacing:-.012em">Three questions</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">29.7 · H2</span><span style="font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18">Instrument the decision</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">23.8 · H3</span><span style="font-weight:600;font-size:var(--fs-1);line-height:1.25">Who owns the decision?</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">29.7 · both faces</span><span style="display:flex;flex-direction:column;gap:.1rem"><span style="font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.16">Guvernanță · funding</span><span style="font-size:var(--fs-2);line-height:1.16">Guvernanță · funding</span></span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">19 · body</span><span style="font-size:var(--fs-0);line-height:1.6;text-wrap:pretty">The demo is never the problem — it is the reason the question gets asked <em>badly</em>, and the reason a <a href="https://herinean.com">board approves</a> in twenty minutes.</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">19 · romanian</span><span lang="ro" style="font-size:var(--fs-0);line-height:1.6;text-wrap:pretty">„Șase întrebări despre guvernanță: ce înseamnă să deții o decizie?” — ăâîșțĂÂÎȘȚ</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:1rem"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">15.2 · meta</span><span style="font-size:var(--fs--1);color:var(--ink-2);font-variant-numeric:tabular-nums">27 Sep 2026 · 9 min read · <span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analysis</span> · 0123456789</span></div>
+<div style="display:flex;gap:1.2rem;align-items:baseline"><span style="flex:none;width:6.5rem;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">12.2 · mono</span><span style="font-family:var(--mono);font-size:var(--fs--2);color:var(--ink-2)">precision_at_10 &gt;= 0.72 · ș ț ă â î</span></div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- 1. MASTHEAD + FOOTER (shared) -->
+<section style="display:flex;flex-direction:column;gap:14px">
+<p style="margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#F7F4EE">1 · Masthead + footer, shared</p>
+<div style="display:flex;gap:32px;align-items:flex-start">
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#EDE9E2">390 · inner page</p>
+<div data-scheme="light" style="container-type:inline-size;width:390px;background:var(--paper);color:var(--ink);padding:20px 16px;box-sizing:border-box;font-size:var(--fs-0)">
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem 1.25rem">
+<a href="https://herinean.com" style="font-family:var(--display);font-size:var(--fs-1);font-weight:500;color:var(--ink);text-decoration:none">Radu Herinean</a>
+<nav style="display:flex;gap:1.15rem;font-size:var(--fs--1)"><a href="https://herinean.com/writing">Writing</a><a href="https://herinean.com/ro">Română</a></nav>
+</div>
+<div style="height:1px;background:var(--rule);margin-top:.85rem"></div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#EDE9E2">390 · home only, with positioning line</p>
+<div data-scheme="light" style="container-type:inline-size;width:390px;background:var(--paper);color:var(--ink);padding:20px 16px;box-sizing:border-box;font-size:var(--fs-0)">
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem 1.25rem">
+<a href="https://herinean.com" style="font-family:var(--display);font-size:var(--fs-2);font-weight:500;letter-spacing:-.015em;color:var(--ink);text-decoration:none">Radu Herinean</a>
+<nav style="display:flex;gap:1.15rem;font-size:var(--fs--1)"><a href="https://herinean.com/writing">Writing</a><a href="https://herinean.com/ro">Română</a></nav>
+</div>
+<p style="margin:.55rem 0 0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Practicing CTO. I ship AI in real businesses and write about which projects are worth funding.</p>
+<div style="height:1px;background:var(--rule);margin-top:1.1rem"></div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#EDE9E2">390 · footer, light + dark</p>
+<div data-scheme="light" style="container-type:inline-size;width:390px;background:var(--paper);color:var(--ink);padding:20px 16px;box-sizing:border-box;font-size:var(--fs-0)">
+<div style="height:1px;background:var(--rule);margin-bottom:.85rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:var(--fs--1)"><a href="https://www.linkedin.com/in/herinean">LinkedIn</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/feed.xml">RSS</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/colophon">Colophon</a></div>
+<p style="margin:.5rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">No JavaScript, no cookies, no trackers.</p>
+</div>
+<div data-scheme="dark" style="container-type:inline-size;width:390px;background:var(--paper);color:var(--ink);padding:20px 16px;box-sizing:border-box;font-size:var(--fs-0)">
+<div style="height:1px;background:var(--rule);margin-bottom:.85rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:var(--fs--1)"><a href="https://www.linkedin.com/in/herinean">LinkedIn</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/feed.xml">RSS</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/colophon">Colophon</a></div>
+<p style="margin:.5rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">No JavaScript, no cookies, no trackers.</p>
+</div>
+</div>
+</div>
+</section>
+
+<!-- ENTRY DENSITY A / B -->
+<section style="display:flex;flex-direction:column;gap:14px">
+<p style="margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#F7F4EE">Entry density · two options, B recommended</p>
+<div style="display:flex;gap:32px;align-items:flex-start">
+<div style="display:flex;flex-direction:column;gap:10px;width:390px">
+<p style="margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#EDE9E2">A · tight, no rules</p>
+<div data-scheme="light" style="container-type:inline-size;width:390px;background:var(--paper);color:var(--ink);padding:20px 16px;box-sizing:border-box;font-size:var(--fs-0)">
+<ol style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:1.1rem">
+<li>
+<p style="margin:0 0 .1rem;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">11 Oct 2026 · <span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analysis</span></p>
+<h3 style="margin:0;font-weight:600;font-size:var(--fs-0);line-height:1.32;text-wrap:balance"><a href="https://herinean.com/a" style="color:var(--accent)">Which AI projects are worth funding in 2027</a></h3>
+<p style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.45;text-wrap:pretty">A filter for boards: three questions that separate the projects that reach production from the ones that stay demos.</p>
+</li>
+<li>
+<p style="margin:0 0 .1rem;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">4 Oct 2026 · <span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">AI și guvernanță</span> · <span style="font-family:var(--mono);font-size:.72em;letter-spacing:.09em">RO</span></p>
+<h3 lang="ro" style="margin:0;font-weight:600;font-size:var(--fs-0);line-height:1.32;text-wrap:balance"><a href="https://herinean.com/b" style="color:var(--accent)">Ce ar trebui să întrebe un board despre AI înainte de a aproba bugetul</a></h3>
+<p lang="ro" style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.45;text-wrap:pretty">Cinci întrebări pe care le pun consiliilor de administrație înainte de orice discuție despre buget.</p>
+</li>
+<li>
+<p style="margin:0 0 .1rem;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">27 Sep 2026 · <span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Build log</span></p>
+<h3 style="margin:0;font-weight:600;font-size:var(--fs-0);line-height:1.32;text-wrap:balance"><a href="https://herinean.com/c" style="color:var(--accent)">The perfect platform for a specific purpose, built with AI</a></h3>
+<p style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.45;text-wrap:pretty">How this site was built: a 600-line generator, no JavaScript, and a scorecard it has to pass on every commit.</p>
+</li>
+</ol>
+</div>
+<p style="margin:0;color:#F2EFE9;font-size:13px;line-height:1.5;font-family:var(--serif)">Fits seven entries on a phone screen. The title sits at body size, so the list reads as one texture — faster to scan, weaker as an invitation.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;width:390px">
+<p style="margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#EDE9E2">B · hairline-separated <span style="color:#FFD9CF">— recommended</span></p>
+<div data-scheme="light" style="container-type:inline-size;width:390px;background:var(--paper);color:var(--ink);padding:20px 16px;box-sizing:border-box;font-size:var(--fs-0)">
+<ol style="margin:0;padding:0;list-style:none">
+<li style="border-top:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">11 Oct 2026 · <span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analysis</span></p>
+<h3 style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;letter-spacing:-.006em;text-wrap:balance"><a href="https://herinean.com/a" style="color:var(--accent)">Which AI projects are worth funding in 2027</a></h3>
+<p style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">A filter for boards: three questions that separate the projects that reach production from the ones that stay demos.</p>
+</li>
+<li style="border-top:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">4 Oct 2026 · <span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">AI și guvernanță</span> · <span style="font-family:var(--mono);font-size:.72em;letter-spacing:.09em">RO</span></p>
+<h3 lang="ro" style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;letter-spacing:-.006em;text-wrap:balance"><a href="https://herinean.com/b" style="color:var(--accent)">Ce ar trebui să întrebe un board despre AI înainte de a aproba bugetul</a></h3>
+<p lang="ro" style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Cinci întrebări pe care le pun consiliilor de administrație înainte de orice discuție despre buget.</p>
+</li>
+<li style="border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">27 Sep 2026 · <span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Build log</span></p>
+<h3 style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;letter-spacing:-.006em;text-wrap:balance"><a href="https://herinean.com/c" style="color:var(--accent)">The perfect platform for a specific purpose, built with AI</a></h3>
+<p style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">How this site was built: a 600-line generator, no JavaScript, and a scorecard it has to pass on every commit.</p>
+</li>
+</ol>
+</div>
+<p style="margin:0;color:#F2EFE9;font-size:13px;line-height:1.5;font-family:var(--serif)">Five entries on a phone screen. The display face at 23.8px makes each title an object, and the hairline is the same structural device used everywhere else. Use this on both Home and the index — one entry component, one density.</p>
+</div>
+</div>
+</section>
+
+<!-- 2. HOME -->
+<section style="display:flex;flex-direction:column;gap:14px">
+<p style="margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#F7F4EE">2 · Home</p>
+<div style="display:flex;gap:32px;align-items:flex-start">
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#EDE9E2">390 · light</p>
+<div id="shot-home-390" data-scheme="light" style="container-type:inline-size;width:390px;background:var(--paper)">
+<div lang="en" style="background:var(--paper);color:var(--ink);font-family:var(--serif);font-optical-sizing:auto;font-size:var(--fs-0);line-height:1.6;hyphens:auto;box-sizing:border-box;padding:clamp(1.25rem,3cqw,2.25rem) clamp(1rem,3cqw,1.5rem) 2.5rem">
+
+<header style="max-width:38rem;margin:0 auto">
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem 1.25rem">
+<a href="https://herinean.com" style="font-family:var(--display);font-size:clamp(var(--fs-2),5cqw,var(--fs-3));font-weight:500;letter-spacing:-.015em;line-height:1.1;color:var(--ink);text-decoration:none">Radu Herinean</a>
+<nav data-print-hide style="display:flex;gap:1.15rem;font-size:var(--fs--1)"><a href="https://herinean.com/writing">Writing</a><a href="https://herinean.com/ro">Română</a></nav>
+</div>
+<p style="margin:.55rem 0 0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;max-width:30rem;text-wrap:pretty">Practicing CTO. I ship AI in real businesses and write about which projects are worth funding.</p>
+<div style="height:1px;background:var(--rule);margin-top:1.1rem"></div>
+</header>
+
+<section style="max-width:38rem;margin:2rem auto 0">
+<div style="display:flex;flex-wrap:wrap;gap:1.2rem 1.4rem;align-items:flex-start">
+<div style="width:clamp(140px,13cqw,160px);flex:none">
+<div data-portrait style="aspect-ratio:1/1;background:var(--paper-2);display:flex;align-items:center;justify-content:center">
+<span style="font-family:var(--mono);font-size:var(--fs--2);letter-spacing:.06em;color:var(--ink-2);text-align:center;line-height:1.4">PHOTO:<br>portrait</span>
+</div>
+</div>
+<div style="flex:1 1 18rem;min-width:0">
+<p style="margin:0 0 1.05em;text-wrap:pretty">[Paragraph 1: current role and company, one sentence on what the company does, one on what he's responsible for.]</p>
+<p style="margin:0;text-wrap:pretty">[Paragraph 2: what he's been shipping — AI in production, in retail/e-commerce and agriculture — and the recurring question executives ask him.]</p>
+</div>
+</div>
+<p style="margin:1.05em 0;text-wrap:pretty">[Paragraph 3: what this site is: build logs, opportunity spotting, AI and governance, analysis; each in the language of its reader.]</p>
+<p style="margin:0;text-wrap:pretty">[Paragraph 4: one line linking Evolution Labs as one of the things he does; contact via <a href="https://www.linkedin.com/in/herinean">LinkedIn</a>.]</p>
+</section>
+
+<div style="max-width:38rem;margin:2.4rem auto 0;height:1px;background:var(--rule)"></div>
+
+<section style="max-width:38rem;margin:1.4rem auto 0">
+<h2 style="margin:0 0 .3rem;font-family:var(--serif);font-weight:600;font-size:var(--fs--1);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)">Latest</h2>
+
+<ol style="margin:0;padding:0;list-style:none">
+<li style="border-top:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<span>11 Oct 2026</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analysis</span>
+</p>
+<h3 style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;letter-spacing:-.006em;text-wrap:balance"><a href="https://herinean.com/ai-projects-worth-funding-2027" style="color:var(--accent)">Which AI projects are worth funding in 2027</a></h3>
+<p style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">A filter for boards: three questions that separate the projects that reach production from the ones that stay demos.</p>
+</li>
+
+<li style="border-top:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<span>4 Oct 2026</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">AI și guvernanță</span><span aria-hidden="true">·</span><span lang="en" style="font-family:var(--mono);font-size:.72em;letter-spacing:.09em">RO</span>
+</p>
+<h3 lang="ro" style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;letter-spacing:-.006em;text-wrap:balance"><a href="https://herinean.com/ro/intrebari-board-buget-ai" style="color:var(--accent)">Ce ar trebui să întrebe un board despre AI înainte de a aproba bugetul</a></h3>
+<p lang="ro" style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Cinci întrebări pe care le pun consiliilor de administrație înainte de orice discuție despre buget.</p>
+</li>
+
+<li style="border-top:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<span>27 Sep 2026</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Build log</span>
+</p>
+<h3 style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;letter-spacing:-.006em;text-wrap:balance"><a href="https://herinean.com/perfect-platform-specific-purpose" style="color:var(--accent)">The perfect platform for a specific purpose, built with AI</a></h3>
+<p style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">How this site was built: a 600-line generator, no JavaScript, and a scorecard it has to pass on every commit.</p>
+</li>
+
+<li style="border-top:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<span>20 Sep 2026</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Opportunity</span>
+</p>
+<h3 style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;letter-spacing:-.006em;text-wrap:balance"><a href="https://herinean.com/unglamorous-ai-opportunity-retail" style="color:var(--accent)">The unglamorous AI opportunity in retail operations</a></h3>
+<p style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Where the money is in retail AI, and why it isn't the chatbot.</p>
+</li>
+
+<li style="border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<span>13 Sep 2026</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analiză</span><span aria-hidden="true">·</span><span lang="en" style="font-family:var(--mono);font-size:.72em;letter-spacing:.09em">RO</span>
+</p>
+<h3 lang="ro" style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;letter-spacing:-.006em;text-wrap:balance"><a href="https://herinean.com/ro/piloti-ai-cee-productie" style="color:var(--accent)">De ce majoritatea pilotelor AI din CEE nu ajung în producție</a></h3>
+<p lang="ro" style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Un tipar din trei ani de proiecte: problema nu e modelul, e cine deține decizia.</p>
+</li>
+</ol>
+
+<p style="margin:1.2rem 0 0;font-size:var(--fs--1)"><a href="https://herinean.com/writing">All writing →</a></p>
+</section>
+
+<footer data-print-hide style="max-width:38rem;margin:3rem auto 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.85rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:var(--fs--1)"><a href="https://www.linkedin.com/in/herinean">LinkedIn</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/feed.xml">RSS</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/colophon">Colophon</a></div>
+<p style="margin:.5rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">No JavaScript, no cookies, no trackers.</p>
+</footer>
+</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#EDE9E2">1280 · light</p>
+<div id="shot-home-1280" data-scheme="light" style="container-type:inline-size;width:1280px;background:var(--paper)">
+<div lang="en" style="background:var(--paper);color:var(--ink);font-family:var(--serif);font-optical-sizing:auto;font-size:var(--fs-0);line-height:1.6;hyphens:auto;box-sizing:border-box;padding:clamp(1.25rem,3cqw,2.25rem) clamp(1rem,3cqw,1.5rem) 2.5rem">
+
+<header style="max-width:38rem;margin:0 auto">
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem 1.25rem">
+<a href="https://herinean.com" style="font-family:var(--display);font-size:clamp(var(--fs-2),5cqw,var(--fs-3));font-weight:500;letter-spacing:-.015em;line-height:1.1;color:var(--ink);text-decoration:none">Radu Herinean</a>
+<nav data-print-hide style="display:flex;gap:1.15rem;font-size:var(--fs--1)"><a href="https://herinean.com/writing">Writing</a><a href="https://herinean.com/ro">Română</a></nav>
+</div>
+<p style="margin:.55rem 0 0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;max-width:30rem;text-wrap:pretty">Practicing CTO. I ship AI in real businesses and write about which projects are worth funding.</p>
+<div style="height:1px;background:var(--rule);margin-top:1.1rem"></div>
+</header>
+
+<section style="max-width:38rem;margin:2rem auto 0">
+<div style="display:flex;flex-wrap:wrap;gap:1.2rem 1.4rem;align-items:flex-start">
+<div style="width:clamp(140px,13cqw,160px);flex:none">
+<div data-portrait style="aspect-ratio:1/1;background:var(--paper-2);display:flex;align-items:center;justify-content:center">
+<span style="font-family:var(--mono);font-size:var(--fs--2);letter-spacing:.06em;color:var(--ink-2);text-align:center;line-height:1.4">PHOTO:<br>portrait</span>
+</div>
+</div>
+<div style="flex:1 1 18rem;min-width:0">
+<p style="margin:0 0 1.05em;text-wrap:pretty">[Paragraph 1: current role and company, one sentence on what the company does, one on what he's responsible for.]</p>
+<p style="margin:0;text-wrap:pretty">[Paragraph 2: what he's been shipping — AI in production, in retail/e-commerce and agriculture — and the recurring question executives ask him.]</p>
+</div>
+</div>
+<p style="margin:1.05em 0;text-wrap:pretty">[Paragraph 3: what this site is: build logs, opportunity spotting, AI and governance, analysis; each in the language of its reader.]</p>
+<p style="margin:0;text-wrap:pretty">[Paragraph 4: one line linking Evolution Labs as one of the things he does; contact via <a href="https://www.linkedin.com/in/herinean">LinkedIn</a>.]</p>
+</section>
+
+<div style="max-width:38rem;margin:2.4rem auto 0;height:1px;background:var(--rule)"></div>
+
+<section style="max-width:38rem;margin:1.4rem auto 0">
+<h2 style="margin:0 0 .3rem;font-family:var(--serif);font-weight:600;font-size:var(--fs--1);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)">Latest</h2>
+
+<ol style="margin:0;padding:0;list-style:none">
+<li style="border-top:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<span>11 Oct 2026</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analysis</span>
+</p>
+<h3 style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;letter-spacing:-.006em;text-wrap:balance"><a href="https://herinean.com/ai-projects-worth-funding-2027" style="color:var(--accent)">Which AI projects are worth funding in 2027</a></h3>
+<p style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">A filter for boards: three questions that separate the projects that reach production from the ones that stay demos.</p>
+</li>
+
+<li style="border-top:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<span>4 Oct 2026</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">AI și guvernanță</span><span aria-hidden="true">·</span><span lang="en" style="font-family:var(--mono);font-size:.72em;letter-spacing:.09em">RO</span>
+</p>
+<h3 lang="ro" style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;letter-spacing:-.006em;text-wrap:balance"><a href="https://herinean.com/ro/intrebari-board-buget-ai" style="color:var(--accent)">Ce ar trebui să întrebe un board despre AI înainte de a aproba bugetul</a></h3>
+<p lang="ro" style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Cinci întrebări pe care le pun consiliilor de administrație înainte de orice discuție despre buget.</p>
+</li>
+
+<li style="border-top:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<span>27 Sep 2026</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Build log</span>
+</p>
+<h3 style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;letter-spacing:-.006em;text-wrap:balance"><a href="https://herinean.com/perfect-platform-specific-purpose" style="color:var(--accent)">The perfect platform for a specific purpose, built with AI</a></h3>
+<p style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">How this site was built: a 600-line generator, no JavaScript, and a scorecard it has to pass on every commit.</p>
+</li>
+
+<li style="border-top:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<span>20 Sep 2026</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Opportunity</span>
+</p>
+<h3 style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;letter-spacing:-.006em;text-wrap:balance"><a href="https://herinean.com/unglamorous-ai-opportunity-retail" style="color:var(--accent)">The unglamorous AI opportunity in retail operations</a></h3>
+<p style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Where the money is in retail AI, and why it isn't the chatbot.</p>
+</li>
+
+<li style="border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<span>13 Sep 2026</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analiză</span><span aria-hidden="true">·</span><span lang="en" style="font-family:var(--mono);font-size:.72em;letter-spacing:.09em">RO</span>
+</p>
+<h3 lang="ro" style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;letter-spacing:-.006em;text-wrap:balance"><a href="https://herinean.com/ro/piloti-ai-cee-productie" style="color:var(--accent)">De ce majoritatea pilotelor AI din CEE nu ajung în producție</a></h3>
+<p lang="ro" style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Un tipar din trei ani de proiecte: problema nu e modelul, e cine deține decizia.</p>
+</li>
+</ol>
+
+<p style="margin:1.2rem 0 0;font-size:var(--fs--1)"><a href="https://herinean.com/writing">All writing →</a></p>
+</section>
+
+<footer data-print-hide style="max-width:38rem;margin:3rem auto 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.85rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:var(--fs--1)"><a href="https://www.linkedin.com/in/herinean">LinkedIn</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/feed.xml">RSS</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/colophon">Colophon</a></div>
+<p style="margin:.5rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">No JavaScript, no cookies, no trackers.</p>
+</footer>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- 3. WRITING INDEX -->
+<section style="display:flex;flex-direction:column;gap:14px">
+<p style="margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#F7F4EE">3 · Writing index</p>
+<div style="display:flex;gap:32px;align-items:flex-start">
+<div data-scheme="light" style="container-type:inline-size;width:390px;background:var(--paper);color:var(--ink);box-sizing:border-box;padding:20px 16px 40px;font-size:var(--fs-0);line-height:1.6;hyphens:auto">
+<header style="max-width:38rem;margin:0 auto">
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem 1.25rem">
+<a href="https://herinean.com" style="font-family:var(--display);font-size:var(--fs-1);font-weight:500;color:var(--ink);text-decoration:none">Radu Herinean</a>
+<nav style="display:flex;gap:1.15rem;font-size:var(--fs--1)"><a href="https://herinean.com/writing">Writing</a><a href="https://herinean.com/ro">Română</a></nav>
+</div>
+<div style="height:1px;background:var(--rule);margin-top:.85rem"></div>
+</header>
+<h1 style="margin:1.8rem 0 1.6rem;font-family:var(--display);font-weight:500;font-size:var(--fs-3);line-height:1.1;letter-spacing:-.012em">Writing</h1>
+
+<h2 style="margin:0 0 .1rem;font-family:var(--mono);font-size:var(--fs--1);letter-spacing:.14em;color:var(--ink-2);font-variant-numeric:tabular-nums">2026</h2>
+<ol style="margin:0 0 2rem;padding:0;list-style:none">
+<li style="border-top:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">11 Oct · <span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analysis</span></p>
+<h3 style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;text-wrap:balance"><a href="https://herinean.com/a" style="color:var(--accent)">Which AI projects are worth funding in 2027</a></h3>
+<p style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">A filter for boards: three questions that separate the projects that reach production from the ones that stay demos.</p>
+</li>
+<li style="border-top:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">4 Oct · <span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">AI și guvernanță</span> · <span style="font-family:var(--mono);font-size:.72em;letter-spacing:.09em">RO</span></p>
+<h3 lang="ro" style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;text-wrap:balance"><a href="https://herinean.com/b" style="color:var(--accent)">Ce ar trebui să întrebe un board despre AI înainte de a aproba bugetul</a></h3>
+<p lang="ro" style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Cinci întrebări pe care le pun consiliilor de administrație înainte de orice discuție despre buget.</p>
+</li>
+<li style="border-top:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">27 Sep · <span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Build log</span></p>
+<h3 style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;text-wrap:balance"><a href="https://herinean.com/c" style="color:var(--accent)">The perfect platform for a specific purpose, built with AI</a></h3>
+<p style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">How this site was built: a 600-line generator, no JavaScript, and a scorecard it has to pass on every commit.</p>
+</li>
+<li style="border-top:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">20 Sep · <span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Opportunity</span></p>
+<h3 style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;text-wrap:balance"><a href="https://herinean.com/d" style="color:var(--accent)">The unglamorous AI opportunity in retail operations</a></h3>
+<p style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Where the money is in retail AI, and why it isn't the chatbot.</p>
+</li>
+<li style="border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">13 Sep · <span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analiză</span> · <span style="font-family:var(--mono);font-size:.72em;letter-spacing:.09em">RO</span></p>
+<h3 lang="ro" style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;text-wrap:balance"><a href="https://herinean.com/e" style="color:var(--accent)">De ce majoritatea pilotelor AI din CEE nu ajung în producție</a></h3>
+<p lang="ro" style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Un tipar din trei ani de proiecte: problema nu e modelul, e cine deține decizia.</p>
+</li>
+</ol>
+
+<h2 style="margin:0 0 .1rem;font-family:var(--mono);font-size:var(--fs--1);letter-spacing:.14em;color:var(--ink-2);font-variant-numeric:tabular-nums">2025</h2>
+<ol style="margin:0;padding:0;list-style:none">
+<li style="border-top:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">2 Dec · <span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Build log</span></p>
+<h3 style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;text-wrap:balance"><a href="https://herinean.com/f" style="color:var(--accent)">[2025 entry: title placeholder, two lines at this measure]</a></h3>
+<p style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">[One-line summary placeholder — kept to a single sentence everywhere.]</p>
+</li>
+<li style="border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:1rem 0 1.05rem">
+<p style="margin:0 0 .3rem;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums">14 Oct · <span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analiză</span> · <span style="font-family:var(--mono);font-size:.72em;letter-spacing:.09em">RO</span></p>
+<h3 lang="ro" style="margin:0 0 .25rem;font-family:var(--display);font-weight:500;font-size:var(--fs-1);line-height:1.22;text-wrap:balance"><a href="https://herinean.com/g" style="color:var(--accent)">[Intrare 2025: titlu substituent, cu diacritice ș ț ă â î]</a></h3>
+<p lang="ro" style="margin:0;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">[Sumar de o linie — substituent.]</p>
+</li>
+</ol>
+
+<footer style="max-width:38rem;margin:2.6rem auto 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.85rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:var(--fs--1)"><a href="https://www.linkedin.com/in/herinean">LinkedIn</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/feed.xml">RSS</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/colophon">Colophon</a></div>
+<p style="margin:.5rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">No JavaScript, no cookies, no trackers.</p>
+</footer>
+</div>
+<p style="margin:0;width:340px;color:#F2EFE9;font-size:13px;line-height:1.55;font-family:var(--serif)">Year headings are set in the mono face at meta size, letter-spaced — they are labels, not titles, and the eye skips them on the way down. Dates lose the year inside a year group. Nothing else changes between Home's Latest list and the index; it is the same entry component.</p>
+</div>
+</section>
+
+<!-- 4. PIECE — ENGLISH -->
+<section style="display:flex;flex-direction:column;gap:14px">
+<p style="margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#F7F4EE">4 · Piece, English</p>
+<div style="display:flex;gap:32px;align-items:flex-start">
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#EDE9E2">390 · light</p>
+<div id="shot-piece-390-light" data-scheme="light" style="container-type:inline-size;width:390px;background:var(--paper)">
+<div lang="en" style="background:var(--paper);color:var(--ink);font-family:var(--serif);font-optical-sizing:auto;font-size:var(--fs-0);line-height:1.6;hyphens:auto;box-sizing:border-box;padding:clamp(1.25rem,3cqw,2.25rem) clamp(1rem,3cqw,1.5rem) 2.5rem">
+
+<header data-print-hide style="max-width:38rem;margin:0 auto">
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem 1.25rem">
+<a href="https://herinean.com" style="font-family:var(--display);font-size:var(--fs-1);font-weight:500;color:var(--ink);text-decoration:none">Radu Herinean</a>
+<nav style="display:flex;gap:1.15rem;font-size:var(--fs--1)"><a href="https://herinean.com/writing">Writing</a><a href="https://herinean.com/ro">Română</a></nav>
+</div>
+<div style="height:1px;background:var(--rule);margin-top:.85rem"></div>
+</header>
+
+<article style="max-width:38rem;margin:0 auto">
+<p style="margin:1.9rem 0 1.1rem;font-size:var(--fs--1)"><a href="https://herinean.com/ro/proiecte-ai-finantabile-2027">Citește în română →</a></p>
+
+<h1 style="margin:0;font-family:var(--display);font-weight:500;font-size:clamp(2.319rem,7.2cqw,2.899rem);line-height:1.1;letter-spacing:-.012em;text-wrap:balance">Which AI projects are worth funding in 2027</h1>
+
+<p style="margin:.9rem 0 0;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline">
+<span>27 Sep 2026</span><span aria-hidden="true">·</span><span>Updated 3 Oct 2026</span><span aria-hidden="true">·</span><span>9 min read</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analysis</span>
+</p>
+<div style="height:1px;background:var(--rule);margin:1.4rem 0 1.9rem"></div>
+
+<p style="margin:0 0 1.05em;text-wrap:pretty">A board can approve an AI budget in twenty minutes and then spend two years finding out whether the project was fundable. The demo is never the problem. The demo is the reason the question gets asked badly.</p>
+<p style="margin:0 0 1.05em;text-wrap:pretty">I run engineering for a company that puts AI into retail and agricultural operations, so I see both ends: the pitch, and the third quarter after the pitch. What separates the projects that reach production from the ones that stay demos is not model quality. It is three unglamorous properties, and all three are visible before any money moves.</p>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">Three questions</h2>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Ask them in order. A project that fails the first one cannot be rescued by the other two.</p>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">1. Who owns the decision?</h3>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Every AI project changes a decision somebody is already accountable for — what to restock, which claim to review first, which field to spray. If the owner of that decision is not in the room when the project is scoped, the model will be built to produce an output nobody is permitted to act on.</p>
+
+<blockquote style="margin:1.7rem 0;padding-left:1.1rem;border-left:1px solid var(--rule);font-family:var(--display);font-size:var(--fs-1);line-height:1.35;font-style:italic;color:var(--ink);text-wrap:pretty">A model nobody is accountable for acting on is a reporting tool with a research budget.</blockquote>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">2. What does the model replace?</h3>
+<p style="margin:0 0 .9em;text-wrap:pretty">There are only three honest answers, and they price very differently.</p>
+<ul style="margin:0 0 1.05em;padding-left:1.15rem;display:flex;flex-direction:column;gap:.5em">
+<li style="text-wrap:pretty">A judgement made today by an expert, under time pressure, on incomplete data. <em>Fundable.</em></li>
+<li style="text-wrap:pretty">A judgement made today by nobody, because there is no time to make it at all. <em>Fundable, and usually cheaper than it looks.</em></li>
+<li style="text-wrap:pretty">A process that exists only in a slide. <em>Not fundable yet</em> — fund the process first.</li>
+</ul>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">3. What happens on a bad day?</h3>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Ask for the failure mode in plain words. “The model ranks the wrong three stores first and a regional manager loses a week” is an answer you can budget against. If nobody can describe the bad day, the project has not been thought about operationally, and the pilot will end in a disagreement about whether it worked.</p>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">What it looks like in a portfolio</h2>
+<div style="overflow-x:auto;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);margin:0 0 .7rem">
+<table style="border-collapse:collapse;min-width:34rem;width:100%;font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<thead><tr>
+<th style="text-align:left;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Project</th>
+<th style="text-align:left;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Stage</th>
+<th style="text-align:right;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Cost / decision</th>
+<th style="text-align:left;padding:.6rem 0 .55rem;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Decision owner</th>
+</tr></thead>
+<tbody>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Restock priority</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Production</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">€0.004</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Regional ops</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Invoice triage</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Production</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">€0.011</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Finance lead</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Yield forecast</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Pilot</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">€0.38</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Agronomy</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0">Support assistant</td><td style="padding:.55rem .8rem .55rem 0">Paused</td><td style="padding:.55rem .8rem .55rem 0;text-align:right">—</td><td style="padding:.55rem 0">None</td></tr>
+</tbody>
+</table>
+</div>
+<p style="margin:0 0 1.05em;color:var(--ink-2);font-size:var(--fs--1);text-wrap:pretty">The column that predicts the outcome is the last one, not the third.</p>
+
+<figure style="margin:1.9rem 0">
+<div style="border:1px solid var(--rule);background:var(--paper-2);aspect-ratio:16/9;display:flex;align-items:center;justify-content:center">
+<span style="font-family:var(--mono);font-size:var(--fs--2);letter-spacing:.08em;color:var(--ink-2);text-align:center;padding:1rem">FIGURE: pilot → production funnel, 2023–2026</span>
+</div>
+<figcaption style="margin-top:.6rem;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Of 41 pilots reviewed between 2023 and 2026, nine reached production. Placeholder; real chart at build.</figcaption>
+</figure>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">Instrument the decision, not the model</h2>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Whatever gets funded, tie the release gate to the decision it changes. A scorecard the project has to pass on every deploy keeps the monthly review concrete:</p>
+<pre style="margin:0 0 1.05em;border:1px solid var(--rule);background:var(--paper-2);padding:.9rem 1rem;overflow-x:auto;font-family:var(--mono);font-size:.82em;line-height:1.55"><code>decision: restock_priority
+owner:    ops.regional_manager
+baseline: manual_ranking_2025_q3
+gate:
+  precision_at_10: ">= 0.72"
+  latency_p95_ms:  "&lt; 900"
+  override_rate:   "&lt; 0.25"   # disagreement is signal</code></pre>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Three numbers, reviewed monthly, in language the decision owner can argue with.<a href="#fn1" id="fnref1" style="font-size:.75em;vertical-align:.45em;text-decoration-thickness:.04em">1</a></p>
+
+<section style="margin:2.4rem 0 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.9rem"></div>
+<h2 style="margin:0 0 .6rem;font-family:var(--serif);font-weight:600;font-size:var(--fs--1);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)">Notes</h2>
+<ol style="margin:0;padding-left:1.15rem;font-size:var(--fs--1);line-height:1.55;color:var(--ink)">
+<li id="fn1" style="text-wrap:pretty">The override rate matters most. Above a quarter, the model is being ignored, whatever the accuracy says. <a href="#fnref1" style="text-decoration:none">↩</a></li>
+</ol>
+</section>
+
+<p style="margin:2.2rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">Also on <a href="https://www.linkedin.com/in/herinean">LinkedIn</a> · <a href="https://medium.com/@herinean">Medium</a></p>
+
+<div style="height:1px;background:var(--rule);margin:1.5rem 0 .9rem"></div>
+<p style="margin:0;font-size:var(--fs--1);line-height:1.55">Radu Herinean — CTO. <a href="https://www.linkedin.com/in/herinean">LinkedIn</a></p>
+</article>
+
+<footer data-print-hide style="max-width:38rem;margin:2.6rem auto 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.85rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:var(--fs--1)"><a href="https://www.linkedin.com/in/herinean">LinkedIn</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/feed.xml">RSS</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/colophon">Colophon</a></div>
+<p style="margin:.5rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">No JavaScript, no cookies, no trackers.</p>
+</footer>
+</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#EDE9E2">390 · dark</p>
+<div id="shot-piece-390-dark" data-scheme="dark" style="container-type:inline-size;width:390px;background:var(--paper)">
+<div lang="en" style="background:var(--paper);color:var(--ink);font-family:var(--serif);font-optical-sizing:auto;font-size:var(--fs-0);line-height:1.6;hyphens:auto;box-sizing:border-box;padding:clamp(1.25rem,3cqw,2.25rem) clamp(1rem,3cqw,1.5rem) 2.5rem">
+
+<header data-print-hide style="max-width:38rem;margin:0 auto">
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem 1.25rem">
+<a href="https://herinean.com" style="font-family:var(--display);font-size:var(--fs-1);font-weight:500;color:var(--ink);text-decoration:none">Radu Herinean</a>
+<nav style="display:flex;gap:1.15rem;font-size:var(--fs--1)"><a href="https://herinean.com/writing">Writing</a><a href="https://herinean.com/ro">Română</a></nav>
+</div>
+<div style="height:1px;background:var(--rule);margin-top:.85rem"></div>
+</header>
+
+<article style="max-width:38rem;margin:0 auto">
+<p style="margin:1.9rem 0 1.1rem;font-size:var(--fs--1)"><a href="https://herinean.com/ro/proiecte-ai-finantabile-2027">Citește în română →</a></p>
+
+<h1 style="margin:0;font-family:var(--display);font-weight:500;font-size:clamp(2.319rem,7.2cqw,2.899rem);line-height:1.1;letter-spacing:-.012em;text-wrap:balance">Which AI projects are worth funding in 2027</h1>
+
+<p style="margin:.9rem 0 0;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline">
+<span>27 Sep 2026</span><span aria-hidden="true">·</span><span>Updated 3 Oct 2026</span><span aria-hidden="true">·</span><span>9 min read</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analysis</span>
+</p>
+<div style="height:1px;background:var(--rule);margin:1.4rem 0 1.9rem"></div>
+
+<p style="margin:0 0 1.05em;text-wrap:pretty">A board can approve an AI budget in twenty minutes and then spend two years finding out whether the project was fundable. The demo is never the problem. The demo is the reason the question gets asked badly.</p>
+<p style="margin:0 0 1.05em;text-wrap:pretty">I run engineering for a company that puts AI into retail and agricultural operations, so I see both ends: the pitch, and the third quarter after the pitch. What separates the projects that reach production from the ones that stay demos is not model quality. It is three unglamorous properties, and all three are visible before any money moves.</p>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">Three questions</h2>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Ask them in order. A project that fails the first one cannot be rescued by the other two.</p>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">1. Who owns the decision?</h3>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Every AI project changes a decision somebody is already accountable for — what to restock, which claim to review first, which field to spray. If the owner of that decision is not in the room when the project is scoped, the model will be built to produce an output nobody is permitted to act on.</p>
+
+<blockquote style="margin:1.7rem 0;padding-left:1.1rem;border-left:1px solid var(--rule);font-family:var(--display);font-size:var(--fs-1);line-height:1.35;font-style:italic;color:var(--ink);text-wrap:pretty">A model nobody is accountable for acting on is a reporting tool with a research budget.</blockquote>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">2. What does the model replace?</h3>
+<p style="margin:0 0 .9em;text-wrap:pretty">There are only three honest answers, and they price very differently.</p>
+<ul style="margin:0 0 1.05em;padding-left:1.15rem;display:flex;flex-direction:column;gap:.5em">
+<li style="text-wrap:pretty">A judgement made today by an expert, under time pressure, on incomplete data. <em>Fundable.</em></li>
+<li style="text-wrap:pretty">A judgement made today by nobody, because there is no time to make it at all. <em>Fundable, and usually cheaper than it looks.</em></li>
+<li style="text-wrap:pretty">A process that exists only in a slide. <em>Not fundable yet</em> — fund the process first.</li>
+</ul>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">3. What happens on a bad day?</h3>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Ask for the failure mode in plain words. “The model ranks the wrong three stores first and a regional manager loses a week” is an answer you can budget against. If nobody can describe the bad day, the project has not been thought about operationally, and the pilot will end in a disagreement about whether it worked.</p>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">What it looks like in a portfolio</h2>
+<div style="overflow-x:auto;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);margin:0 0 .7rem">
+<table style="border-collapse:collapse;min-width:34rem;width:100%;font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<thead><tr>
+<th style="text-align:left;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Project</th>
+<th style="text-align:left;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Stage</th>
+<th style="text-align:right;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Cost / decision</th>
+<th style="text-align:left;padding:.6rem 0 .55rem;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Decision owner</th>
+</tr></thead>
+<tbody>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Restock priority</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Production</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">€0.004</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Regional ops</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Invoice triage</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Production</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">€0.011</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Finance lead</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Yield forecast</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Pilot</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">€0.38</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Agronomy</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0">Support assistant</td><td style="padding:.55rem .8rem .55rem 0">Paused</td><td style="padding:.55rem .8rem .55rem 0;text-align:right">—</td><td style="padding:.55rem 0">None</td></tr>
+</tbody>
+</table>
+</div>
+<p style="margin:0 0 1.05em;color:var(--ink-2);font-size:var(--fs--1);text-wrap:pretty">The column that predicts the outcome is the last one, not the third.</p>
+
+<figure style="margin:1.9rem 0">
+<div style="border:1px solid var(--rule);background:var(--paper-2);aspect-ratio:16/9;display:flex;align-items:center;justify-content:center">
+<span style="font-family:var(--mono);font-size:var(--fs--2);letter-spacing:.08em;color:var(--ink-2);text-align:center;padding:1rem">FIGURE: pilot → production funnel, 2023–2026</span>
+</div>
+<figcaption style="margin-top:.6rem;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Of 41 pilots reviewed between 2023 and 2026, nine reached production. Placeholder; real chart at build.</figcaption>
+</figure>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">Instrument the decision, not the model</h2>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Whatever gets funded, tie the release gate to the decision it changes. A scorecard the project has to pass on every deploy keeps the monthly review concrete:</p>
+<pre style="margin:0 0 1.05em;border:1px solid var(--rule);background:var(--paper-2);padding:.9rem 1rem;overflow-x:auto;font-family:var(--mono);font-size:.82em;line-height:1.55"><code>decision: restock_priority
+owner:    ops.regional_manager
+baseline: manual_ranking_2025_q3
+gate:
+  precision_at_10: ">= 0.72"
+  latency_p95_ms:  "&lt; 900"
+  override_rate:   "&lt; 0.25"   # disagreement is signal</code></pre>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Three numbers, reviewed monthly, in language the decision owner can argue with.<a href="#fn1" id="fnref1" style="font-size:.75em;vertical-align:.45em;text-decoration-thickness:.04em">1</a></p>
+
+<section style="margin:2.4rem 0 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.9rem"></div>
+<h2 style="margin:0 0 .6rem;font-family:var(--serif);font-weight:600;font-size:var(--fs--1);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)">Notes</h2>
+<ol style="margin:0;padding-left:1.15rem;font-size:var(--fs--1);line-height:1.55;color:var(--ink)">
+<li id="fn1" style="text-wrap:pretty">The override rate matters most. Above a quarter, the model is being ignored, whatever the accuracy says. <a href="#fnref1" style="text-decoration:none">↩</a></li>
+</ol>
+</section>
+
+<p style="margin:2.2rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">Also on <a href="https://www.linkedin.com/in/herinean">LinkedIn</a> · <a href="https://medium.com/@herinean">Medium</a></p>
+
+<div style="height:1px;background:var(--rule);margin:1.5rem 0 .9rem"></div>
+<p style="margin:0;font-size:var(--fs--1);line-height:1.55">Radu Herinean — CTO. <a href="https://www.linkedin.com/in/herinean">LinkedIn</a></p>
+</article>
+
+<footer data-print-hide style="max-width:38rem;margin:2.6rem auto 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.85rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:var(--fs--1)"><a href="https://www.linkedin.com/in/herinean">LinkedIn</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/feed.xml">RSS</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/colophon">Colophon</a></div>
+<p style="margin:.5rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">No JavaScript, no cookies, no trackers.</p>
+</footer>
+</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#EDE9E2">1280 · light</p>
+<div id="shot-piece-1280-light" data-scheme="light" style="container-type:inline-size;width:1280px;background:var(--paper)">
+<div lang="en" style="background:var(--paper);color:var(--ink);font-family:var(--serif);font-optical-sizing:auto;font-size:var(--fs-0);line-height:1.6;hyphens:auto;box-sizing:border-box;padding:clamp(1.25rem,3cqw,2.25rem) clamp(1rem,3cqw,1.5rem) 2.5rem">
+
+<header data-print-hide style="max-width:38rem;margin:0 auto">
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem 1.25rem">
+<a href="https://herinean.com" style="font-family:var(--display);font-size:var(--fs-1);font-weight:500;color:var(--ink);text-decoration:none">Radu Herinean</a>
+<nav style="display:flex;gap:1.15rem;font-size:var(--fs--1)"><a href="https://herinean.com/writing">Writing</a><a href="https://herinean.com/ro">Română</a></nav>
+</div>
+<div style="height:1px;background:var(--rule);margin-top:.85rem"></div>
+</header>
+
+<article style="max-width:38rem;margin:0 auto">
+<p style="margin:1.9rem 0 1.1rem;font-size:var(--fs--1)"><a href="https://herinean.com/ro/proiecte-ai-finantabile-2027">Citește în română →</a></p>
+
+<h1 style="margin:0;font-family:var(--display);font-weight:500;font-size:clamp(2.319rem,7.2cqw,2.899rem);line-height:1.1;letter-spacing:-.012em;text-wrap:balance">Which AI projects are worth funding in 2027</h1>
+
+<p style="margin:.9rem 0 0;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline">
+<span>27 Sep 2026</span><span aria-hidden="true">·</span><span>Updated 3 Oct 2026</span><span aria-hidden="true">·</span><span>9 min read</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analysis</span>
+</p>
+<div style="height:1px;background:var(--rule);margin:1.4rem 0 1.9rem"></div>
+
+<p style="margin:0 0 1.05em;text-wrap:pretty">A board can approve an AI budget in twenty minutes and then spend two years finding out whether the project was fundable. The demo is never the problem. The demo is the reason the question gets asked badly.</p>
+<p style="margin:0 0 1.05em;text-wrap:pretty">I run engineering for a company that puts AI into retail and agricultural operations, so I see both ends: the pitch, and the third quarter after the pitch. What separates the projects that reach production from the ones that stay demos is not model quality. It is three unglamorous properties, and all three are visible before any money moves.</p>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">Three questions</h2>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Ask them in order. A project that fails the first one cannot be rescued by the other two.</p>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">1. Who owns the decision?</h3>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Every AI project changes a decision somebody is already accountable for — what to restock, which claim to review first, which field to spray. If the owner of that decision is not in the room when the project is scoped, the model will be built to produce an output nobody is permitted to act on.</p>
+
+<blockquote style="margin:1.7rem 0;padding-left:1.1rem;border-left:1px solid var(--rule);font-family:var(--display);font-size:var(--fs-1);line-height:1.35;font-style:italic;color:var(--ink);text-wrap:pretty">A model nobody is accountable for acting on is a reporting tool with a research budget.</blockquote>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">2. What does the model replace?</h3>
+<p style="margin:0 0 .9em;text-wrap:pretty">There are only three honest answers, and they price very differently.</p>
+<ul style="margin:0 0 1.05em;padding-left:1.15rem;display:flex;flex-direction:column;gap:.5em">
+<li style="text-wrap:pretty">A judgement made today by an expert, under time pressure, on incomplete data. <em>Fundable.</em></li>
+<li style="text-wrap:pretty">A judgement made today by nobody, because there is no time to make it at all. <em>Fundable, and usually cheaper than it looks.</em></li>
+<li style="text-wrap:pretty">A process that exists only in a slide. <em>Not fundable yet</em> — fund the process first.</li>
+</ul>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">3. What happens on a bad day?</h3>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Ask for the failure mode in plain words. “The model ranks the wrong three stores first and a regional manager loses a week” is an answer you can budget against. If nobody can describe the bad day, the project has not been thought about operationally, and the pilot will end in a disagreement about whether it worked.</p>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">What it looks like in a portfolio</h2>
+<div style="overflow-x:auto;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);margin:0 0 .7rem">
+<table style="border-collapse:collapse;min-width:34rem;width:100%;font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<thead><tr>
+<th style="text-align:left;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Project</th>
+<th style="text-align:left;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Stage</th>
+<th style="text-align:right;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Cost / decision</th>
+<th style="text-align:left;padding:.6rem 0 .55rem;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Decision owner</th>
+</tr></thead>
+<tbody>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Restock priority</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Production</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">€0.004</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Regional ops</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Invoice triage</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Production</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">€0.011</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Finance lead</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Yield forecast</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Pilot</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">€0.38</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Agronomy</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0">Support assistant</td><td style="padding:.55rem .8rem .55rem 0">Paused</td><td style="padding:.55rem .8rem .55rem 0;text-align:right">—</td><td style="padding:.55rem 0">None</td></tr>
+</tbody>
+</table>
+</div>
+<p style="margin:0 0 1.05em;color:var(--ink-2);font-size:var(--fs--1);text-wrap:pretty">The column that predicts the outcome is the last one, not the third.</p>
+
+<figure style="margin:1.9rem 0">
+<div style="border:1px solid var(--rule);background:var(--paper-2);aspect-ratio:16/9;display:flex;align-items:center;justify-content:center">
+<span style="font-family:var(--mono);font-size:var(--fs--2);letter-spacing:.08em;color:var(--ink-2);text-align:center;padding:1rem">FIGURE: pilot → production funnel, 2023–2026</span>
+</div>
+<figcaption style="margin-top:.6rem;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Of 41 pilots reviewed between 2023 and 2026, nine reached production. Placeholder; real chart at build.</figcaption>
+</figure>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">Instrument the decision, not the model</h2>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Whatever gets funded, tie the release gate to the decision it changes. A scorecard the project has to pass on every deploy keeps the monthly review concrete:</p>
+<pre style="margin:0 0 1.05em;border:1px solid var(--rule);background:var(--paper-2);padding:.9rem 1rem;overflow-x:auto;font-family:var(--mono);font-size:.82em;line-height:1.55"><code>decision: restock_priority
+owner:    ops.regional_manager
+baseline: manual_ranking_2025_q3
+gate:
+  precision_at_10: ">= 0.72"
+  latency_p95_ms:  "&lt; 900"
+  override_rate:   "&lt; 0.25"   # disagreement is signal</code></pre>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Three numbers, reviewed monthly, in language the decision owner can argue with.<a href="#fn1" id="fnref1" style="font-size:.75em;vertical-align:.45em;text-decoration-thickness:.04em">1</a></p>
+
+<section style="margin:2.4rem 0 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.9rem"></div>
+<h2 style="margin:0 0 .6rem;font-family:var(--serif);font-weight:600;font-size:var(--fs--1);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)">Notes</h2>
+<ol style="margin:0;padding-left:1.15rem;font-size:var(--fs--1);line-height:1.55;color:var(--ink)">
+<li id="fn1" style="text-wrap:pretty">The override rate matters most. Above a quarter, the model is being ignored, whatever the accuracy says. <a href="#fnref1" style="text-decoration:none">↩</a></li>
+</ol>
+</section>
+
+<p style="margin:2.2rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">Also on <a href="https://www.linkedin.com/in/herinean">LinkedIn</a> · <a href="https://medium.com/@herinean">Medium</a></p>
+
+<div style="height:1px;background:var(--rule);margin:1.5rem 0 .9rem"></div>
+<p style="margin:0;font-size:var(--fs--1);line-height:1.55">Radu Herinean — CTO. <a href="https://www.linkedin.com/in/herinean">LinkedIn</a></p>
+</article>
+
+<footer data-print-hide style="max-width:38rem;margin:2.6rem auto 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.85rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:var(--fs--1)"><a href="https://www.linkedin.com/in/herinean">LinkedIn</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/feed.xml">RSS</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/colophon">Colophon</a></div>
+<p style="margin:.5rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">No JavaScript, no cookies, no trackers.</p>
+</footer>
+</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#EDE9E2">1280 · dark</p>
+<div id="shot-piece-1280-dark" data-scheme="dark" style="container-type:inline-size;width:1280px;background:var(--paper)">
+<div lang="en" style="background:var(--paper);color:var(--ink);font-family:var(--serif);font-optical-sizing:auto;font-size:var(--fs-0);line-height:1.6;hyphens:auto;box-sizing:border-box;padding:clamp(1.25rem,3cqw,2.25rem) clamp(1rem,3cqw,1.5rem) 2.5rem">
+
+<header data-print-hide style="max-width:38rem;margin:0 auto">
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem 1.25rem">
+<a href="https://herinean.com" style="font-family:var(--display);font-size:var(--fs-1);font-weight:500;color:var(--ink);text-decoration:none">Radu Herinean</a>
+<nav style="display:flex;gap:1.15rem;font-size:var(--fs--1)"><a href="https://herinean.com/writing">Writing</a><a href="https://herinean.com/ro">Română</a></nav>
+</div>
+<div style="height:1px;background:var(--rule);margin-top:.85rem"></div>
+</header>
+
+<article style="max-width:38rem;margin:0 auto">
+<p style="margin:1.9rem 0 1.1rem;font-size:var(--fs--1)"><a href="https://herinean.com/ro/proiecte-ai-finantabile-2027">Citește în română →</a></p>
+
+<h1 style="margin:0;font-family:var(--display);font-weight:500;font-size:clamp(2.319rem,7.2cqw,2.899rem);line-height:1.1;letter-spacing:-.012em;text-wrap:balance">Which AI projects are worth funding in 2027</h1>
+
+<p style="margin:.9rem 0 0;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline">
+<span>27 Sep 2026</span><span aria-hidden="true">·</span><span>Updated 3 Oct 2026</span><span aria-hidden="true">·</span><span>9 min read</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analysis</span>
+</p>
+<div style="height:1px;background:var(--rule);margin:1.4rem 0 1.9rem"></div>
+
+<p style="margin:0 0 1.05em;text-wrap:pretty">A board can approve an AI budget in twenty minutes and then spend two years finding out whether the project was fundable. The demo is never the problem. The demo is the reason the question gets asked badly.</p>
+<p style="margin:0 0 1.05em;text-wrap:pretty">I run engineering for a company that puts AI into retail and agricultural operations, so I see both ends: the pitch, and the third quarter after the pitch. What separates the projects that reach production from the ones that stay demos is not model quality. It is three unglamorous properties, and all three are visible before any money moves.</p>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">Three questions</h2>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Ask them in order. A project that fails the first one cannot be rescued by the other two.</p>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">1. Who owns the decision?</h3>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Every AI project changes a decision somebody is already accountable for — what to restock, which claim to review first, which field to spray. If the owner of that decision is not in the room when the project is scoped, the model will be built to produce an output nobody is permitted to act on.</p>
+
+<blockquote style="margin:1.7rem 0;padding-left:1.1rem;border-left:1px solid var(--rule);font-family:var(--display);font-size:var(--fs-1);line-height:1.35;font-style:italic;color:var(--ink);text-wrap:pretty">A model nobody is accountable for acting on is a reporting tool with a research budget.</blockquote>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">2. What does the model replace?</h3>
+<p style="margin:0 0 .9em;text-wrap:pretty">There are only three honest answers, and they price very differently.</p>
+<ul style="margin:0 0 1.05em;padding-left:1.15rem;display:flex;flex-direction:column;gap:.5em">
+<li style="text-wrap:pretty">A judgement made today by an expert, under time pressure, on incomplete data. <em>Fundable.</em></li>
+<li style="text-wrap:pretty">A judgement made today by nobody, because there is no time to make it at all. <em>Fundable, and usually cheaper than it looks.</em></li>
+<li style="text-wrap:pretty">A process that exists only in a slide. <em>Not fundable yet</em> — fund the process first.</li>
+</ul>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">3. What happens on a bad day?</h3>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Ask for the failure mode in plain words. “The model ranks the wrong three stores first and a regional manager loses a week” is an answer you can budget against. If nobody can describe the bad day, the project has not been thought about operationally, and the pilot will end in a disagreement about whether it worked.</p>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">What it looks like in a portfolio</h2>
+<div style="overflow-x:auto;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);margin:0 0 .7rem">
+<table style="border-collapse:collapse;min-width:34rem;width:100%;font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<thead><tr>
+<th style="text-align:left;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Project</th>
+<th style="text-align:left;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Stage</th>
+<th style="text-align:right;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Cost / decision</th>
+<th style="text-align:left;padding:.6rem 0 .55rem;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Decision owner</th>
+</tr></thead>
+<tbody>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Restock priority</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Production</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">€0.004</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Regional ops</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Invoice triage</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Production</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">€0.011</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Finance lead</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Yield forecast</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Pilot</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">€0.38</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Agronomy</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0">Support assistant</td><td style="padding:.55rem .8rem .55rem 0">Paused</td><td style="padding:.55rem .8rem .55rem 0;text-align:right">—</td><td style="padding:.55rem 0">None</td></tr>
+</tbody>
+</table>
+</div>
+<p style="margin:0 0 1.05em;color:var(--ink-2);font-size:var(--fs--1);text-wrap:pretty">The column that predicts the outcome is the last one, not the third.</p>
+
+<figure style="margin:1.9rem 0">
+<div style="border:1px solid var(--rule);background:var(--paper-2);aspect-ratio:16/9;display:flex;align-items:center;justify-content:center">
+<span style="font-family:var(--mono);font-size:var(--fs--2);letter-spacing:.08em;color:var(--ink-2);text-align:center;padding:1rem">FIGURE: pilot → production funnel, 2023–2026</span>
+</div>
+<figcaption style="margin-top:.6rem;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Of 41 pilots reviewed between 2023 and 2026, nine reached production. Placeholder; real chart at build.</figcaption>
+</figure>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">Instrument the decision, not the model</h2>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Whatever gets funded, tie the release gate to the decision it changes. A scorecard the project has to pass on every deploy keeps the monthly review concrete:</p>
+<pre style="margin:0 0 1.05em;border:1px solid var(--rule);background:var(--paper-2);padding:.9rem 1rem;overflow-x:auto;font-family:var(--mono);font-size:.82em;line-height:1.55"><code>decision: restock_priority
+owner:    ops.regional_manager
+baseline: manual_ranking_2025_q3
+gate:
+  precision_at_10: ">= 0.72"
+  latency_p95_ms:  "&lt; 900"
+  override_rate:   "&lt; 0.25"   # disagreement is signal</code></pre>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Three numbers, reviewed monthly, in language the decision owner can argue with.<a href="#fn1" id="fnref1" style="font-size:.75em;vertical-align:.45em;text-decoration-thickness:.04em">1</a></p>
+
+<section style="margin:2.4rem 0 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.9rem"></div>
+<h2 style="margin:0 0 .6rem;font-family:var(--serif);font-weight:600;font-size:var(--fs--1);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)">Notes</h2>
+<ol style="margin:0;padding-left:1.15rem;font-size:var(--fs--1);line-height:1.55;color:var(--ink)">
+<li id="fn1" style="text-wrap:pretty">The override rate matters most. Above a quarter, the model is being ignored, whatever the accuracy says. <a href="#fnref1" style="text-decoration:none">↩</a></li>
+</ol>
+</section>
+
+<p style="margin:2.2rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">Also on <a href="https://www.linkedin.com/in/herinean">LinkedIn</a> · <a href="https://medium.com/@herinean">Medium</a></p>
+
+<div style="height:1px;background:var(--rule);margin:1.5rem 0 .9rem"></div>
+<p style="margin:0;font-size:var(--fs--1);line-height:1.55">Radu Herinean — CTO. <a href="https://www.linkedin.com/in/herinean">LinkedIn</a></p>
+</article>
+
+<footer data-print-hide style="max-width:38rem;margin:2.6rem auto 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.85rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:var(--fs--1)"><a href="https://www.linkedin.com/in/herinean">LinkedIn</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/feed.xml">RSS</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/colophon">Colophon</a></div>
+<p style="margin:.5rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">No JavaScript, no cookies, no trackers.</p>
+</footer>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- 5. PIECE — ROMANIAN -->
+<section style="display:flex;flex-direction:column;gap:14px">
+<p style="margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#F7F4EE">5 · Piece, Romanian</p>
+<div style="display:flex;gap:32px;align-items:flex-start">
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#EDE9E2">390 · light</p>
+<div id="shot-piece-ro-390" data-scheme="light" style="container-type:inline-size;width:390px;background:var(--paper)">
+<div lang="ro" style="background:var(--paper);color:var(--ink);font-family:var(--serif);font-optical-sizing:auto;font-size:var(--fs-0);line-height:1.6;hyphens:auto;box-sizing:border-box;padding:clamp(1.25rem,3cqw,2.25rem) clamp(1rem,3cqw,1.5rem) 2.5rem">
+
+<header data-print-hide style="max-width:38rem;margin:0 auto">
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem 1.25rem">
+<a href="https://herinean.com/ro" style="font-family:var(--display);font-size:var(--fs-1);font-weight:500;color:var(--ink);text-decoration:none">Radu Herinean</a>
+<nav style="display:flex;gap:1.15rem;font-size:var(--fs--1)"><a href="https://herinean.com/ro/articole">Articole</a><a href="https://herinean.com">English</a></nav>
+</div>
+<div style="height:1px;background:var(--rule);margin-top:.85rem"></div>
+</header>
+
+<article style="max-width:38rem;margin:0 auto">
+<p style="margin:1.9rem 0 1.1rem;font-size:var(--fs--1)"><a href="https://herinean.com/board-questions-ai-budget">Citește în engleză →</a></p>
+
+<h1 style="margin:0;font-family:var(--display);font-weight:500;font-size:clamp(2.319rem,7.2cqw,2.899rem);line-height:1.1;letter-spacing:-.012em;text-wrap:balance">Ce ar trebui să întrebe un board despre AI înainte de a aproba bugetul</h1>
+
+<p style="margin:.9rem 0 0;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline">
+<span>27 sept. 2026</span><span aria-hidden="true">·</span><span>9 min de citit</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">AI și guvernanță</span>
+</p>
+<div style="height:1px;background:var(--rule);margin:1.4rem 0 1.9rem"></div>
+
+<p style="margin:0 0 1.05em;text-wrap:pretty">Un consiliu de administrație poate aproba un buget de AI în douăzeci de minute și apoi poate afla, în următorii doi ani, dacă proiectul merita finanțat. Demonstrația nu este niciodată problema. Demonstrația este motivul pentru care întrebarea este pusă prost.</p>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Conduc partea de inginerie într-o companie care duce AI în operațiuni de retail și agricultură, așa că văd ambele capete: prezentarea și al treilea trimestru de după prezentare. Ceea ce separă proiectele care ajung în producție de cele care rămân demonstrații nu este calitatea modelului. Sunt trei proprietăți nespectaculoase, iar toate trei se văd înainte să se miște vreun ban.</p>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">Cinci întrebări, în ordine</h2>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Le pun în aceeași ordine de fiecare dată. Un proiect care cade la prima nu poate fi salvat de celelalte.</p>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">1. Cine deține decizia?</h3>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Orice proiect de AI schimbă o decizie de care răspunde deja cineva: ce se reaprovizionează, care dosar se verifică primul, care parcelă se tratează. Dacă proprietarul acelei decizii nu este în încăpere când se definește proiectul, modelul va produce un rezultat pe care nimeni nu are dreptul să îl folosească.</p>
+
+<blockquote style="margin:1.7rem 0;padding-left:1.1rem;border-left:1px solid var(--rule);font-family:var(--display);font-size:var(--fs-1);line-height:1.35;font-style:italic;color:var(--ink);text-wrap:pretty">„Un model pentru care nimeni nu răspunde este un instrument de raportare cu buget de cercetare.”</blockquote>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">2. Ce înlocuiește modelul?</h3>
+<p style="margin:0 0 .9em;text-wrap:pretty">Există doar trei răspunsuri oneste, iar ele se evaluează foarte diferit:</p>
+<ul style="margin:0 0 1.05em;padding-left:1.15rem;display:flex;flex-direction:column;gap:.5em">
+<li style="text-wrap:pretty">O judecată făcută astăzi de un expert, sub presiunea timpului, pe date incomplete. <em>Se finanțează.</em></li>
+<li style="text-wrap:pretty">O judecată pe care astăzi nu o face nimeni, pentru că nu există timp. <em>Se finanțează, și costă mai puțin decât pare.</em></li>
+<li style="text-wrap:pretty">Un proces care există doar într-un slide. <em>Încă nu se finanțează</em> — se finanțează procesul întâi.</li>
+</ul>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">3. Cum arată o zi proastă?</h3>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Cer descrierea modului de eșec în cuvinte simple. „Modelul pune primele trei magazine greșite în capul listei și un manager regional pierde o săptămână” este un răspuns pentru care se poate face buget. Dacă nimeni nu poate descrie ziua proastă, proiectul nu a fost gândit operațional.</p>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">Cum arată într-un portofoliu</h2>
+<div style="overflow-x:auto;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);margin:0 0 .7rem">
+<table style="border-collapse:collapse;min-width:34rem;width:100%;font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<thead><tr>
+<th style="text-align:left;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Proiect</th>
+<th style="text-align:left;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Etapă</th>
+<th style="text-align:right;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Cost / decizie</th>
+<th style="text-align:left;padding:.6rem 0 .55rem;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Deține decizia</th>
+</tr></thead>
+<tbody>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Prioritate reaprovizionare</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Producție</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">0,004 €</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Operațiuni</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Triaj facturi</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Producție</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">0,011 €</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Financiar</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Prognoză recoltă</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Pilot</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">0,38 €</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Agronomie</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0">Asistent de suport</td><td style="padding:.55rem .8rem .55rem 0">Suspendat</td><td style="padding:.55rem .8rem .55rem 0;text-align:right">—</td><td style="padding:.55rem 0">Nimeni</td></tr>
+</tbody>
+</table>
+</div>
+<p style="margin:0 0 1.05em;color:var(--ink-2);font-size:var(--fs--1);text-wrap:pretty">Coloana care prezice rezultatul este ultima, nu a treia.</p>
+
+<figure style="margin:1.9rem 0">
+<div style="border:1px solid var(--rule);background:var(--paper-2);aspect-ratio:16/9;display:flex;align-items:center;justify-content:center">
+<span style="font-family:var(--mono);font-size:var(--fs--2);letter-spacing:.08em;color:var(--ink-2);text-align:center;padding:1rem">FIGURĂ: pilot → producție, 2023–2026</span>
+</div>
+<figcaption style="margin-top:.6rem;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Din 41 de piloți analizați între 2023 și 2026, nouă au ajuns în producție. Substituent; graficul real la construcție.</figcaption>
+</figure>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">Măsurați decizia, nu modelul</h2>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Orice se finanțează, legați condiția de lansare de decizia pe care o schimbă. O fișă de verificare pe care proiectul trebuie să o treacă la fiecare livrare menține discuția concretă:</p>
+<pre style="margin:0 0 1.05em;border:1px solid var(--rule);background:var(--paper-2);padding:.9rem 1rem;overflow-x:auto;font-family:var(--mono);font-size:.82em;line-height:1.55"><code>decizie: prioritate_reaprovizionare
+owner:   ops.manager_regional
+referinta: clasare_manuala_2025_t3
+prag:
+  precizie_top_10: "&gt;= 0,72"
+  latenta_p95_ms:  "&lt; 900"
+  rata_suprascriere: "&lt; 0,25"   # dezacordul e semnal</code></pre>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Trei numere, revizuite lunar, în limbajul în care proprietarul deciziei poate să le conteste.<a href="#fn1ro" id="fnref1ro" style="font-size:.75em;vertical-align:.45em;text-decoration-thickness:.04em">1</a></p>
+
+<section style="margin:2.4rem 0 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.9rem"></div>
+<h2 style="margin:0 0 .6rem;font-family:var(--serif);font-weight:600;font-size:var(--fs--1);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)">Note</h2>
+<ol style="margin:0;padding-left:1.15rem;font-size:var(--fs--1);line-height:1.55">
+<li id="fn1ro" style="text-wrap:pretty">Rata de suprascriere contează cel mai mult. Peste un sfert, modelul este ignorat, oricât de bună ar fi acuratețea. <a href="#fnref1ro" style="text-decoration:none">↩</a></li>
+</ol>
+</section>
+
+<p style="margin:2.2rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">Și pe <a href="https://www.linkedin.com/in/herinean">LinkedIn</a> · <a href="https://medium.com/@herinean">Medium</a></p>
+
+<div style="height:1px;background:var(--rule);margin:1.5rem 0 .9rem"></div>
+<p style="margin:0;font-size:var(--fs--1);line-height:1.55">Radu Herinean — CTO. <a href="https://www.linkedin.com/in/herinean">LinkedIn</a></p>
+</article>
+
+<footer data-print-hide style="max-width:38rem;margin:2.6rem auto 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.85rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:var(--fs--1)"><a href="https://www.linkedin.com/in/herinean">LinkedIn</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/feed.xml">RSS</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/ro/colofon">Colofon</a></div>
+<p style="margin:.5rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">Fără JavaScript, fără cookie-uri, fără urmărire.</p>
+</footer>
+</div>
+</div>
+</div>
+<p style="margin:0;width:340px;color:#F2EFE9;font-size:13px;line-height:1.55;font-family:var(--serif)">Identical anatomy and identical CSS. Only the strings change: Articole, Citește în engleză →, min de citit, AI și guvernanță, and „…” for quotation marks.</p>
+</div>
+</section>
+
+<!-- 6. COLOPHON -->
+<section style="display:flex;flex-direction:column;gap:14px">
+<p style="margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#F7F4EE">6 · Colophon</p>
+<div style="display:flex;gap:32px;align-items:flex-start">
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#EDE9E2">1280 · light</p>
+<div id="shot-colophon-1280" data-scheme="light" style="container-type:inline-size;width:1280px;background:var(--paper)">
+<div lang="en" style="background:var(--paper);color:var(--ink);font-family:var(--serif);font-optical-sizing:auto;font-size:var(--fs-0);line-height:1.6;hyphens:auto;box-sizing:border-box;padding:clamp(1.25rem,3cqw,2.25rem) clamp(1rem,3cqw,1.5rem) 2.5rem">
+
+<header data-print-hide style="max-width:38rem;margin:0 auto">
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem 1.25rem">
+<a href="https://herinean.com" style="font-family:var(--display);font-size:var(--fs-1);font-weight:500;color:var(--ink);text-decoration:none">Radu Herinean</a>
+<nav style="display:flex;gap:1.15rem;font-size:var(--fs--1)"><a href="https://herinean.com/writing">Writing</a><a href="https://herinean.com/ro/colofon">Română</a></nav>
+</div>
+<div style="height:1px;background:var(--rule);margin-top:.85rem"></div>
+</header>
+
+<div style="max-width:38rem;margin:0 auto">
+<h1 style="margin:1.9rem 0 .9rem;font-family:var(--display);font-weight:500;font-size:clamp(2.319rem,7.2cqw,2.899rem);line-height:1.08;letter-spacing:-.015em;text-wrap:balance">Colophon</h1>
+<p style="margin:0 0 1.05em;text-wrap:pretty">This page is the site's test suite, written down. Every claim below is checked on each commit; the build fails loudly rather than quietly. If a row says fail, it is failing right now and the fix is queued, not hidden.</p>
+
+<div data-scroll style="margin:1.6rem 0 .7rem">
+<table data-stack style="border-collapse:collapse;width:100%;font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<thead><tr>
+<th style="text-align:left;padding:.6rem .9rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule)">Check</th>
+<th style="text-align:left;padding:.6rem .9rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule)">Result</th>
+<th data-num style="padding:.6rem .9rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule)">Value</th>
+<th style="text-align:left;padding:.6rem .9rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Verified</th>
+<th style="text-align:left;padding:.6rem 0 .55rem;font-weight:600;border-bottom:1px solid var(--rule)">Verify it yourself</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;border-bottom:1px solid var(--rule)">Client-side JavaScript</td>
+<td data-label="Result" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">Pass</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">0 bytes</td>
+<td data-label="Verified" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule);white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0;border-bottom:1px solid var(--rule)"><a href="https://herinean.com/colophon">view-source</a></td>
+</tr>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;border-bottom:1px solid var(--rule)">CSS, hand-written</td>
+<td data-label="Result" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">Pass</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">187 lines</td>
+<td data-label="Verified" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule);white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0;border-bottom:1px solid var(--rule)"><a href="https://herinean.com/site.css">site.css</a></td>
+</tr>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;border-bottom:1px solid var(--rule)">Third-party requests</td>
+<td data-label="Result" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">Pass</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">0</td>
+<td data-label="Verified" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule);white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0;border-bottom:1px solid var(--rule)"><a href="https://herinean.com/audit/network.har">network log</a></td>
+</tr>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;border-bottom:1px solid var(--rule)">Fonts self-hosted</td>
+<td data-label="Result" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">Pass</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">4 files · 214 KB</td>
+<td data-label="Verified" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule);white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0;border-bottom:1px solid var(--rule)"><a href="https://herinean.com/fonts/">/fonts</a></td>
+</tr>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;border-bottom:1px solid var(--rule)">Lighthouse, all pages</td>
+<td data-label="Result" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">Pass</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">100 / 100 / 100 / 100</td>
+<td data-label="Verified" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule);white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0;border-bottom:1px solid var(--rule)"><a href="https://herinean.com/audit/lighthouse.html">report</a></td>
+</tr>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;border-bottom:1px solid var(--rule)">Body contrast, both schemes</td>
+<td data-label="Result" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">Pass</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">15.1:1 / 14.5:1</td>
+<td data-label="Verified" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule);white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0;border-bottom:1px solid var(--rule)"><a href="https://herinean.com/audit/contrast">contrast table</a></td>
+</tr>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;border-bottom:1px solid var(--rule)">Romanian diacritics, U+0218–021B</td>
+<td data-label="Result" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">Pass</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">4 / 4 glyphs</td>
+<td data-label="Verified" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule);white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0;border-bottom:1px solid var(--rule)"><a href="https://herinean.com/audit/glyphs">glyph test</a></td>
+</tr>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;color:var(--accent);font-weight:600">Page weight budget</td>
+<td data-label="Result" style="padding:.55rem .9rem;color:var(--accent);font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:.88em">Fail</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;color:var(--accent);font-weight:600">68 KB / 60 KB</td>
+<td data-label="Verified" style="padding:.55rem .9rem;white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0"><a href="https://herinean.com/audit/budget">budget log</a></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p style="margin:0 0 1.8rem;color:var(--ink-2);font-size:var(--fs--1);text-wrap:pretty">Failure is marked with the accent colour, a semibold row and the word itself. The value column always shows measured against budget, so the size of the miss is visible.</p>
+
+<h2 style="margin:0 0 .6rem;font-family:var(--serif);font-weight:600;font-size:var(--fs--1);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)">Dependencies</h2>
+<ul style="margin:0 0 1.8rem;padding:0;list-style:none;font-family:var(--mono);font-size:var(--fs--2);line-height:1.9;border-top:1px solid var(--rule)">
+<li style="border-bottom:1px solid var(--rule)">generator.py · 612 lines · stdlib only</li>
+<li style="border-bottom:1px solid var(--rule)">markdown-it-py 3.0.0 · MIT</li>
+<li style="border-bottom:1px solid var(--rule)">Source Serif 4 · SIL OFL 1.1 · subset, woff2</li>
+<li style="border-bottom:1px solid var(--rule)">Newsreader · SIL OFL 1.1 · subset, woff2</li>
+<li style="border-bottom:1px solid var(--rule)">IBM Plex Mono · SIL OFL 1.1 · subset, woff2</li>
+<li style="border-bottom:1px solid var(--rule)">Caddy 2 · static file server · Apache-2.0</li>
+</ul>
+
+<h2 style="margin:0 0 .6rem;font-family:var(--serif);font-weight:600;font-size:var(--fs--1);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)">Known trade-offs</h2>
+<ul style="margin:0;padding-left:1.15rem;display:flex;flex-direction:column;gap:.55em;font-size:var(--fs--1);line-height:1.55">
+<li style="text-wrap:pretty">No search. A 40-piece archive is faster to read than to query; this changes at about 150 pieces.</li>
+<li style="text-wrap:pretty">No comments and no subscribe form. Replies happen on LinkedIn, where the readers already are.</li>
+<li style="text-wrap:pretty">Dark mode follows the system and cannot be overridden, because a toggle needs JavaScript or a cookie.</li>
+<li style="text-wrap:pretty">Images are not responsive-srcset yet. One size, compressed hard; the page weight failure above is mostly this.</li>
+</ul>
+</div>
+
+<footer data-print-hide style="max-width:38rem;margin:2.6rem auto 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.85rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:var(--fs--1)"><a href="https://www.linkedin.com/in/herinean">LinkedIn</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/feed.xml">RSS</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/colophon">Colophon</a></div>
+<p style="margin:.5rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">No JavaScript, no cookies, no trackers.</p>
+</footer>
+</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#EDE9E2">390 · light</p>
+<div id="shot-colophon-390" data-scheme="light" style="container-type:inline-size;width:390px;background:var(--paper)">
+<div lang="en" style="background:var(--paper);color:var(--ink);font-family:var(--serif);font-optical-sizing:auto;font-size:var(--fs-0);line-height:1.6;hyphens:auto;box-sizing:border-box;padding:clamp(1.25rem,3cqw,2.25rem) clamp(1rem,3cqw,1.5rem) 2.5rem">
+
+<header data-print-hide style="max-width:38rem;margin:0 auto">
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem 1.25rem">
+<a href="https://herinean.com" style="font-family:var(--display);font-size:var(--fs-1);font-weight:500;color:var(--ink);text-decoration:none">Radu Herinean</a>
+<nav style="display:flex;gap:1.15rem;font-size:var(--fs--1)"><a href="https://herinean.com/writing">Writing</a><a href="https://herinean.com/ro/colofon">Română</a></nav>
+</div>
+<div style="height:1px;background:var(--rule);margin-top:.85rem"></div>
+</header>
+
+<div style="max-width:38rem;margin:0 auto">
+<h1 style="margin:1.9rem 0 .9rem;font-family:var(--display);font-weight:500;font-size:clamp(2.319rem,7.2cqw,2.899rem);line-height:1.08;letter-spacing:-.015em;text-wrap:balance">Colophon</h1>
+<p style="margin:0 0 1.05em;text-wrap:pretty">This page is the site's test suite, written down. Every claim below is checked on each commit; the build fails loudly rather than quietly. If a row says fail, it is failing right now and the fix is queued, not hidden.</p>
+
+<div data-scroll style="margin:1.6rem 0 .7rem">
+<table data-stack style="border-collapse:collapse;width:100%;font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<thead><tr>
+<th style="text-align:left;padding:.6rem .9rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule)">Check</th>
+<th style="text-align:left;padding:.6rem .9rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule)">Result</th>
+<th data-num style="padding:.6rem .9rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule)">Value</th>
+<th style="text-align:left;padding:.6rem .9rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Verified</th>
+<th style="text-align:left;padding:.6rem 0 .55rem;font-weight:600;border-bottom:1px solid var(--rule)">Verify it yourself</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;border-bottom:1px solid var(--rule)">Client-side JavaScript</td>
+<td data-label="Result" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">Pass</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">0 bytes</td>
+<td data-label="Verified" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule);white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0;border-bottom:1px solid var(--rule)"><a href="https://herinean.com/colophon">view-source</a></td>
+</tr>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;border-bottom:1px solid var(--rule)">CSS, hand-written</td>
+<td data-label="Result" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">Pass</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">187 lines</td>
+<td data-label="Verified" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule);white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0;border-bottom:1px solid var(--rule)"><a href="https://herinean.com/site.css">site.css</a></td>
+</tr>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;border-bottom:1px solid var(--rule)">Third-party requests</td>
+<td data-label="Result" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">Pass</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">0</td>
+<td data-label="Verified" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule);white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0;border-bottom:1px solid var(--rule)"><a href="https://herinean.com/audit/network.har">network log</a></td>
+</tr>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;border-bottom:1px solid var(--rule)">Fonts self-hosted</td>
+<td data-label="Result" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">Pass</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">4 files · 214 KB</td>
+<td data-label="Verified" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule);white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0;border-bottom:1px solid var(--rule)"><a href="https://herinean.com/fonts/">/fonts</a></td>
+</tr>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;border-bottom:1px solid var(--rule)">Lighthouse, all pages</td>
+<td data-label="Result" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">Pass</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">100 / 100 / 100 / 100</td>
+<td data-label="Verified" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule);white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0;border-bottom:1px solid var(--rule)"><a href="https://herinean.com/audit/lighthouse.html">report</a></td>
+</tr>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;border-bottom:1px solid var(--rule)">Body contrast, both schemes</td>
+<td data-label="Result" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">Pass</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">15.1:1 / 14.5:1</td>
+<td data-label="Verified" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule);white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0;border-bottom:1px solid var(--rule)"><a href="https://herinean.com/audit/contrast">contrast table</a></td>
+</tr>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;border-bottom:1px solid var(--rule)">Romanian diacritics, U+0218–021B</td>
+<td data-label="Result" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">Pass</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;border-bottom:1px solid var(--rule)">4 / 4 glyphs</td>
+<td data-label="Verified" style="padding:.55rem .9rem;border-bottom:1px solid var(--rule);white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0;border-bottom:1px solid var(--rule)"><a href="https://herinean.com/audit/glyphs">glyph test</a></td>
+</tr>
+<tr>
+<td style="padding:.55rem .9rem .55rem 0;color:var(--accent);font-weight:600">Page weight budget</td>
+<td data-label="Result" style="padding:.55rem .9rem;color:var(--accent);font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:.88em">Fail</td>
+<td data-label="Value" data-num style="padding:.55rem .9rem;color:var(--accent);font-weight:600">68 KB / 60 KB</td>
+<td data-label="Verified" style="padding:.55rem .9rem;white-space:nowrap">11 Oct 2026</td>
+<td data-label="Verify" style="padding:.55rem 0"><a href="https://herinean.com/audit/budget">budget log</a></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p style="margin:0 0 1.8rem;color:var(--ink-2);font-size:var(--fs--1);text-wrap:pretty">Failure is marked with the accent colour, a semibold row and the word itself. The value column always shows measured against budget, so the size of the miss is visible.</p>
+
+<h2 style="margin:0 0 .6rem;font-family:var(--serif);font-weight:600;font-size:var(--fs--1);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)">Dependencies</h2>
+<ul style="margin:0 0 1.8rem;padding:0;list-style:none;font-family:var(--mono);font-size:var(--fs--2);line-height:1.9;border-top:1px solid var(--rule)">
+<li style="border-bottom:1px solid var(--rule)">generator.py · 612 lines · stdlib only</li>
+<li style="border-bottom:1px solid var(--rule)">markdown-it-py 3.0.0 · MIT</li>
+<li style="border-bottom:1px solid var(--rule)">Source Serif 4 · SIL OFL 1.1 · subset, woff2</li>
+<li style="border-bottom:1px solid var(--rule)">Newsreader · SIL OFL 1.1 · subset, woff2</li>
+<li style="border-bottom:1px solid var(--rule)">IBM Plex Mono · SIL OFL 1.1 · subset, woff2</li>
+<li style="border-bottom:1px solid var(--rule)">Caddy 2 · static file server · Apache-2.0</li>
+</ul>
+
+<h2 style="margin:0 0 .6rem;font-family:var(--serif);font-weight:600;font-size:var(--fs--1);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)">Known trade-offs</h2>
+<ul style="margin:0;padding-left:1.15rem;display:flex;flex-direction:column;gap:.55em;font-size:var(--fs--1);line-height:1.55">
+<li style="text-wrap:pretty">No search. A 40-piece archive is faster to read than to query; this changes at about 150 pieces.</li>
+<li style="text-wrap:pretty">No comments and no subscribe form. Replies happen on LinkedIn, where the readers already are.</li>
+<li style="text-wrap:pretty">Dark mode follows the system and cannot be overridden, because a toggle needs JavaScript or a cookie.</li>
+<li style="text-wrap:pretty">Images are not responsive-srcset yet. One size, compressed hard; the page weight failure above is mostly this.</li>
+</ul>
+</div>
+
+<footer data-print-hide style="max-width:38rem;margin:2.6rem auto 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.85rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:var(--fs--1)"><a href="https://www.linkedin.com/in/herinean">LinkedIn</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/feed.xml">RSS</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/colophon">Colophon</a></div>
+<p style="margin:.5rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">No JavaScript, no cookies, no trackers.</p>
+</footer>
+</div>
+</div>
+<p style="margin:0;width:390px;color:#F2EFE9;font-size:13px;line-height:1.55;font-family:var(--serif)">Same table markup in both. Below 34rem the rows become blocks and each cell takes its label from a data attribute, so no heading text is duplicated in the HTML and nothing scrolls sideways.</p>
+</div>
+</div>
+</section>
+
+<!-- 7. 404 -->
+<section style="display:flex;flex-direction:column;gap:14px">
+<p style="margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#F7F4EE">7 · 404</p>
+<div style="display:flex;gap:32px;align-items:flex-start">
+<div data-scheme="light" style="container-type:inline-size;width:390px;background:var(--paper);color:var(--ink);box-sizing:border-box;padding:20px 16px 40px;font-size:var(--fs-0);line-height:1.6">
+<header style="max-width:38rem;margin:0 auto">
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem 1.25rem">
+<a href="https://herinean.com" style="font-family:var(--display);font-size:var(--fs-1);font-weight:500;color:var(--ink);text-decoration:none">Radu Herinean</a>
+<nav style="display:flex;gap:1.15rem;font-size:var(--fs--1)"><a href="https://herinean.com/writing">Writing</a><a href="https://herinean.com/ro">Română</a></nav>
+</div>
+<div style="height:1px;background:var(--rule);margin-top:.85rem"></div>
+</header>
+<h1 style="margin:2.4rem 0 1.2rem;font-family:var(--display);font-weight:500;font-size:var(--fs-3);line-height:1.1;letter-spacing:-.012em;font-variant-numeric:tabular-nums">404</h1>
+<p style="margin:0 0 .8em;text-wrap:pretty">Page not found. <a href="https://herinean.com">Home</a> or <a href="https://herinean.com/writing">all writing</a>.</p>
+<p lang="ro" style="margin:0;color:var(--ink-2);text-wrap:pretty">Pagina nu există. <a href="https://herinean.com/ro">Acasă</a> sau <a href="https://herinean.com/ro/articole">toate articolele</a>.</p>
+<footer style="max-width:38rem;margin:3rem auto 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.85rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:var(--fs--1)"><a href="https://www.linkedin.com/in/herinean">LinkedIn</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/feed.xml">RSS</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/colophon">Colophon</a></div>
+<p style="margin:.5rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">No JavaScript, no cookies, no trackers.</p>
+</footer>
+</div>
+<div data-scheme="dark" style="container-type:inline-size;width:390px;background:var(--paper);color:var(--ink);box-sizing:border-box;padding:20px 16px 40px;font-size:var(--fs-0);line-height:1.6">
+<header style="max-width:38rem;margin:0 auto">
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem 1.25rem">
+<a href="https://herinean.com" style="font-family:var(--display);font-size:var(--fs-1);font-weight:500;color:var(--ink);text-decoration:none">Radu Herinean</a>
+<nav style="display:flex;gap:1.15rem;font-size:var(--fs--1)"><a href="https://herinean.com/writing">Writing</a><a href="https://herinean.com/ro">Română</a></nav>
+</div>
+<div style="height:1px;background:var(--rule);margin-top:.85rem"></div>
+</header>
+<h1 style="margin:2.4rem 0 1.2rem;font-family:var(--display);font-weight:500;font-size:var(--fs-3);line-height:1.1;letter-spacing:-.012em;font-variant-numeric:tabular-nums">404</h1>
+<p style="margin:0 0 .8em;text-wrap:pretty">Page not found. <a href="https://herinean.com">Home</a> or <a href="https://herinean.com/writing">all writing</a>.</p>
+<p lang="ro" style="margin:0;color:var(--ink-2);text-wrap:pretty">Pagina nu există. <a href="https://herinean.com/ro">Acasă</a> sau <a href="https://herinean.com/ro/articole">toate articolele</a>.</p>
+<footer style="max-width:38rem;margin:3rem auto 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.85rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:var(--fs--1)"><a href="https://www.linkedin.com/in/herinean">LinkedIn</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/feed.xml">RSS</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/colophon">Colophon</a></div>
+<p style="margin:.5rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">No JavaScript, no cookies, no trackers.</p>
+</footer>
+</div>
+</div>
+</section>
+
+
+<!-- OG IMAGE TEMPLATES · 1200×630 -->
+<section style="display:flex;flex-direction:column;gap:14px">
+<p style="margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#F7F4EE">OG image · 1200×630 · piece and home</p>
+<div style="display:flex;gap:32px;align-items:flex-start">
+<div data-scheme="light" style="width:1200px;height:630px;background:var(--paper);color:var(--ink);box-sizing:border-box;padding:72px 80px;display:flex;flex-direction:column;justify-content:space-between">
+<div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:20px">
+<span style="font-family:var(--serif);font-size:20px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)">Analysis</span>
+<span style="font-family:var(--mono);font-size:18px;letter-spacing:.1em;color:var(--ink-2)">EN</span>
+</div>
+<h2 style="margin:0;font-family:var(--display);font-weight:500;font-size:76px;line-height:1.06;letter-spacing:-.02em;max-width:19ch;text-wrap:balance">Which AI projects are worth funding in 2027</h2>
+<div style="display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--rule);padding-top:20px">
+<span style="font-family:var(--display);font-size:28px;font-weight:500">Radu Herinean</span>
+<span style="font-family:var(--mono);font-size:20px;letter-spacing:.04em;color:var(--ink-2)">herinean.com</span>
+</div>
+</div>
+<div data-scheme="light" style="width:1200px;height:630px;background:var(--paper);color:var(--ink);box-sizing:border-box;padding:72px 80px;display:flex;gap:56px;align-items:center">
+<div style="width:260px;height:260px;flex:none;border:1px solid var(--rule);background:var(--paper-2);display:flex;align-items:center;justify-content:center">
+<span style="font-family:var(--mono);font-size:14px;letter-spacing:.08em;color:var(--ink-2);text-align:center;line-height:1.5">PHOTO:<br>portrait</span>
+</div>
+<div style="flex:1;min-width:0">
+<h2 style="margin:0 0 20px;font-family:var(--display);font-weight:500;font-size:80px;line-height:1.02;letter-spacing:-.022em">Radu Herinean</h2>
+<div style="height:1px;background:var(--rule);margin-bottom:20px"></div>
+<p style="margin:0 0 28px;font-family:var(--serif);font-size:30px;line-height:1.35;color:var(--ink);max-width:24ch;text-wrap:pretty">Practicing CTO. I ship AI in real businesses and write about which projects are worth funding.</p>
+<p style="margin:0;font-family:var(--mono);font-size:20px;letter-spacing:.04em;color:var(--ink-2)">herinean.com · EN / RO</p>
+</div>
+</div>
+</div>
+</section>
+
+<!-- FAVICON · THREE MONOGRAM PROPOSALS -->
+<section style="display:flex;flex-direction:column;gap:14px">
+<p style="margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#F7F4EE">Favicon · three monograms, 48px and 16px, both schemes</p>
+<div style="display:flex;gap:24px">
+<div data-scheme="light" style="width:624px;background:var(--paper);color:var(--ink);padding:32px 40px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;align-items:center;gap:20px;border-bottom:1px solid var(--rule);padding-bottom:20px">
+<svg width="48" height="48" viewBox="0 0 32 32" role="img" aria-label="RH monogram"><rect width="32" height="32" fill="#FAF8F4"></rect><text x="16" y="23" text-anchor="middle" font-family="Newsreader, Georgia, serif" font-size="20" font-weight="500" fill="#1C1A17">RH</text></svg>
+<svg width="16" height="16" viewBox="0 0 32 32" role="img" aria-label="RH monogram, 16px"><rect width="32" height="32" fill="#FAF8F4"></rect><text x="16" y="23" text-anchor="middle" font-family="Newsreader, Georgia, serif" font-size="20" font-weight="500" fill="#1C1A17">RH</text></svg>
+<p style="margin:0;font-size:var(--fs--1);line-height:1.45;color:var(--ink-2);text-wrap:pretty"><span style="color:var(--ink);font-weight:600">A · RH, display serif.</span> Correct but crowded at 16px; the R's leg and the H's crossbar merge on a low-DPI tab.</p>
+</div>
+<div style="display:flex;align-items:center;gap:20px;border-bottom:1px solid var(--rule);padding-bottom:20px">
+<svg width="48" height="48" viewBox="0 0 32 32" role="img" aria-label="h on oxblood"><rect width="32" height="32" fill="#7D2B22"></rect><text x="16" y="24" text-anchor="middle" font-family="Newsreader, Georgia, serif" font-size="26" font-weight="500" fill="#FAF8F4">h</text></svg>
+<svg width="16" height="16" viewBox="0 0 32 32" role="img" aria-label="h on oxblood, 16px"><rect width="32" height="32" fill="#7D2B22"></rect><text x="16" y="24" text-anchor="middle" font-family="Newsreader, Georgia, serif" font-size="26" font-weight="500" fill="#FAF8F4">h</text></svg>
+<p style="margin:0;font-size:var(--fs--1);line-height:1.45;color:var(--ink-2);text-wrap:pretty"><span style="color:var(--ink);font-weight:600">B · lowercase h, paper on oxblood.</span> Reads at 16px in either scheme because the ground carries it, not the stroke. Recommended.</p>
+</div>
+<div style="display:flex;align-items:center;gap:20px">
+<svg width="48" height="48" viewBox="0 0 32 32" role="img" aria-label="R over rule"><rect width="32" height="32" fill="#FAF8F4"></rect><text x="16" y="22" text-anchor="middle" font-family="Newsreader, Georgia, serif" font-size="24" font-weight="500" fill="#1C1A17">R</text><rect x="7" y="25" width="18" height="2" fill="#7D2B22"></rect></svg>
+<svg width="16" height="16" viewBox="0 0 32 32" role="img" aria-label="R over rule, 16px"><rect width="32" height="32" fill="#FAF8F4"></rect><text x="16" y="22" text-anchor="middle" font-family="Newsreader, Georgia, serif" font-size="24" font-weight="500" fill="#1C1A17">R</text><rect x="7" y="25" width="18" height="2" fill="#7D2B22"></rect></svg>
+<p style="margin:0;font-size:var(--fs--1);line-height:1.45;color:var(--ink-2);text-wrap:pretty"><span style="color:var(--ink);font-weight:600">C · R on a hairline.</span> Quotes the page's own structural device; the rule collapses to a smudge below 20px.</p>
+</div>
+</div>
+<div data-scheme="dark" style="width:624px;background:var(--paper);color:var(--ink);padding:32px 40px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;align-items:center;gap:20px;border-bottom:1px solid var(--rule);padding-bottom:20px">
+<svg width="48" height="48" viewBox="0 0 32 32" role="img" aria-label="RH monogram, dark"><rect width="32" height="32" fill="#191714"></rect><text x="16" y="23" text-anchor="middle" font-family="Newsreader, Georgia, serif" font-size="20" font-weight="500" fill="#EAE4DA">RH</text></svg>
+<svg width="16" height="16" viewBox="0 0 32 32" role="img" aria-label="RH monogram, dark 16px"><rect width="32" height="32" fill="#191714"></rect><text x="16" y="23" text-anchor="middle" font-family="Newsreader, Georgia, serif" font-size="20" font-weight="500" fill="#EAE4DA">RH</text></svg>
+<p style="margin:0;font-size:var(--fs--1);line-height:1.45;color:var(--ink-2)">A, dark scheme.</p>
+</div>
+<div style="display:flex;align-items:center;gap:20px;border-bottom:1px solid var(--rule);padding-bottom:20px">
+<svg width="48" height="48" viewBox="0 0 32 32" role="img" aria-label="h on oxblood, dark"><rect width="32" height="32" fill="#7D2B22"></rect><text x="16" y="24" text-anchor="middle" font-family="Newsreader, Georgia, serif" font-size="26" font-weight="500" fill="#FAF8F4">h</text></svg>
+<svg width="16" height="16" viewBox="0 0 32 32" role="img" aria-label="h on oxblood, dark 16px"><rect width="32" height="32" fill="#7D2B22"></rect><text x="16" y="24" text-anchor="middle" font-family="Newsreader, Georgia, serif" font-size="26" font-weight="500" fill="#FAF8F4">h</text></svg>
+<p style="margin:0;font-size:var(--fs--1);line-height:1.45;color:var(--ink-2)">B, dark scheme — unchanged, which is the argument for it.</p>
+</div>
+<div style="display:flex;align-items:center;gap:20px">
+<svg width="48" height="48" viewBox="0 0 32 32" role="img" aria-label="R over rule, dark"><rect width="32" height="32" fill="#191714"></rect><text x="16" y="22" text-anchor="middle" font-family="Newsreader, Georgia, serif" font-size="24" font-weight="500" fill="#EAE4DA">R</text><rect x="7" y="25" width="18" height="2" fill="#E2907E"></rect></svg>
+<svg width="16" height="16" viewBox="0 0 32 32" role="img" aria-label="R over rule, dark 16px"><rect width="32" height="32" fill="#191714"></rect><text x="16" y="22" text-anchor="middle" font-family="Newsreader, Georgia, serif" font-size="24" font-weight="500" fill="#EAE4DA">R</text><rect x="7" y="25" width="18" height="2" fill="#E2907E"></rect></svg>
+<p style="margin:0;font-size:var(--fs--1);line-height:1.45;color:var(--ink-2)">C, dark scheme — needs the accent swapped, one more thing to maintain.</p>
+</div>
+</div>
+</div>
+<p style="margin:0;width:1272px;color:#F2EFE9;font-size:13px;line-height:1.55;font-family:var(--serif)">Ships as a single SVG with the letterform converted to a path, so no font loads for a 16px mark.</p>
+</section>
+
+
+
+<!-- PRINT RENDERING OF THE PIECE PAGE -->
+<section style="display:flex;flex-direction:column;gap:14px">
+<p style="margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#F7F4EE">Print · piece page, 170mm content width</p>
+<div style="display:flex;gap:32px;align-items:flex-start">
+<div data-scheme="print" style="container-type:inline-size;width:720px;background:#fff;border:1px solid #6E6A63">
+<div lang="en" style="background:var(--paper);color:var(--ink);font-family:var(--serif);font-optical-sizing:auto;font-size:var(--fs-0);line-height:1.6;hyphens:auto;box-sizing:border-box;padding:clamp(1.25rem,3cqw,2.25rem) clamp(1rem,3cqw,1.5rem) 2.5rem">
+
+<header data-print-hide style="max-width:38rem;margin:0 auto">
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem 1.25rem">
+<a href="https://herinean.com" style="font-family:var(--display);font-size:var(--fs-1);font-weight:500;color:var(--ink);text-decoration:none">Radu Herinean</a>
+<nav style="display:flex;gap:1.15rem;font-size:var(--fs--1)"><a href="https://herinean.com/writing">Writing</a><a href="https://herinean.com/ro">Română</a></nav>
+</div>
+<div style="height:1px;background:var(--rule);margin-top:.85rem"></div>
+</header>
+
+<article style="max-width:38rem;margin:0 auto">
+<p style="margin:1.9rem 0 1.1rem;font-size:var(--fs--1)"><a href="https://herinean.com/ro/proiecte-ai-finantabile-2027">Citește în română →</a></p>
+
+<h1 style="margin:0;font-family:var(--display);font-weight:500;font-size:clamp(2.319rem,7.2cqw,2.899rem);line-height:1.1;letter-spacing:-.012em;text-wrap:balance">Which AI projects are worth funding in 2027</h1>
+
+<p style="margin:.9rem 0 0;color:var(--ink-2);font-size:var(--fs--1);font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;gap:.45rem .55rem;align-items:baseline">
+<span>27 Sep 2026</span><span aria-hidden="true">·</span><span>Updated 3 Oct 2026</span><span aria-hidden="true">·</span><span>9 min read</span><span aria-hidden="true">·</span><span style="font-size:.82em;letter-spacing:.1em;text-transform:uppercase">Analysis</span>
+</p>
+<div style="height:1px;background:var(--rule);margin:1.4rem 0 1.9rem"></div>
+
+<p style="margin:0 0 1.05em;text-wrap:pretty">A board can approve an AI budget in twenty minutes and then spend two years finding out whether the project was fundable. The demo is never the problem. The demo is the reason the question gets asked badly.</p>
+<p style="margin:0 0 1.05em;text-wrap:pretty">I run engineering for a company that puts AI into retail and agricultural operations, so I see both ends: the pitch, and the third quarter after the pitch. What separates the projects that reach production from the ones that stay demos is not model quality. It is three unglamorous properties, and all three are visible before any money moves.</p>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">Three questions</h2>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Ask them in order. A project that fails the first one cannot be rescued by the other two.</p>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">1. Who owns the decision?</h3>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Every AI project changes a decision somebody is already accountable for — what to restock, which claim to review first, which field to spray. If the owner of that decision is not in the room when the project is scoped, the model will be built to produce an output nobody is permitted to act on.</p>
+
+<blockquote style="margin:1.7rem 0;padding-left:1.1rem;border-left:1px solid var(--rule);font-family:var(--display);font-size:var(--fs-1);line-height:1.35;font-style:italic;color:var(--ink);text-wrap:pretty">A model nobody is accountable for acting on is a reporting tool with a research budget.</blockquote>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">2. What does the model replace?</h3>
+<p style="margin:0 0 .9em;text-wrap:pretty">There are only three honest answers, and they price very differently.</p>
+<ul style="margin:0 0 1.05em;padding-left:1.15rem;display:flex;flex-direction:column;gap:.5em">
+<li style="text-wrap:pretty">A judgement made today by an expert, under time pressure, on incomplete data. <em>Fundable.</em></li>
+<li style="text-wrap:pretty">A judgement made today by nobody, because there is no time to make it at all. <em>Fundable, and usually cheaper than it looks.</em></li>
+<li style="text-wrap:pretty">A process that exists only in a slide. <em>Not fundable yet</em> — fund the process first.</li>
+</ul>
+
+<h3 style="margin:1.8rem 0 .5rem;font-family:var(--serif);font-weight:600;font-size:var(--fs-1);line-height:1.25;text-wrap:balance">3. What happens on a bad day?</h3>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Ask for the failure mode in plain words. “The model ranks the wrong three stores first and a regional manager loses a week” is an answer you can budget against. If nobody can describe the bad day, the project has not been thought about operationally, and the pilot will end in a disagreement about whether it worked.</p>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">What it looks like in a portfolio</h2>
+<div style="overflow-x:auto;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);margin:0 0 .7rem">
+<table style="border-collapse:collapse;min-width:34rem;width:100%;font-size:var(--fs--1);font-variant-numeric:tabular-nums">
+<thead><tr>
+<th style="text-align:left;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Project</th>
+<th style="text-align:left;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Stage</th>
+<th style="text-align:right;padding:.6rem .8rem .55rem 0;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Cost / decision</th>
+<th style="text-align:left;padding:.6rem 0 .55rem;font-weight:600;border-bottom:1px solid var(--rule);white-space:nowrap">Decision owner</th>
+</tr></thead>
+<tbody>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Restock priority</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Production</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">€0.004</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Regional ops</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Invoice triage</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Production</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">€0.011</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Finance lead</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Yield forecast</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule)">Pilot</td><td style="padding:.55rem .8rem .55rem 0;border-bottom:1px solid var(--rule);text-align:right">€0.38</td><td style="padding:.55rem 0;border-bottom:1px solid var(--rule)">Agronomy</td></tr>
+<tr><td style="padding:.55rem .8rem .55rem 0">Support assistant</td><td style="padding:.55rem .8rem .55rem 0">Paused</td><td style="padding:.55rem .8rem .55rem 0;text-align:right">—</td><td style="padding:.55rem 0">None</td></tr>
+</tbody>
+</table>
+</div>
+<p style="margin:0 0 1.05em;color:var(--ink-2);font-size:var(--fs--1);text-wrap:pretty">The column that predicts the outcome is the last one, not the third.</p>
+
+<figure style="margin:1.9rem 0">
+<div style="border:1px solid var(--rule);background:var(--paper-2);aspect-ratio:16/9;display:flex;align-items:center;justify-content:center">
+<span style="font-family:var(--mono);font-size:var(--fs--2);letter-spacing:.08em;color:var(--ink-2);text-align:center;padding:1rem">FIGURE: pilot → production funnel, 2023–2026</span>
+</div>
+<figcaption style="margin-top:.6rem;color:var(--ink-2);font-size:var(--fs--1);line-height:1.5;text-wrap:pretty">Of 41 pilots reviewed between 2023 and 2026, nine reached production. Placeholder; real chart at build.</figcaption>
+</figure>
+
+<h2 style="margin:2.2rem 0 .7rem;font-family:var(--display);font-weight:500;font-size:var(--fs-2);line-height:1.18;letter-spacing:-.008em;text-wrap:balance">Instrument the decision, not the model</h2>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Whatever gets funded, tie the release gate to the decision it changes. A scorecard the project has to pass on every deploy keeps the monthly review concrete:</p>
+<pre style="margin:0 0 1.05em;border:1px solid var(--rule);background:var(--paper-2);padding:.9rem 1rem;overflow-x:auto;font-family:var(--mono);font-size:.82em;line-height:1.55"><code>decision: restock_priority
+owner:    ops.regional_manager
+baseline: manual_ranking_2025_q3
+gate:
+  precision_at_10: ">= 0.72"
+  latency_p95_ms:  "&lt; 900"
+  override_rate:   "&lt; 0.25"   # disagreement is signal</code></pre>
+<p style="margin:0 0 1.05em;text-wrap:pretty">Three numbers, reviewed monthly, in language the decision owner can argue with.<a href="#fn1" id="fnref1" style="font-size:.75em;vertical-align:.45em;text-decoration-thickness:.04em">1</a></p>
+
+<section style="margin:2.4rem 0 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.9rem"></div>
+<h2 style="margin:0 0 .6rem;font-family:var(--serif);font-weight:600;font-size:var(--fs--1);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)">Notes</h2>
+<ol style="margin:0;padding-left:1.15rem;font-size:var(--fs--1);line-height:1.55;color:var(--ink)">
+<li id="fn1" style="text-wrap:pretty">The override rate matters most. Above a quarter, the model is being ignored, whatever the accuracy says. <a href="#fnref1" style="text-decoration:none">↩</a></li>
+</ol>
+</section>
+
+<p style="margin:2.2rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">Also on <a href="https://www.linkedin.com/in/herinean">LinkedIn</a> · <a href="https://medium.com/@herinean">Medium</a></p>
+
+<div style="height:1px;background:var(--rule);margin:1.5rem 0 .9rem"></div>
+<p style="margin:0;font-size:var(--fs--1);line-height:1.55">Radu Herinean — CTO. <a href="https://www.linkedin.com/in/herinean">LinkedIn</a></p>
+</article>
+
+<footer data-print-hide style="max-width:38rem;margin:2.6rem auto 0">
+<div style="height:1px;background:var(--rule);margin-bottom:.85rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:var(--fs--1)"><a href="https://www.linkedin.com/in/herinean">LinkedIn</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/feed.xml">RSS</a><span style="color:var(--ink-2)">·</span><a href="https://herinean.com/colophon">Colophon</a></div>
+<p style="margin:.5rem 0 0;color:var(--ink-2);font-size:var(--fs--1)">No JavaScript, no cookies, no trackers.</p>
+</footer>
+</div>
+</div>
+<p style="margin:0;width:340px;color:#F2EFE9;font-size:13px;line-height:1.55;font-family:var(--serif)">Masthead and footer are dropped, everything goes to black on white, and every external URL is printed after its link text in the mono face. The accent survives only as ordinary ink, so the failing-row style in the colophon falls back to semibold plus the word “Fail”. Page margins are 18mm top/bottom, 16mm sides.</p>
+</div>
+</section>
+
+
+</div>
+</body>
+</html>
+
