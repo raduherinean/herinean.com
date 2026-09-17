@@ -26,6 +26,7 @@ expect_status() {
 # expect_location URL EXPECTED  — first response is a redirect to EXPECTED
 expect_location() {
   local l; l=$(hdrs "$1" | awk 'BEGIN{IGNORECASE=1} tolower($1)=="location:"{print $2; exit}' | tr -d '\r')
+  case "$l" in /*) l="$(printf '%s' "$1" | sed -E 's#^([a-z]+://[^/]+).*#\1#')$l" ;; esac   # relative Location is valid; normalise
   if [ "$l" = "$2" ]; then ok "$1 → $l"; else bad "$1 expected Location $2 got '${l:-<absent>}'"; fi
 }
 # expect_txt NAME REGEX — some TXT record at NAME matches (via 1.1.1.1)
@@ -98,6 +99,36 @@ for d in herinean.com herinean.ro herinean.net herinean.info; do
   flags=$(dig +dnssec +noall +comments A "$d" @1.1.1.1 | grep -o 'flags:[^;]*')
   printf '%s' "$flags" | grep -q ' ad' && ok "$d AD flag set" || bad "$d not validated ($flags)"
 done
+
+
+section "apex headers and routing"
+U=https://herinean.com
+expect_status "$U/" 200
+expect_header "$U/" content-security-policy "^default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'$"
+expect_header "$U/" strict-transport-security '^max-age=63072000; includeSubDomains; preload$'
+expect_header "$U/" x-content-type-options '^nosniff$'
+expect_header "$U/" referrer-policy '^strict-origin-when-cross-origin$'
+expect_header "$U/" permissions-policy 'camera=\(\)'
+expect_header "$U/" cross-origin-opener-policy '^same-origin$'
+expect_header "$U/" cross-origin-resource-policy '^same-origin$'
+expect_header "$U/" x-frame-options '^DENY$'
+expect_header "$U/" x-robots-tag '^noindex$'                     # placeholder only; M1 removes it on production
+expect_no_body "$U/" '<script|cdn-cgi|style='
+expect_status "$U/nope/" 404
+expect_location "$U/404" "$U/404/"                                # force-trailing-slash (404.html is a real asset)
+expect_location "http://herinean.com/" "$U/"
+expect_status "$U/.well-known/security.txt" 200
+expect_header "$U/.well-known/security.txt" content-type '^text/plain'
+expect_status "https://mta-sts.herinean.com/.well-known/mta-sts.txt" 200
+expect_status "https://mta-sts.herinean.com/" 404
+if curl --version | grep -q HTTP3; then
+  h3=$(rcurl "$U/" -sS --http3-only -o /dev/null -w '%{http_version}' --max-time 15 2>/dev/null || true)
+  [ "$h3" = "3" ] && ok "HTTP/3 negotiated" || bad "HTTP/3 not negotiated (got '${h3:-error}')"
+else
+  expect_header "$U/" alt-svc 'h3='     # this curl lacks HTTP/3; the edge advertising it is the next-best evidence
+fi
+tls12=$(rcurl "$U/" -sS --tls-max 1.2 -o /dev/null -w '%{http_code}' --max-time 15 2>&1 || true)
+printf '%s' "$tls12" | grep -Eq 'alert|handshake|error|000' && ok "TLS 1.2 refused" || bad "TLS 1.2 accepted ($tls12)"
 
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
