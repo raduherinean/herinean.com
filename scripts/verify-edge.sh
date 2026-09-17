@@ -41,5 +41,19 @@ for t in curl dig jq; do command -v "$t" >/dev/null && ok "$t present" || bad "$
 
 # --- task sections are appended below this line ---
 
+section "zone settings (API)"
+cf() { curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4$1"; }
+for z in $ZONE_COM $ZONE_RO $ZONE_NET $ZONE_INFO; do
+  for pair in min_tls_version:1.3 tls_1_3:on http3:on 0rtt:off always_use_https:on ipv6:on email_obfuscation:off rocket_loader:off fonts:off speed_brain:off browser_check:on; do
+    s=${pair%%:*}; want=${pair##*:}
+    got=$(cf "/zones/$z/settings/$s" | jq -r '.result.value // empty')
+    [ "$got" = "$want" ] && ok "$z $s=$got" || bad "$z $s expected $want got '${got:-<none>}'"
+  done
+  h=$(cf "/zones/$z/settings/security_header" | jq -c '.result.value.strict_transport_security | {enabled,max_age,include_subdomains,preload}')
+  [ "$h" = '{"enabled":true,"max_age":63072000,"include_subdomains":true,"preload":true}' ] && ok "$z hsts $h" || bad "$z hsts got $h"
+  bfm=$(cf "/zones/$z/bot_management" | jq -r '.result.fight_mode')
+  [ "$bfm" = "false" ] && ok "$z bot fight mode off" || bad "$z bot fight mode = $bfm"
+done
+
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
