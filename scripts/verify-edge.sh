@@ -5,7 +5,14 @@ FAIL=0; PASS=0
 section() { printf '\n== %s\n' "$1"; }
 ok()   { PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); printf '  FAIL %s\n' "$1"; }
-hdrs() { curl -sS -o /dev/null -D - --max-time 15 "$@" 2>/dev/null; }
+# curl through authoritative answers (1.1.1.1), so local resolver caches never fake a result
+rcurl() {
+  local url=$1; shift
+  local host; host=$(printf '%s' "$url" | sed -E 's#^[a-z]+://([^/:]+).*#\1#')
+  local ip; ip=$(dig +short A "$host" @1.1.1.1 | head -1)
+  if [ -n "$ip" ]; then curl --resolve "$host:443:$ip" --resolve "$host:80:$ip" "$@" "$url"; else curl "$@" "$url"; fi
+}
+hdrs() { rcurl "$1" -sS -o /dev/null -D - --max-time 15 2>/dev/null; }
 # expect_header URL HEADER REGEX   — header value (case-insensitive name) matches regex
 expect_header() {
   local v; v=$(hdrs "$1" | awk -v h="$2" 'BEGIN{IGNORECASE=1} tolower($1)==tolower(h":"){sub(/^[^:]*: */,""); sub(/\r$/,""); print; exit}')
@@ -13,7 +20,7 @@ expect_header() {
 }
 # expect_status URL CODE
 expect_status() {
-  local c; c=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$1" 2>/dev/null)
+  local c; c=$(rcurl "$1" -sS -o /dev/null -w '%{http_code}' --max-time 15 2>/dev/null)
   if [ "$c" = "$2" ]; then ok "$1 → $c"; else bad "$1 expected $2 got $c"; fi
 }
 # expect_location URL EXPECTED  — first response is a redirect to EXPECTED
@@ -28,7 +35,7 @@ expect_txt() {
 }
 # expect_no_body URL REGEX — body must NOT match
 expect_no_body() {
-  if curl -sS --max-time 15 "$1" 2>/dev/null | grep -Eq -- "$2"; then bad "$1 body matches forbidden /$2/"; else ok "$1 body free of /$2/"; fi
+  if rcurl "$1" -sS --max-time 15 2>/dev/null | grep -Eq -- "$2"; then bad "$1 body matches forbidden /$2/"; else ok "$1 body free of /$2/"; fi
 }
 # expect_dig NAME TYPE REGEX — dig +short output matches
 expect_dig() {
@@ -53,6 +60,20 @@ for z in $ZONE_COM $ZONE_RO $ZONE_NET $ZONE_INFO; do
   [ "$h" = '{"enabled":true,"max_age":63072000,"include_subdomains":true,"preload":true}' ] && ok "$z hsts $h" || bad "$z hsts got $h"
   bfm=$(cf "/zones/$z/bot_management" | jq -r '.result.fight_mode')
   [ "$bfm" = "false" ] && ok "$z bot fight mode off" || bad "$z bot fight mode = $bfm"
+done
+
+
+section "redirects and CAA"
+for d in herinean.ro herinean.net herinean.info; do
+  expect_location "https://$d/writing/x/?ref=li" "https://herinean.com/writing/x/?ref=li"
+  expect_location "https://www.$d/" "https://herinean.com/"
+  expect_location "http://$d/" "https://herinean.com/"     # the redirect rule fires before the HTTPS upgrade: one hop
+  expect_header "https://$d/" strict-transport-security 'max-age=63072000; includeSubDomains; preload'
+done
+expect_location "https://www.herinean.com/a/?b=1" "https://herinean.com/a/?b=1"
+for d in herinean.com herinean.ro herinean.net herinean.info; do
+  expect_dig "$d" CAA 'issue "letsencrypt.org"'
+  expect_dig "$d" CAA 'iodef "mailto:security@herinean.com"'
 done
 
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
