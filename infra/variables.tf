@@ -40,8 +40,9 @@ variable "dkim_txt" {
 }
 
 variable "dmarc_policy" {
-  type    = string
-  default = "none" # flipped to "reject" in Task 6 step 8
+  type        = map(string)
+  description = "DMARC policy for the domains that send mail; each flips to reject after a signed test message verifies (Task 6 step 7-8)"
+  default     = { com = "none", net = "none" }
 }
 
 variable "mta_sts_id" {

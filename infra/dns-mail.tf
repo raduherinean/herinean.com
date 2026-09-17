@@ -38,7 +38,7 @@ resource "cloudflare_dns_record" "dmarc" {
   type     = "TXT"
   # .com (sending domain) and .net (Workspace primary) go p=none → verified by a signed test message → reject (var.dmarc_policy);
   # .ro and .info are reject from the start: nothing sends as them.
-  content  = "\"v=DMARC1; p=${contains(["com", "net"], each.key) ? var.dmarc_policy : "reject"}; adkim=s; aspf=s; rua=${local.dmarc_rua[each.key]}\""
+  content  = "\"v=DMARC1; p=${lookup(var.dmarc_policy, each.key, "reject")}; adkim=s; aspf=s; rua=${local.dmarc_rua[each.key]}\""
   ttl      = 1
 }
 

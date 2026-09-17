@@ -91,5 +91,13 @@ expect_txt _smtp._tls.herinean.com 'v=TLSRPTv1; rua=mailto:dmarc@herinean\.com'
 expect_txt herinean.net 'google-site-verification='     # pre-existing, must survive untouched
 expect_txt herinean.ro 'google-site-verification='
 
+
+section "DNSSEC"
+for d in herinean.com herinean.ro herinean.net herinean.info; do
+  expect_dig "$d" DS '^[0-9]+ 13 2 [0-9A-F]+'
+  flags=$(dig +dnssec +noall +comments A "$d" @1.1.1.1 | grep -o 'flags:[^;]*')
+  printf '%s' "$flags" | grep -q ' ad' && ok "$d AD flag set" || bad "$d not validated ($flags)"
+done
+
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

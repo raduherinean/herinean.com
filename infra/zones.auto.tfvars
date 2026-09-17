@@ -13,3 +13,6 @@ dmarc_cf_rua = {
 }
 
 dkim_txt = "\"v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlGUsWlHkKCwpAc+Ry9bG39HKEjCcO2kkIwk3H8srdDgmyvG71ovsTyqUgrXfTbfIwwE31LGrMVZw48/fITGDVlm1LbmDVJanLpppPcVYPm1cqMj/oe2NKXKXr/iiyxhxWwVaatU7RsxX5dA/wY/pjTH6ptNj8svbUNBU3cUmr4PlHWkHovJqsGbfKHXTuk3YH\" \"bIsJx9Jxe7ZDuF6Ztg8Yh1ktwjcT2+enUh7kv9j/1sFFnRwnZo699vHlbzq3ghj/WObP/+dXm8ExmX5ydJqrVkHuZDnTGVh0ncUTl1Ejkm5VQDx7aF4pYC3SHmVEuKXAT/Ge1b5H6Oi5FDz49T8GQIDAQAB\""
+
+# .net verified 2026-09-17: spf=pass (aligned), dkim=pass s=google, dmarc=pass. .com pending its test message.
+dmarc_policy = { com = "none", net = "reject" }
