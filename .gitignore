@@ -1,0 +1,10 @@
+# build output and caches
+/dist/
+/.cache/
+
+# local-only
+/.env
+*.token
+/infra/.terraform/
+/infra/*.tfstate*
+/bench/node_modules/
