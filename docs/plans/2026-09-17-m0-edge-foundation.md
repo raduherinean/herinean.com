@@ -74,9 +74,9 @@ export DKIM_TXT='"v=DKIM1; k=rsa; p=..."'   # exact API content of google._domai
 **Interfaces:**
 - Produces: `scripts/env.sh` (sourced by every later script; exports the variables listed under *Operator inputs*); `scripts/verify-edge.sh` with helpers `expect_header URL HEADER REGEX`, `expect_status URL CODE`, `expect_location URL EXPECTED`, `expect_txt NAME REGEX`, `expect_no_body URL REGEX`, `section NAME`, and a final summary that exits non-zero on any failure.
 
-- [ ] **Step 1: Confirm the dashboard prerequisites are done** (operator, from the spec §11 M0 list): four zones added, nameservers changed, Workers Paid active, Workspace DKIM generated (2048, selector `google`) and aliases `security@` + `dmarc@` created, `herinean-infra` token created (TTL 7 days), `~/.config/herinean/cf-infra.token` written with mode 600, `~/.config/herinean/m0.env` written as above.
+- [x] **Step 1: Confirm the dashboard prerequisites are done** (operator, from the spec §11 M0 list): four zones added, nameservers changed, Workers Paid active, Workspace DKIM generated (2048, selector `google`) and aliases `security@` + `dmarc@` created, `herinean-infra` token created (TTL 7 days), `~/.config/herinean/cf-infra.token` written with mode 600, `~/.config/herinean/m0.env` written as above.
 
-- [ ] **Step 2: Write `scripts/env.sh`**
+- [x] **Step 2: Write `scripts/env.sh`**
 
 ```bash
 #!/usr/bin/env bash
@@ -95,7 +95,7 @@ done
 export TF_VAR_account_id="$CLOUDFLARE_ACCOUNT_ID"
 ```
 
-- [ ] **Step 3: Write the `scripts/verify-edge.sh` skeleton**
+- [x] **Step 3: Write the `scripts/verify-edge.sh` skeleton**
 
 ```bash
 #!/usr/bin/env bash
@@ -145,7 +145,7 @@ printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
 ```
 
-- [ ] **Step 4: Verify the token and that all four zones are active**
+- [x] **Step 4: Verify the token and that all four zones are active**
 
 ```bash
 . scripts/env.sh
@@ -157,14 +157,14 @@ for d in herinean.com herinean.ro herinean.net herinean.info; do echo "$d NS: $(
 ```
 Expected: `active`; four lines `herinean.<tld> active Free Website`; NS lines showing `*.ns.cloudflare.com`. If a zone is `pending`, stop — nameservers haven't propagated; nothing in Tasks 3–9 can be verified until they have.
 
-- [ ] **Step 5: Tools** — `tofu version` (install if missing: `curl -fsSL https://get.opentofu.org/install-opentofu.sh | sh -s -- --install-method standalone`, then re-run), `node --version` (need 22.x; install via the distro or `nvm install 22`), `gh auth status`.
+- [x] **Step 5: Tools** — `tofu version` (install if missing: `curl -fsSL https://get.opentofu.org/install-opentofu.sh | sh -s -- --install-method standalone`, then re-run), `node --version` (need 22.x; install via the distro or `nvm install 22`), `gh auth status`.
 
-- [ ] **Step 6: Run the suite skeleton**
+- [x] **Step 6: Run the suite skeleton**
 
 Run: `chmod +x scripts/*.sh && scripts/verify-edge.sh`
 Expected: preflight section with three `ok` lines, `3 passed, 0 failed`.
 
-- [ ] **Step 7: Commit** (on a branch — `main` is protected from Task 2 onward, so start the discipline now)
+- [x] **Step 7: Commit** (on a branch — `main` is protected from Task 2 onward, so start the discipline now)
 
 ```bash
 git checkout -b infra/m0
@@ -188,7 +188,7 @@ MSG
 **Interfaces:**
 - Produces: signed history on `main`; remotes `origin` (GitHub, public) and `gitea` (private).
 
-- [ ] **Step 1: SSH signing key**
+- [x] **Step 1: SSH signing key**
 
 ```bash
 ssh-keygen -t ed25519 -C radu@herinean.com -f ~/.ssh/herinean_signing -N ""
@@ -200,7 +200,7 @@ mkdir -p ~/.config/git && printf 'radu@herinean.com %s\n' "$(cat ~/.ssh/herinean
 ```
 Then in GitHub → Settings → SSH and GPG keys → **New SSH key → Key type: Signing Key** → paste `~/.ssh/herinean_signing.pub`. Also Settings → Emails → add and verify `radu@herinean.com`.
 
-- [ ] **Step 2: Re-sign the existing commits** (one on `main`, one on `infra/m0`)
+- [x] **Step 2: Re-sign the existing commits** (one on `main`, one on `infra/m0`)
 
 ```bash
 git checkout main
@@ -210,7 +210,7 @@ git log --show-signature --oneline main | head
 ```
 Expected: each commit shows `Good "git" signature for radu@herinean.com with ED25519 key`.
 
-- [ ] **Step 3: Write `README.md`**
+- [x] **Step 3: Write `README.md`**
 
 ```markdown
 # herinean.com
@@ -224,7 +224,7 @@ This repository is the whole platform: a bespoke Go static-site generator, a ~80
 Code: MIT. Writing: CC BY-NC-ND 4.0.
 ```
 
-- [ ] **Step 4: Commit README on `main`** (the last direct commit to `main` — protection lands in Task 2)
+- [x] **Step 4: Commit README on `main`** (the last direct commit to `main` — protection lands in Task 2)
 
 ```bash
 git checkout main
@@ -305,7 +305,7 @@ Expected: push **rejected** with a rules message; `exit` non-zero. The reset dis
 **Interfaces:**
 - Produces: variables `account_id`, `zones` (map short→id), `domains` (map short→fqdn), `redirect_zones` (set), `mx` (map host→priority), `dkim_txt`, `dmarc_policy`, `mta_sts_id`, `dmarc_cf_rua` — used by every later `.tf` file.
 
-- [ ] **Step 1: `infra/versions.tf`**
+- [x] **Step 1: `infra/versions.tf`**
 
 ```hcl
 terraform {
@@ -322,7 +322,7 @@ terraform {
 provider "cloudflare" {}
 ```
 
-- [ ] **Step 2: `infra/variables.tf`**
+- [x] **Step 2: `infra/variables.tf`**
 
 ```hcl
 variable "account_id" {
@@ -377,7 +377,7 @@ variable "mta_sts_id" {
 }
 ```
 
-- [ ] **Step 3: `infra/zones.auto.tfvars`** — zone ids from `m0.env`; `dmarc_cf_rua` from `dig +short TXT _dmarc.herinean.com` (the `mailto:…@dmarc-reports.cloudflare.net` part):
+- [x] **Step 3: `infra/zones.auto.tfvars`** — zone ids from `m0.env`; `dmarc_cf_rua` from `dig +short TXT _dmarc.herinean.com` (the `mailto:…@dmarc-reports.cloudflare.net` part):
 
 ```hcl
 zones = {
@@ -392,7 +392,7 @@ dmarc_cf_rua = "mailto:<id>@dmarc-reports.cloudflare.net"
 dkim_txt = "\"v=DKIM1; k=rsa; p=<as returned by the API, quotes included>\""  # the record already exists; scripts/env.sh carries the exact API value in DKIM_TXT
 ```
 
-- [ ] **Step 4: `scripts/infra-backup.sh`**
+- [x] **Step 4: `scripts/infra-backup.sh`**
 
 ```bash
 #!/usr/bin/env bash
@@ -405,14 +405,14 @@ cp terraform.tfstate "$dest/$(date -u +%Y%m%dT%H%M%SZ).json"
 ls -1 "$dest" | tail -3
 ```
 
-- [ ] **Step 5: Init and prove auth with an empty plan**
+- [x] **Step 5: Init and prove auth with an empty plan**
 
 ```bash
 . scripts/env.sh && cd infra && tofu init && tofu plan
 ```
 Expected: `No changes. Your infrastructure matches the configuration.` (no resources yet). A 403/10000 error here means the token is wrong or lacks a permission — fix the token before continuing.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd .. && git add infra/versions.tf infra/variables.tf infra/zones.auto.tfvars infra/.terraform.lock.hcl scripts/infra-backup.sh
@@ -442,7 +442,7 @@ git push gitea infra/m0
 - Consumes: `var.zones`.
 - Produces: `cloudflare_zone_setting.s[...]`, `cloudflare_zone_setting.hsts[...]`, `cloudflare_bot_management.b[...]`.
 
-- [ ] **Step 1: Append the failing assertions** (before the summary lines in `scripts/verify-edge.sh`)
+- [x] **Step 1: Append the failing assertions** (before the summary lines in `scripts/verify-edge.sh`)
 
 ```bash
 section "zone settings (API)"
@@ -460,12 +460,12 @@ for z in $ZONE_COM $ZONE_RO $ZONE_NET $ZONE_INFO; do
 done
 ```
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `. scripts/env.sh && scripts/verify-edge.sh`
 Expected: `FAIL` lines for `min_tls_version` (default 1.0/1.2), `0rtt`, `email_obfuscation` (default on), hsts, and possibly others.
 
-- [ ] **Step 3: `infra/settings.tf`**
+- [x] **Step 3: `infra/settings.tf`**
 
 ```hcl
 locals {
@@ -524,7 +524,7 @@ resource "cloudflare_bot_management" "b" {
 ```
 Provider note: if `tofu validate` rejects the object under `value` for `security_header`, the provider version wants `value = jsonencode({ strict_transport_security = { … } })`; use that form and keep the same content. If `apply` answers `not entitled` for any setting on the Free plan, delete that key from `zone_settings` — the feature cannot be on.
 
-- [ ] **Step 4: Plan, review, apply**
+- [x] **Step 4: Plan, review, apply**
 
 ```bash
 cd infra && tofu validate && tofu plan -out m0-settings.plan
@@ -534,12 +534,12 @@ Expected: `Plan: 64 to add` (14 settings × 4 zones + 4 HSTS + 4 bot management;
 tofu apply m0-settings.plan && rm m0-settings.plan && ../scripts/infra-backup.sh && cd ..
 ```
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 Run: `scripts/verify-edge.sh`
 Expected: the *zone settings* section all `ok`. Run `tofu plan` again: `No changes`. (A perpetual diff on `security_header` means the provider normalises the object — match its form and re-plan.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add infra/settings.tf scripts/verify-edge.sh
@@ -568,7 +568,7 @@ git push gitea infra/m0
 - Consumes: `var.zones`, `var.domains`, `var.redirect_zones`.
 - Produces: proxied placeholder records (`192.0.2.1` / `100::`) on `www.herinean.com` and on apex + `www` of the redirect zones; CAA on all zones; rulesets `cloudflare_ruleset.redirect[...]`, `cloudflare_ruleset.www`. The `herinean.com` apex record is **not** created here — the Workers custom domain creates it in Task 8.
 
-- [ ] **Step 1: Append failing assertions**
+- [x] **Step 1: Append failing assertions**
 
 ```bash
 section "redirects and CAA"
@@ -585,9 +585,9 @@ for d in herinean.com herinean.ro herinean.net herinean.info; do
 done
 ```
 
-- [ ] **Step 2: Run — expect failures** (`curl` errors on the redirect zones since nothing answers; CAA absent).
+- [x] **Step 2: Run — expect failures** (`curl` errors on the redirect zones since nothing answers; CAA absent).
 
-- [ ] **Step 3: `infra/dns-web.tf`**
+- [x] **Step 3: `infra/dns-web.tf`**
 
 ```hcl
 locals {
@@ -649,7 +649,7 @@ resource "cloudflare_dns_record" "web_aaaa" {
 }
 ```
 
-- [ ] **Step 4: `infra/redirects.tf`**
+- [x] **Step 4: `infra/redirects.tf`**
 
 ```hcl
 # Everything on the redirect-only zones → https://herinean.com, path and query preserved.
@@ -700,11 +700,11 @@ resource "cloudflare_ruleset" "www" {
 }
 ```
 
-- [ ] **Step 5: Plan, review, apply, backup** — `cd infra && tofu validate && tofu plan -out m0-web.plan` (expected: 28 CAA + 7 A + 7 AAAA + 4 rulesets = 46 to add), `tofu apply m0-web.plan && rm m0-web.plan && ../scripts/infra-backup.sh && cd ..`.
+- [x] **Step 5: Plan, review, apply, backup** — `cd infra && tofu validate && tofu plan -out m0-web.plan` (expected: 28 CAA + 7 A + 7 AAAA + 4 rulesets = 46 to add), `tofu apply m0-web.plan && rm m0-web.plan && ../scripts/infra-backup.sh && cd ..`.
 
-- [ ] **Step 6: Verify** — `scripts/verify-edge.sh`. Universal SSL for a new zone can take up to 15 minutes to issue; until then the HTTPS assertions on the redirect zones fail with a TLS error — wait, re-run. Expected: section all `ok`, including the HSTS header on the 301 responses (zone-level HSTS applies to Cloudflare-generated redirects).
+- [x] **Step 6: Verify** — `scripts/verify-edge.sh`. Universal SSL for a new zone can take up to 15 minutes to issue; until then the HTTPS assertions on the redirect zones fail with a TLS error — wait, re-run. Expected: section all `ok`, including the HSTS header on the 301 responses (zone-level HSTS applies to Cloudflare-generated redirects).
 
-- [ ] **Step 7: Commit and push to gitea** — message: `M0: CAA, redirect placeholders and 301 rulesets for www and the three redirect zones` with the trailers.
+- [x] **Step 7: Commit and push to gitea** — message: `M0: CAA, redirect placeholders and 301 rulesets for www and the three redirect zones` with the trailers.
 
 ---
 
@@ -718,7 +718,7 @@ resource "cloudflare_ruleset" "www" {
 - Consumes: `var.zones`, `var.domains`, `var.redirect_zones`, `var.mx`, `var.dkim_txt`, `var.dmarc_policy`, `var.mta_sts_id`, `var.dmarc_cf_rua`.
 - Produces: `cloudflare_dns_record.mx["<zone>.<host>"]`, `spf[zone]`, `dmarc[zone]`, `com_dkim`, `com_mta_sts`, `com_tlsrpt`.
 
-- [ ] **Step 1: Append failing assertions**
+- [x] **Step 1: Append failing assertions**
 
 ```bash
 section "mail DNS"
@@ -734,9 +734,9 @@ expect_txt _smtp._tls.herinean.com 'v=TLSRPTv1; rua=mailto:dmarc@herinean\.com'
 expect_txt herinean.net 'google-site-verification='     # pre-existing, must survive untouched
 ```
 
-- [ ] **Step 2: Run — expect** SPF on `.ro/.net/.info` (currently `~all` or legacy), every `_dmarc` except `.com`'s shape, MTA-STS and TLS-RPT to fail; MX rows already pass.
+- [x] **Step 2: Run — expect** SPF on `.ro/.net/.info` (currently `~all` or legacy), every `_dmarc` except `.com`'s shape, MTA-STS and TLS-RPT to fail; MX rows already pass.
 
-- [ ] **Step 3: `scripts/infra-import-mail.sh`** — prints `tofu import` commands for the records that already exist on all four zones, so tofu adopts them instead of colliding or duplicating.
+- [x] **Step 3: `scripts/infra-import-mail.sh`** — prints `tofu import` commands for the records that already exist on all four zones, so tofu adopts them instead of colliding or duplicating.
 
 ```bash
 #!/usr/bin/env bash
@@ -760,7 +760,7 @@ for pair in com:$ZONE_COM ro:$ZONE_RO net:$ZONE_NET info:$ZONE_INFO; do
 done | sort -u
 ```
 
-- [ ] **Step 4: `infra/dns-mail.tf`**
+- [x] **Step 4: `infra/dns-mail.tf`**
 
 ```hcl
 # All four domains are Google Workspace domains of one mailbox (.net primary, the rest aliases). Every one keeps its MX.
@@ -831,7 +831,7 @@ resource "cloudflare_dns_record" "com_tlsrpt" {
 ```
 Provider note on TXT quoting: the API returns TXT `content` quoted (`"\"…\""`), and provider 5.x expects the same. If a `tofu plan` right after `apply` shows a perpetual diff on a TXT record, switch that record to the other form; keep all TXT records consistent.
 
-- [ ] **Step 5: Import the pre-existing records, then plan**
+- [x] **Step 5: Import the pre-existing records, then plan**
 
 ```bash
 scripts/infra-import-mail.sh            # read the commands it prints: 4 MX, 4 SPF, 1 DMARC (.com), 1 DKIM expected
@@ -840,7 +840,7 @@ cd infra && tofu plan -out m0-mail.plan && cd ..
 ```
 Expected plan: 4 MX **no change**; `.com` SPF no change, the other three SPF **update in-place** (→ `-all`); `.com` DMARC update in-place (adds `adkim/aspf` and `dmarc@`; policy stays `none`); DKIM no change; **adds**: 3 DMARC records, MTA-STS, TLS-RPT. **Zero `destroy`.** If any destroy appears, stop and fix the import — never apply.
 
-- [ ] **Step 6: Apply, backup, verify**
+- [x] **Step 6: Apply, backup, verify**
 
 ```bash
 cd infra && tofu apply m0-mail.plan && rm m0-mail.plan && ../scripts/infra-backup.sh && cd .. && scripts/verify-edge.sh
@@ -867,7 +867,7 @@ Edit `infra/zones.auto.tfvars`: add `dmarc_policy = "reject"`. Then `cd infra &&
 - Consumes: `var.zones`.
 - Produces: `cloudflare_zone_dnssec.d[z]`, output `ds_records`.
 
-- [ ] **Step 1: Append failing assertions**
+- [x] **Step 1: Append failing assertions**
 
 ```bash
 section "DNSSEC"
@@ -878,7 +878,7 @@ for d in herinean.com herinean.ro herinean.net herinean.info; do
 done
 ```
 
-- [ ] **Step 2: `infra/dnssec.tf`**
+- [x] **Step 2: `infra/dnssec.tf`**
 
 ```hcl
 resource "cloudflare_zone_dnssec" "d" {
@@ -893,7 +893,7 @@ output "ds_records" {
 }
 ```
 
-- [ ] **Step 3: Apply and read the DS records**
+- [x] **Step 3: Apply and read the DS records**
 
 ```bash
 cd infra && tofu plan -out m0-dnssec.plan && tofu apply m0-dnssec.plan && rm m0-dnssec.plan && tofu output ds_records && ../scripts/infra-backup.sh && cd ..
@@ -916,7 +916,7 @@ cd infra && tofu plan -out m0-dnssec.plan && tofu apply m0-dnssec.plan && rm m0-
 **Interfaces:**
 - Produces: Worker `herinean-com` with assets binding `ASSETS`; custom domains `herinean.com` and `mta-sts.herinean.com`; the header set that M1's `edge` package must reproduce byte-for-byte (plus `style-src`).
 
-- [ ] **Step 1: Append failing assertions**
+- [x] **Step 1: Append failing assertions**
 
 ```bash
 section "apex headers and routing"
@@ -945,9 +945,9 @@ tls12=$(curl -sS --tls-max 1.2 -o /dev/null -w '%{http_code}' --max-time 15 "$U/
 printf '%s' "$tls12" | grep -Eq 'alert|handshake|error|000' && ok "TLS 1.2 refused" || bad "TLS 1.2 accepted ($tls12)"
 ```
 
-- [ ] **Step 2: Run — expect** everything in the section to fail (apex serves a Cloudflare error today).
+- [x] **Step 2: Run — expect** everything in the section to fail (apex serves a Cloudflare error today).
 
-- [ ] **Step 3: `worker/index.js`** — M0 version; M1 adds analytics and the colophon rewrite to this same file.
+- [x] **Step 3: `worker/index.js`** — M0 version; M1 adds analytics and the colophon rewrite to this same file.
 
 ```js
 // herinean.com edge function. Zero client-side JS is the site's rule; this runs at the edge only.
@@ -983,7 +983,7 @@ export default {
 };
 ```
 
-- [ ] **Step 4: `wrangler.toml`**
+- [x] **Step 4: `wrangler.toml`**
 
 ```toml
 name = "herinean-com"
@@ -1006,7 +1006,7 @@ not_found_handling = "404-page"
 run_worker_first = ["/*", "!/img/*", "!/og/*", "!/feed.*", "!/sitemap.xml", "!/favicon*", "!/apple-touch-icon*"]
 ```
 
-- [ ] **Step 5: Placeholder assets**
+- [x] **Step 5: Placeholder assets**
 
 `infra/placeholder/index.html`:
 ```html
@@ -1085,7 +1085,7 @@ mx: *.aspmx.l.google.com
 max_age: 86400
 ```
 
-- [ ] **Step 6: `scripts/deploy-placeholder.sh`**
+- [x] **Step 6: `scripts/deploy-placeholder.sh`**
 
 ```bash
 #!/usr/bin/env bash
@@ -1098,7 +1098,7 @@ rm -rf dist && cp -r infra/placeholder dist
 npx --yes wrangler@4 deploy
 ```
 
-- [ ] **Step 7: Local check first**
+- [x] **Step 7: Local check first**
 
 ```bash
 rm -rf dist && cp -r infra/placeholder dist && npx --yes wrangler@4 dev --port 8787 &
@@ -1109,16 +1109,16 @@ kill %1
 ```
 Expected: the CSP, `X-Frame-Options: DENY`, `X-Robots-Tag: noindex` lines; `404`.
 
-- [ ] **Step 8: Deploy**
+- [x] **Step 8: Deploy**
 
 Run: `scripts/deploy-placeholder.sh`
 Expected: wrangler prints the custom domains `herinean.com` and `mta-sts.herinean.com` and creates their DNS records. If it refuses because a DNS record for the apex already exists, delete that record in the dashboard (it is not tofu-managed) and re-run.
 
-- [ ] **Step 9: Verify** — `scripts/verify-edge.sh`. Expected: *apex headers and routing* all `ok`. If the HTTP/3 line fails only because local `curl` lacks HTTP/3, confirm with `https://http3check.net/?host=herinean.com` and note the curl limitation in the RUNBOOK. Then `cd infra && tofu plan && cd ..`: **No changes** (the custom-domain records live outside tofu — confirm tofu doesn't try to touch them).
+- [x] **Step 9: Verify** — `scripts/verify-edge.sh`. Expected: *apex headers and routing* all `ok`. If the HTTP/3 line fails only because local `curl` lacks HTTP/3, confirm with `https://http3check.net/?host=herinean.com` and note the curl limitation in the RUNBOOK. Then `cd infra && tofu plan && cd ..`: **No changes** (the custom-domain records live outside tofu — confirm tofu doesn't try to touch them).
 
-- [ ] **Step 10: Preview URL behaves** — `npx --yes wrangler@4 versions upload` prints a `*.workers.dev` preview URL; `curl -sSI <url>/ | grep -i x-robots-tag` → `noindex, nofollow`; `curl -sS <url>/robots.txt` → `Disallow: /`.
+- [x] **Step 10: Preview URL behaves** — `npx --yes wrangler@4 versions upload` prints a `*.workers.dev` preview URL; `curl -sSI <url>/ | grep -i x-robots-tag` → `noindex, nofollow`; `curl -sS <url>/robots.txt` → `Disallow: /`.
 
-- [ ] **Step 11: Commit and push to gitea** — `M0: placeholder Worker on the apex with the production header set` with the trailers. (`dist/` is gitignored.)
+- [x] **Step 11: Commit and push to gitea** — `M0: placeholder Worker on the apex with the production header set` with the trailers. (`dist/` is gitignored.)
 
 ---
 
@@ -1127,11 +1127,11 @@ Expected: wrangler prints the custom domains `herinean.com` and `mta-sts.herinea
 **Files:**
 - Create: `docs/adr/0011-tls13-minimum.md`
 
-- [ ] **Step 1: External audits** (operator, browser): securityheaders.com → `https://securityheaders.com/?q=herinean.com&followRedirects=on` (expect **A+**); SSL Labs → `https://www.ssllabs.com/ssltest/analyze.html?d=herinean.com` (expect **A+**, protocols: TLS 1.3 only); internet.nl → `https://internet.nl/site/herinean.com/` (record the percentage and every non-green item); Observatory → `https://developer.mozilla.org/en-US/observatory/analyze?host=herinean.com` (expect **A+**). Save the four result URLs.
+- [x] **Step 1: External audits** (operator, browser): securityheaders.com → `https://securityheaders.com/?q=herinean.com&followRedirects=on` (expect **A+**); SSL Labs → `https://www.ssllabs.com/ssltest/analyze.html?d=herinean.com` (expect **A+**, protocols: TLS 1.3 only); internet.nl → `https://internet.nl/site/herinean.com/` (record the percentage and every non-green item); Observatory → `https://developer.mozilla.org/en-US/observatory/analyze?host=herinean.com` (expect **A+**). Save the four result URLs.
 
-- [ ] **Step 2: Decide TLS.** If internet.nl is 100% with TLS 1.3 only: keep. If it is below 100% *because of* TLS (not because of the placeholder's `noindex` or a missing `security.txt` field), set `min_tls_version = "1.2"` in `infra/settings.tf`, apply, re-test, and record which cipher items changed. Either way the decision and the evidence go in the ADR.
+- [x] **Step 2: Decide TLS.** If internet.nl is 100% with TLS 1.3 only: keep. If it is below 100% *because of* TLS (not because of the placeholder's `noindex` or a missing `security.txt` field), set `min_tls_version = "1.2"` in `infra/settings.tf`, apply, re-test, and record which cipher items changed. Either way the decision and the evidence go in the ADR.
 
-- [ ] **Step 3: `docs/adr/0011-tls13-minimum.md`**
+- [x] **Step 3: `docs/adr/0011-tls13-minimum.md`**
 
 ```markdown
 # ADR-0011 — Minimum TLS version
@@ -1151,7 +1151,7 @@ Minimum TLS <1.3 | 1.2>, because: <internet.nl result with 1.3-only: __%; with 1
 
 - [ ] **Step 4: HSTS preload** — after the four zones have served the header for at least a week and `scripts/verify-edge.sh` is green: submit each domain at `https://hstspreload.org/` (status: pending → preloaded over the following weeks). Record the submission dates in the RUNBOOK. This is irreversible in practice; the spec accepts that.
 
-- [ ] **Step 5: Commit and push to gitea** — `M0: ADR-0011 minimum TLS version with audit evidence` with the trailers.
+- [x] **Step 5: Commit and push to gitea** — `M0: ADR-0011 minimum TLS version with audit evidence` with the trailers.
 
 ---
 
@@ -1160,7 +1160,7 @@ Minimum TLS <1.3 | 1.2>, because: <internet.nl result with 1.3-only: __%; with 1
 **Files:**
 - Create: `RUNBOOK.md`, `docs/adr/0002-workers-static-assets-over-origin.md`, `docs/adr/0005-workers-paid.md`, `docs/adr/0012-infrastructure-as-code.md`
 
-- [ ] **Step 1: `RUNBOOK.md`**
+- [x] **Step 1: `RUNBOOK.md`**
 
 ```markdown
 # RUNBOOK — herinean.com
@@ -1204,7 +1204,7 @@ External: securityheaders.com, SSL Labs, internet.nl, Mozilla Observatory, dnsvi
 - Domains: auto-renew and registrar lock on all four; weekly job warns at 60 days to expiry (M2).
 ```
 
-- [ ] **Step 2: ADRs** (short; the spec §12 carries the full reasoning)
+- [x] **Step 2: ADRs** (short; the spec §12 carries the full reasoning)
 
 `docs/adr/0002-workers-static-assets-over-origin.md`:
 ```markdown
