@@ -6,10 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/raduherinean/herinean.com/internal/content"
 	"github.com/raduherinean/herinean.com/internal/images"
 	"github.com/raduherinean/herinean.com/internal/render"
+	"golang.org/x/image/font/sfnt"
 )
 
 // checkPlaceholders fails on author-input markers left anywhere in content/ or site.yaml.
@@ -61,6 +63,44 @@ func Check(o Options) error {
 	for _, f := range images.OGFontFiles {
 		if err := images.CheckGlyphs(filepath.Join(o.Root, "assets", "fonts", "og", f)); err != nil {
 			probs.Add(filepath.Join("assets", "fonts", "og", f), 0, "%v", err)
+		}
+	}
+	// Web fonts: the subset twins must carry the Romanian glyphs, and site.css must embed the generated fallback rules verbatim.
+	for _, name := range WebFonts {
+		if err := images.CheckGlyphs(filepath.Join(o.Root, "assets", "fonts", "web", name+".ttf")); err != nil {
+			probs.Add(filepath.Join("assets", "fonts", "web", name+".ttf"), 0, "%v", err)
+		}
+		if _, err := os.Stat(filepath.Join(o.Root, "assets", "fonts", "web", name+".woff2")); err != nil {
+			probs.Add(filepath.Join("assets", "fonts", "web", name+".woff2"), 0, "missing; run scripts/fonts.sh")
+		}
+	}
+	// Every character the UI strings use must have a glyph in the body font, or the fallback draws it (a different "→" on every page).
+	if body, err := os.ReadFile(filepath.Join(o.Root, "assets", "fonts", "web", WebFonts[0]+".ttf")); err == nil {
+		if f, err := sfnt.Parse(body); err == nil {
+			var buf sfnt.Buffer
+			for lang, m := range b.site.Strings {
+				for key, v := range m {
+					for _, r := range v {
+						if unicode.IsSpace(r) {
+							continue
+						}
+						if gi, err := f.GlyphIndex(&buf, r); err != nil || gi == 0 {
+							probs.Add(filepath.Join("i18n", lang+".yaml"), 0, "%s uses %q (U+%04X), which the body font lacks; add it to UNICODES in scripts/fonts.sh or change the string", key, string(r), r)
+						}
+					}
+				}
+			}
+		}
+	}
+	css, _ := os.ReadFile(filepath.Join(o.Root, "assets", "css", "site.css"))
+	fb, err := os.ReadFile(filepath.Join(o.Root, "assets", "fonts", "web", "fallback.css"))
+	if err != nil {
+		probs.Add("assets/fonts/web/fallback.css", 0, "missing; run scripts/fonts.sh")
+	} else {
+		for i, line := range strings.Split(strings.TrimSpace(string(fb)), "\n") {
+			if !strings.Contains(string(css), line) {
+				probs.Add("assets/css/site.css", 0, "fallback rule %d differs from assets/fonts/web/fallback.css; paste it verbatim", i+1)
+			}
 		}
 	}
 	// internal links resolve to pages or files the build will produce
