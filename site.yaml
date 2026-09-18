@@ -1,0 +1,13 @@
+base_url: https://herinean.com
+name: Radu Herinean
+tagline:
+  en: "⟨Practicing CTO. I ship AI in real businesses and write about which projects are worth funding.⟩"
+  ro: "⟨CTO practician. Livrez AI în afaceri reale și scriu despre ce proiecte merită finanțate.⟩"
+author:
+  linkedin: "⟨https://www.linkedin.com/in/…⟩"
+  x: "⟨https://x.com/…⟩"
+  github: https://github.com/rlucian
+  email: security@herinean.com
+ai_disclosure:
+  en: "⟨The platform was designed and built with Claude; the writing is mine, edited with AI where noted.⟩"
+  ro: "⟨Platforma a fost proiectată și construită cu Claude; textele sunt ale mele, editate cu AI acolo unde e menționat.⟩"
