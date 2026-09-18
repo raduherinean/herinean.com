@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # Regenerates assets/fonts/web/ from pinned upstream masters. Outputs are committed; run this only when the fonts change.
 # Sources are pinned by commit and checksum; the fonttools version used is recorded in BUILD.txt. Same inputs → same bytes.
-# Both families come from the google/fonts repository: its Source Serif 4 declares no Reserved Font Name, so the subsets may keep the family name (OFL §3; Adobe's own release reserves "Source").
+# Both families come from one google/fonts commit. Source Serif 4's binaries reserve the name "Source" (OFL §3), so the subset ships as "Herinean Serif" — the copyright and licence strings inside the files are untouched.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.local/bin:$PATH"
-export SOURCE_DATE_EPOCH=1758153600   # fonttools stamps head.modified from this (instancer and subsetter alike): same inputs → same bytes
+export SOURCE_DATE_EPOCH=1789689600   # fonttools stamps head.modified from this (instancer and subsetter alike): same inputs → same bytes
 SRC=.cache/fonts/src; OUT=assets/fonts/web; LIB=/usr/share/fonts/truetype/liberation
 mkdir -p "$SRC" "$OUT"
 GF=a54f7446f84a1125ef6bf08baa46f3639e8905e0   # google/fonts main, 2026-09-18 (Newsreader + Source Serif 4 variable masters and OFL)
 
 fetch() { # file url sha256
-  [ -f "$SRC/$1" ] || curl -sSL -o "$SRC/$1" "$2"
+  [ -f "$SRC/$1" ] || curl -sSfL -o "$SRC/$1" "$2"
   echo "$3  $SRC/$1" | sha256sum -c --quiet
 }
 fetch 'Newsreader[opsz,wght].ttf' "https://raw.githubusercontent.com/google/fonts/$GF/ofl/newsreader/Newsreader%5Bopsz%2Cwght%5D.ttf" 8a08d13f8a6c0d51be379a60af84f945f65369a67e509ee3c3bdcc421254d7c1
@@ -27,6 +27,22 @@ fonttools varLib.instancer "$SRC/Newsreader[opsz,wght].ttf" wght=500 opsz=36 -o 
 # Source Serif 4: the text cut — wght 400 at the default optical size 20 (the family's "Regular"/"Italic" named instances).
 fonttools varLib.instancer "$SRC/SourceSerif4[opsz,wght].ttf"        wght=400 opsz=20 -o "$SRC/SourceSerif4-Regular.ttf"
 fonttools varLib.instancer "$SRC/SourceSerif4-Italic[opsz,wght].ttf" wght=400 opsz=20 -o "$SRC/SourceSerif4-It.ttf"
+# The binaries reserve "Source": name ID 0 reads "… with Reserved Font Name ‘Source’." (google/fonts' OFL.txt declares none). A subset
+# is a Modified Version and may not carry the reserved word as its name (OFL §3; FAQ 2.6–2.8, 5.3–5.4), so the family becomes
+# Herinean Serif in IDs 1, 3, 4, 6 (and 16/17 where present); IDs 0, 5, 13, 14 — copyright, version, licence — stay verbatim.
+# The file names stay: a file name is not a font name, and the provenance stays visible.
+~/.local/share/fonttools/bin/python - "$SRC/SourceSerif4-Regular.ttf" Regular "$SRC/SourceSerif4-It.ttf" Italic <<'PY'
+import sys
+from fontTools.ttLib import TTFont
+args = sys.argv[1:]
+for path, style in zip(args[::2], args[1::2]):
+    f = TTFont(path)
+    new = {1: "Herinean Serif", 3: f"4.004;HERI;HerineanSerif-{style}", 4: f"Herinean Serif {style}", 6: f"HerineanSerif-{style}", 16: "Herinean Serif", 17: style}
+    for rec in f["name"].names:
+        if rec.nameID in new:
+            rec.string = new[rec.nameID]
+    f.save(path)
+PY
 
 # Latin, Latin-1, Latin Extended-A, Romanian comma-below, and the punctuation the templates and typographer emit (– — ‘ ’ ‚ “ ” „ … ‹ › € → −).
 UNICODES='U+0020-007E,U+00A0-00FF,U+0100-017F,U+0218-021B,U+02C6,U+02DC,U+2013-2014,U+2018-201A,U+201C-201E,U+2026,U+2039-203A,U+20AC,U+2192,U+2212'
@@ -45,8 +61,8 @@ subset Newsreader-Medium    "$SRC/Newsreader-Medium.ttf"
 
 # Metric-matched fallbacks (spec §9; row 21). Liberation Serif carries Times New Roman's metrics, so one rule serves Windows, macOS and Linux CI.
 {
-  go run ./scripts/fontface -web "$OUT/SourceSerif4-Regular.ttf" -fallback "$LIB/LiberationSerif-Regular.ttf" -family "Source Serif 4 Fallback"
-  go run ./scripts/fontface -web "$OUT/SourceSerif4-It.ttf"      -fallback "$LIB/LiberationSerif-Italic.ttf"  -family "Source Serif 4 Fallback" -style italic -local 'local("Times New Roman Italic"),local("Liberation Serif Italic")'
+  go run ./scripts/fontface -web "$OUT/SourceSerif4-Regular.ttf" -fallback "$LIB/LiberationSerif-Regular.ttf" -family "Herinean Serif Fallback"
+  go run ./scripts/fontface -web "$OUT/SourceSerif4-It.ttf"      -fallback "$LIB/LiberationSerif-Italic.ttf"  -family "Herinean Serif Fallback" -style italic -local 'local("Times New Roman Italic"),local("Liberation Serif Italic")'
   go run ./scripts/fontface -web "$OUT/Newsreader-Medium.ttf"    -fallback "$LIB/LiberationSerif-Regular.ttf" -family "Newsreader Fallback" -weight 500
 } > "$OUT/fallback.css"
 
@@ -55,7 +71,7 @@ subset Newsreader-Medium    "$SRC/Newsreader-Medium.ttf"
   ~/.local/share/fonttools/bin/python -c 'import fontTools; print("fonttools", fontTools.version)'
   echo "google/fonts $GF"
   echo "SOURCE_DATE_EPOCH $SOURCE_DATE_EPOCH"
-  echo "newsreader instance: wght=500 opsz=36"; echo "source serif instances: wght=400 opsz=20"; echo "unicodes: $UNICODES"; echo "features: defaults + tnum"
+  echo "newsreader instance: wght=500 opsz=36"; echo "source serif instances: wght=400 opsz=20"; echo "source serif renamed: Herinean Serif (OFL reserved font name)"; echo "unicodes: $UNICODES"; echo "features: defaults + tnum"
   for f in "$OUT"/*.woff2; do printf '%s %s\n' "$(wc -c <"$f")" "$(basename "$f")"; done
 } > "$OUT/BUILD.txt"
 

@@ -35,7 +35,7 @@ All four domains: Workspace MX, SPF `include:_spf.google.com -all`, DMARC with s
 
 ## Fonts
 - Shipped: `assets/fonts/web/*.woff2` (three files, ≤ 100 KB total, `BUILD.txt` records the exact inputs and fonttools version). Regenerate only when changing fonts: `scripts/fonts.sh` (needs `~/.local/share/fonttools`, see `scripts/setup.sh`), then paste `assets/fonts/web/fallback.css` into `site.css` — `site check` fails on drift. `font-display: optional` — the swap was measured and it shifts (ADR-0010).
-- Both families are pinned from one google/fonts commit. Source Serif 4 is taken from there rather than from Adobe's release because Adobe's licence reserves the name "Source" and the OFL forbids a subset (a Modified Version) from carrying a Reserved Font Name; the Google Fonts distribution declares none. `assets/fonts/web/OFL-*.txt` are the licences that apply to the shipped files.
+- Both families are pinned from one google/fonts commit. Source Serif 4's binaries reserve the name "Source" (OFL §3) — Google's licence text declares none, the font's own copyright string does — so the subset ships as "Herinean Serif" with the copyright and licence strings untouched; `assets/fonts/web/OFL-*.txt` are the licences that apply.
 - Fallbacks are Times New Roman / Liberation Serif with computed overrides; Android (no Times) gets a plain serif and a small shift — accepted, row 21 measures on Linux CI.
 
 ## Analytics
