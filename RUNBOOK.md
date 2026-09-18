@@ -30,7 +30,7 @@ All four domains: Workspace MX, SPF `include:_spf.google.com -all`, DMARC with s
 - Local: `go build -tags nodynamic -o site ./cmd/site && ./site build && npx wrangler@4 dev --port 8787` — wrangler dev presents requests with the first route's host, so the production path runs locally (local KV/AE); `--var PROD_HOST:other` simulates a preview host; tests `cd worker && node --test`.
 - Bindings live in `wrangler.toml`: `ASSETS` (dist/), `VIEWS` (Analytics Engine `herinean_views`), `SCORECARD` (KV). The KV namespace id is committed; recreate with `wrangler kv namespace create SCORECARD` and update the id if it is ever lost.
 - Scorecard: `scripts/scorecard-publish.sh [scorecard.json]` writes the fragment + JSON to KV; the colophon reflects it on the next request. Empty KV → the built-in table from the last build.
-- Fonts, images, OG cards, feeds and machine files never reach the Worker (`run_worker_first` in wrangler.toml); the Worker sees page routes only.
+- Fonts, images, OG cards, feeds and machine files never reach the Worker (`run_worker_first` in wrangler.toml); the Worker handles everything else — pages, `robots.txt`/`llms.txt`/`security.txt`, and the colophon's `scorecard.json`.
 - Two things the Worker corrects on the asset layer's responses: `/writing` comes back as a 307 to `/writing/` and leaves as a 301 for GET and HEAD (URLs are permanent, decision #14); bare `text/html` and `text/plain` gain `charset=utf-8` (llms.txt and the Romanian pages are UTF-8 and say so).
 
 ## Fonts
