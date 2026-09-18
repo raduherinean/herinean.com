@@ -47,7 +47,7 @@ Reproducibility: the build's notion of "now" is `SOURCE_DATE_EPOCH` if set, else
 
 If `site build` stops with `webp: a host libwebp was loaded…`, build with `-tags nodynamic` — the generator refuses host-dependent image bytes. `CGO_ENABLED=0` is not a remedy: purego loads the host library through its own fakecgo runtime on Linux, so only the build tag compiles the loader out.
 
-Portrait: export a square, pre-rotated JPEG ≥ 800 px to `assets/portrait.jpg` — the resizer ignores EXIF orientation.
+Portrait: export a pre-rotated JPEG at least 800 px wide to `assets/portrait.jpg` (the resizer ignores EXIF orientation), metadata stripped — the repo is public and the file is served as is at 480 px. Portrait orientation is fine: the home page keeps the aspect; the OG card centre-crops a square, so keep the face near the middle.
 
 ## TLS
 Minimum TLS 1.3 (see ADR-0011 for the evidence). Restricting the TLS 1.2 cipher list needs Advanced Certificate Manager ($10/month), which is why 1.2 is off rather than "on with modern ciphers".
