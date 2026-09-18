@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -64,37 +65,70 @@ func newestInput(root string) time.Time {
 	return newest
 }
 
+// hasDotDot reports whether p (the raw, unclean request path) contains a ".." path element, e.g. "/../x" or
+// "/a/../../b". Checked against the original path, before path.Clean removes the evidence.
+func hasDotDot(p string) bool {
+	for _, seg := range strings.Split(p, "/") {
+		if seg == ".." {
+			return true
+		}
+	}
+	return false
+}
+
 func Serve(o Options, host string, port int) error {
 	dist := filepath.Join(o.Root, o.Out)
 	var mu sync.Mutex
 	var built time.Time
+	serve404 := func(w http.ResponseWriter) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(404)
+		nf, _ := os.ReadFile(filepath.Join(dist, "404.html"))
+		_, _ = w.Write(nf)
+	}
+	// rebuild assumes the caller already holds mu: every read of dist/ (headers, files, the 404 page) and every
+	// read of built must be serialized against write()'s remove-then-rename swap of the output directory, so the
+	// whole request is one critical section rather than just the decision to rebuild. The watermark is taken
+	// BEFORE Build runs, so an input saved mid-build (whose mtime could otherwise land before the watermark) is
+	// still picked up by the next request.
 	rebuild := func() error {
-		mu.Lock()
-		defer mu.Unlock()
-		if n := newestInput(o.Root); !built.IsZero() && !n.After(built) {
-			return nil
+		start := time.Now()
+		if built.IsZero() || newestInput(o.Root).After(built) {
+			if err := Build(o); err != nil {
+				return err
+			}
+			built = start
 		}
-		if err := Build(o); err != nil {
-			return err
-		}
-		built = time.Now()
 		return nil
 	}
-	if err := rebuild(); err != nil {
+	mu.Lock()
+	err := rebuild()
+	mu.Unlock()
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "site serve: build failed:", err)
 	}
 	h := func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
 		if err := rebuild(); err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		raw := r.URL.Path
+		if hasDotDot(raw) {
+			serve404(w)
+			return
+		}
+		// http.ListenAndServe is given a bare HandlerFunc, not a ServeMux, so nothing upstream cleans the path:
+		// do it here before it ever reaches filepath.Join. path.Clean drops a trailing slash, so the
+		// is-a-directory redirect below still keys its decision on raw's suffix, not p's.
+		p := path.Clean("/" + raw)
 		hb, _ := os.ReadFile(filepath.Join(dist, "_headers"))
 		rules := parseHeaders(hb)
-		p := r.URL.Path
 		fp := filepath.Join(dist, filepath.FromSlash(p))
 		if st, err := os.Stat(fp); err == nil && st.IsDir() {
-			if !strings.HasSuffix(p, "/") {
-				http.Redirect(w, r, p+"/", http.StatusMovedPermanently)
+			if !strings.HasSuffix(raw, "/") {
+				http.Redirect(w, r, raw+"/", http.StatusMovedPermanently)
 				return
 			}
 			fp = filepath.Join(fp, "index.html")
@@ -112,10 +146,7 @@ func Serve(o Options, host string, port int) error {
 		}
 		b, err := os.ReadFile(fp)
 		if err != nil {
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.WriteHeader(404)
-			nf, _ := os.ReadFile(filepath.Join(dist, "404.html"))
-			_, _ = w.Write(nf)
+			serve404(w)
 			return
 		}
 		if strings.HasSuffix(fp, ".html") {
