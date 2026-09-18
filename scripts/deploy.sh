@@ -10,6 +10,8 @@ go build -tags nodynamic -o .cache/site ./cmd/site
 .cache/site check
 .cache/site build
 .cache/site check --dist
+# The colophon is filled from KV; publishing the scorecard is part of every deploy, never a step to remember.
+scripts/scorecard-publish.sh
 npx --yes wrangler@4 deploy
 scripts/verify-edge.sh
 scripts/verify-preview.sh https://herinean.com --prod

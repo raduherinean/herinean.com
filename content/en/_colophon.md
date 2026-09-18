@@ -4,7 +4,7 @@ summary: "How herinean.com is built and audited: the scorecard, the stack, the d
 ---
 This page is the site's test suite, written down. Every claim below is checked on each commit; the build fails loudly rather than quietly. If a row says fail, it is failing right now and the fix is queued, not hidden.
 
-The platform is a Go program of a few hundred lines that turns Markdown into these pages, a Cloudflare Worker of about eighty lines at the edge, and the zone configuration as code. There is no server, no database, no JavaScript in the browser, no cookie, and no third-party request. The whole thing is public: [github.com/raduherinean/herinean.com](https://github.com/raduherinean/herinean.com), including the [design specification](https://github.com/raduherinean/herinean.com/blob/main/docs/specs/2026-09-17-herinean-com-design.md) and the decisions that shaped it.
+The platform is a Go program of a few hundred lines that turns Markdown into these pages, a Cloudflare Worker of a hundred-odd lines at the edge, and the zone configuration as code. There is no server, no database, no JavaScript in the browser, no cookie, and no third-party request. The whole thing is public: [github.com/raduherinean/herinean.com](https://github.com/raduherinean/herinean.com), including the [design specification](https://github.com/raduherinean/herinean.com/blob/main/docs/specs/2026-09-17-herinean-com-design.md) and the decisions that shaped it.
 
 **Analytics.** Page views are counted at the edge with the path, language, referring host, a `?ref=` tag and country. Not stored: IP address, user agent, full referrer, or anything that could count readers rather than reads. Views include some bots; the numbers compare pieces, they don't measure reach.
 

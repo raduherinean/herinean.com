@@ -147,7 +147,7 @@ Unit tests per package (front-matter edge cases, pairing, slug transliteration, 
 
 ### 5.4 The edge function
 
-`worker/index.js`, plain JavaScript, ~80 lines, no npm runtime dependencies (wrangler is a deploy tool). Routes by host:
+`worker/index.js`, plain JavaScript, ~100 lines, no npm runtime dependencies (wrangler is a deploy tool). Routes by host:
 
 - `herinean.com`: serve `dist/` via the assets binding. For HTML responses only, in `waitUntil`, write one Analytics Engine datapoint: `path, lang, referrer host, ref (li|x|nl|md|other|none), country, 1`. Known bots skipped by UA. On `/colophon/`, fill `<table data-scorecard>` from the KV `scorecard` key (pre-rendered, pre-validated HTML fragment) via HTMLRewriter; also serve `/colophon/scorecard.json`. Never on the response path: analytics is async; any Worker error falls through to the plain asset.
 - `mta-sts.herinean.com`: only `/.well-known/mta-sts.txt`; everything else 404.
@@ -277,7 +277,7 @@ Pixels come from the Claude Design pass (`docs/design/claude-design-brief.md`); 
 
 1. Bespoke Go generator over Hugo/Astro — the whole platform fits in one context window; exact control of every audited byte; CI scorecard bounds the risk.
 2. Cloudflare Workers static assets over Coolify/origin — no server to patch; global edge; `_headers`; the "don't fund what you don't need" proof.
-3. Zero client-side JavaScript; one ~80-line edge function.
+3. Zero client-side JavaScript; one ~100-line edge function.
 4. Analytics without a tracker — Analytics Engine, no cookies/IP/UA, counts reads not readers.
 5. Workers Paid over free — quota can never fail the site.
 6. KV + HTMLRewriter for the scorecard over bot commits — no lag, no history noise.

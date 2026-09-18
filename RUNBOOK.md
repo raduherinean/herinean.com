@@ -25,11 +25,11 @@ All four domains: Workspace MX, SPF `include:_spf.google.com -all`, DMARC with s
 
 ## Worker
 - Preview (any branch): `scripts/preview.sh` → builds, runs `check --dist`, uploads a version, prints the `workers.dev` URL (noindex, no analytics). Verify: `scripts/verify-preview.sh <url>`.
-- Production: `scripts/deploy.sh --yes-production` — launch criteria in spec §11; after M2, CI deploys `main` and this is the manual fallback.
+- Production: `scripts/deploy.sh --yes-production` — launch criteria in spec §11; it publishes the scorecard to KV before `wrangler deploy` and verifies afterwards, so a launched colophon is never empty; after M2, CI deploys `main` and this is the manual fallback.
 - Rollback to the placeholder: `scripts/deploy-placeholder.sh`. Rollback to a previous version: `npx wrangler@4 rollback`.
 - Local: `go build -tags nodynamic -o site ./cmd/site && ./site build && npx wrangler@4 dev --port 8787` — wrangler dev presents requests with the first route's host, so the production path runs locally (local KV/AE); `--var PROD_HOST:other` simulates a preview host; tests `cd worker && node --test`.
 - Bindings live in `wrangler.toml`: `ASSETS` (dist/), `VIEWS` (Analytics Engine `herinean_views`), `SCORECARD` (KV). The KV namespace id is committed; recreate with `wrangler kv namespace create SCORECARD` and update the id if it is ever lost.
-- Scorecard: `scripts/scorecard-publish.sh [scorecard.json]` writes two KV keys — `scorecard` (the HTML fragment, with the Worker's ETag suffix as its `etag` metadata) and `scorecard.json`; the colophon reflects it on the next request. Empty KV → the built-in table from the last build.
+- Scorecard: `scripts/scorecard-publish.sh [scorecard.json]` writes two KV keys — `scorecard` (the HTML fragment, with the Worker's ETag suffix as its `etag` metadata) and `scorecard.json`; the colophon reflects it on the next request. Empty KV → the built-in table from the last build (a preview-only state: `deploy.sh` publishes before it deploys, and the post-deploy verify fails if the colophon is not KV-filled).
 - Fonts, images, OG cards, feeds and machine files never reach the Worker (`run_worker_first` in wrangler.toml); the Worker handles everything else — pages, `robots.txt`/`llms.txt`/`security.txt`, and the colophon's `scorecard.json`.
 - Two things the Worker corrects on the asset layer's responses: `/writing` comes back as a 307 to `/writing/` and leaves as a 301 for GET and HEAD (URLs are permanent, decision #14); bare `text/html` and `text/plain` gain `charset=utf-8` (llms.txt and the Romanian pages are UTF-8 and say so).
 - `/404.html` redirects to `/404/` (asset-layer canonicalisation, now a 301); the page is `noindex`, so leave it.
