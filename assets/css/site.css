@@ -47,6 +47,7 @@ li{margin-bottom:var(--s1)}
 @media (prefers-color-scheme:dark){.portrait{border-color:var(--accent)}}
 .about::after{content:"";display:block;clear:both}
 blockquote{margin:var(--s4) 0;padding-left:var(--s3);border-left:1px solid var(--rule);font-style:italic}
+strong,b{font-weight:400;font-size:.84em;letter-spacing:.06em;text-transform:uppercase}
 pre{background:var(--paper-2);padding:var(--s3);overflow-x:auto;font:400 var(--fs--1)/1.5 var(--mono);tab-size:2;margin:0 0 var(--s3)}
 code{font-family:var(--mono);font-size:.92em}
 pre code{font-size:inherit}
