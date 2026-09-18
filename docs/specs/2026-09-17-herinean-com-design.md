@@ -58,7 +58,7 @@ Every row is pass/fail. **CI** blocks deploy. **post** runs against production r
 | 18 | Sustainability | websitecarbon A+ | ext (API-automatable in the weekly job) |
 | 19 | Global latency and uptime | TTFB p50 < 100 ms from 5 regions (globalping in the weekly job); external uptime monitor with alerting | weekly + ext |
 | 20 | Repo hygiene | README, LICENSE (code MIT; content CC BY-NC-ND 4.0), ADRs, this spec, RUNBOOK, CI badge, dependency count on colophon (the modules linked into the generator, from the binary's build info), reproducible build (`-trimpath`, pinned toolchain, `SOURCE_DATE_EPOCH` = commit time), Dependabot (modules, actions, bench), CodeQL, OpenSSF Scorecard badge (shown honestly; 10/10 is structurally unreachable) | ext (Scorecard/CodeQL run on their own) |
-| 21 | Font correctness | Vendored fonts contain U+0218–021B (ș ț Ș Ț comma-below) and ă â î; metric-matched fallback produces no layout shift (Playwright: font blocked vs. allowed, positions equal within 1 px) | CI |
+| 21 | Font correctness | Vendored fonts contain U+0218–021B (ș ț Ș Ț comma-below) and ă â î; no layout shift from type (Playwright: layout-shift observer reports CLS 0 with the font delayed 600 ms); the metric-matched fallback holds the measure — page height within 5 % and every paragraph within ±1 line of the web-font rendering | CI |
 
 ## 4. Content model, URLs, pages
 
@@ -239,7 +239,7 @@ A pre-commit hook (`.githooks/`, installed by `scripts/setup.sh`) runs `gofmt` +
 
 Typography, spacing, colour and hairlines carry the whole design. One column, measure ≤ 38rem, 16px gutters, no sidebar/hero/cards/gradients/shadows/animation/icon library/illustration.
 
-- **Type:** one self-hosted OFL body serif (screen-sturdy regular weight; real italic shipped; comma-below diacritics verified), optionally one display serif for masthead and titles; Latin + Latin Extended-A + U+0218–021B subsets; body regular preloaded; `font-display: swap` with metric-matched fallback (`size-adjust`, ascent/descent/line-gap overrides); `font-synthesis: none`; real small caps or letter-spaced uppercase, never synthesized. Body 18–19px on phone, line-height ≈ 1.6, modular scale ≈ 1.25, `text-wrap: balance/pretty`, `hyphens: auto`.
+- **Type:** one self-hosted OFL body serif (screen-sturdy regular weight; real italic shipped; comma-below diacritics verified), optionally one display serif for masthead and titles; Latin + Latin Extended-A + U+0218–021B subsets; body regular preloaded; `font-display: optional` with metric-matched fallback (a swap was measured and it shifts — ADR-0010) (`size-adjust`, ascent/descent/line-gap overrides); `font-synthesis: none`; real small caps or letter-spaced uppercase, never synthesized. Body 18–19px on phone, line-height ≈ 1.6, modular scale ≈ 1.25, `text-wrap: balance/pretty`, `hyphens: auto`.
 - **Colour:** warm near-black on paper-white; one accent for links and focus only; visited not purple; selection from the accent; dark scheme via `prefers-color-scheme` (warm dark grey, accent re-tuned; portrait gets a hairline border). Tokens on `:root`. Contrast per row 3.
 - **Structure:** hairlines only. Masthead: name (home), Writing, language link; tagline on home only. Footer: LinkedIn · RSS · Colophon · Privacy, and "No JavaScript, no cookies, no trackers." Skip link first.
 - **Print:** nav/footer hidden, URLs after links, black on white, `@page` margins, portrait hidden.
@@ -284,7 +284,7 @@ Pixels come from the Claude Design pass (`docs/design/claude-design-brief.md`); 
 7. Hashed OG/image URLs — LinkedIn cache and `immutable` are compatible only with content-addressed URLs.
 8. Commit timestamp as build time — reproducible output.
 9. Drafts on a private remote; no `draft` field — a public repo cannot hold pre-sign-off drafts.
-10. Self-hosted fonts over system stack — control is craft; metric-matched fallback keeps CLS at zero; CI tests the swap explicitly.
+10. Self-hosted fonts over system stack — control is craft; `font-display: optional` keeps CLS at zero by construction and the metric-matched fallback keeps the measure; CI tests both.
 11. TLS 1.3 minimum — pending the internet.nl spike; audience blocked → 1.2 modern ciphers.
 12. Infrastructure as code (OpenTofu) for zones — reviewable, reproducible, drift-detectable; wrangler for the Worker.
 13. Full-text feeds; per-language advertised; combined for newsletter/Medium.
