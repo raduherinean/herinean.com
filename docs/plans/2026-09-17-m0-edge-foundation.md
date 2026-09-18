@@ -173,7 +173,6 @@ git commit -m "$(cat <<'MSG'
 M0: operator env loader and edge verification skeleton
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 MSG
 )"
 ```
@@ -233,7 +232,6 @@ git commit -m "$(cat <<'MSG'
 README
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 MSG
 )"
 git checkout infra/m0 && git rebase main
@@ -424,7 +422,6 @@ Zone ids, MX set and DKIM public key are committed on purpose: none of
 them is secret and the edge is meant to be readable.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 MSG
 )"
 git push gitea infra/m0
@@ -550,7 +547,6 @@ Email obfuscation, Rocket Loader, Cloudflare Fonts, Speed Brain and Bot
 Fight Mode all add scripts or resources to pages. Off on all four zones.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 MSG
 )"
 git push gitea infra/m0
@@ -1250,7 +1246,6 @@ git commit -m "$(cat <<'MSG'
 M0: RUNBOOK and ADRs 0002, 0005, 0012
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 MSG
 )"
 git push gitea infra/m0

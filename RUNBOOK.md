@@ -7,7 +7,7 @@ Everything operational lives here. If it isn't here, it isn't a supported operat
 - Tokens: `herinean-infra` (operator; scoped to the four zones + Workers; recreate with the same permissions when it expires) in `~/.config/herinean/cf-infra.token` (mode 600). Permissions that turned out to be needed: Zone Settings, DNS, SSL and Certificates, Single Redirect, Bot Management, Workers Routes (all Edit) on the four zones; Workers Scripts and Workers KV (Edit) on the account. `herinean-ci` (GitHub Actions; Workers Scripts Edit, Workers KV Storage Edit, Account Analytics Read, Account Settings Read) as the repo secret `CLOUDFLARE_API_TOKEN` — set with `gh secret set CLOUDFLARE_API_TOKEN --repo raduherinean/herinean.com < file`, then delete the local file. Rotate: create new → update file/secret → delete old.
 - Operator inputs: `~/.config/herinean/m0.env` (see `docs/plans/2026-09-17-m0-edge-foundation.md`, "Operator inputs"). Nothing in it is secret except the token it reads from its own file.
 - GitHub: `raduherinean/herinean.com` (public), owned by the `rlucian` account through the `raduherinean` organisation. `main` is protected by the ruleset "main" (PR, signed commits, squash only, no force-push, no deletion). Commits are SSH-signed with `~/.ssh/herinean_signing`; the public key is registered on GitHub as a Signing Key; `radu@herinean.com` is the commit email.
-- Remotes: `origin` = GitHub (public; `main` + publish PRs), `gitea` = git.thrac.com (private; all work branches).
+- Remotes: `origin` = GitHub (public; `main` + publish PRs), `gitea` = a private Gitea (all work branches).
 
 ## Edge as code (OpenTofu, `infra/`)
 1. `. scripts/env.sh` (and `export PATH="$HOME/.local/bin:$PATH"` — tofu lives there)

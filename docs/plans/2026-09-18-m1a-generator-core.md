@@ -93,7 +93,7 @@ Expected: `go version go1.27.1 linux/arm64`. If `staticcheck` reports Go 1.27 as
 - [ ] **Step 2: Module and branch**
 
 ```bash
-cd /home/radoo/Documents/Projects/herinean.com && git checkout infra/m0 && git pull gitea infra/m0 && git checkout -b m1a/generator
+cd "$(git rev-parse --show-toplevel)" && git checkout infra/m0 && git pull gitea infra/m0 && git checkout -b m1a/generator
 go mod init github.com/raduherinean/herinean.com
 ```
 `infra/m0`, not `main` (see Global Constraints).
@@ -453,7 +453,6 @@ git commit -m "$(cat <<'MSG'
 M1a: Go module, CLI skeleton, config loader with URL scheme, pre-commit hook
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 MSG
 )"
 git push -u gitea m1a/generator
@@ -5180,7 +5179,6 @@ git add -A && git commit -m "$(cat <<'MSG'
 M1a: content pages, favicons from the Newsreader glyph, first real build
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 MSG
 )"
 git push gitea m1a/generator && git push -u origin m1a/generator
