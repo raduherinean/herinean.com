@@ -50,6 +50,8 @@ func Headers(cssHash string) []byte {
 
 /feed.json
   Content-Type: application/feed+json; charset=utf-8
+  ! Cache-Control
+  Cache-Control: public, max-age=300
 
 /sitemap.xml
   Content-Type: application/xml; charset=utf-8
