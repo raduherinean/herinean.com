@@ -11,4 +11,5 @@ go build -tags nodynamic -o .cache/site ./cmd/site
 .cache/site build
 .cache/site check --dist
 npx --yes wrangler@4 deploy
-scripts/verify-edge.sh && scripts/verify-preview.sh https://herinean.com --prod
+scripts/verify-edge.sh
+scripts/verify-preview.sh https://herinean.com --prod

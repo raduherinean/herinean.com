@@ -4,6 +4,6 @@ The personal site of Radu Herinean — writing for executives, boards and founde
 
 **Status:** M0 (edge), M1a (generator core) and M1b (edge function, fonts, preview) built; production stays on the placeholder until launch (spec §11).
 
-This repository is the whole platform: a bespoke Go static-site generator, a ~80-line Cloudflare Worker, the zone configuration as code, and the CI that audits every commit against a public scorecard. The design is in [`docs/specs/2026-09-17-herinean-com-design.md`](docs/specs/2026-09-17-herinean-com-design.md); decisions are in `docs/adr/`; operations in [`RUNBOOK.md`](RUNBOOK.md).
+This repository is the whole platform: a bespoke Go static-site generator, a Cloudflare Worker of about a hundred lines, the zone configuration as code, and the CI that audits every commit against a public scorecard. The design is in [`docs/specs/2026-09-17-herinean-com-design.md`](docs/specs/2026-09-17-herinean-com-design.md); decisions are in `docs/adr/`; operations in [`RUNBOOK.md`](RUNBOOK.md).
 
 Code: [MIT](LICENSE). Writing under `content/`: [CC BY-NC-ND 4.0](content/LICENSE).
