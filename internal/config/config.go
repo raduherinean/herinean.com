@@ -41,6 +41,9 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	if err := c.validate(); err != nil {
+		if errors.Is(err, ErrPlaceholder) {
+			return &c, fmt.Errorf("%s: %w", path, err) // the config is usable; site check still runs the other rules
+		}
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	return &c, nil

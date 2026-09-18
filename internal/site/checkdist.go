@@ -19,14 +19,70 @@ import (
 
 const htmlBudget = 30 * 1024 // gzip bytes, HTML with inlined CSS
 
+// Attribute rules are anchored on the opening quote so an HTML-escaped code sample (&#34; / &quot;) never matches;
+// the unquoted forms are left to the CSP, which blocks them anyway.
 var (
 	reScript   = regexp.MustCompile(`(?is)<script\b([^>]*)>`)
-	reStyleAtt = regexp.MustCompile(`(?i)\sstyle="`)
+	reStyleAtt = regexp.MustCompile(`(?i)\sstyle\s*=\s*["']`)
+	reHandler  = regexp.MustCompile(`(?i)\son[a-z]+\s*=\s*["']`)
+	reJSURL    = regexp.MustCompile(`(?i)\s(href|src)\s*=\s*["']\s*javascript:`)
 	reStyleTag = regexp.MustCompile(`(?is)<style>(.*?)</style>`)
 	reOGImage  = regexp.MustCompile(`property="og:image" content="([^"]+)"`)
 	reHash     = regexp.MustCompile(`style-src '(sha256-[^']+)'`)
 	rePre      = regexp.MustCompile(`<pre\b[^>]*>`)
 )
+
+// headerBlocks splits a Cloudflare _headers file into its rule blocks: a line that does not start with a space opens
+// a block for that path pattern; the indented lines under it are its headers. Blank lines end a block.
+func headerBlocks(headers []byte) map[string]string {
+	blocks := map[string]string{}
+	cur := ""
+	for _, line := range strings.Split(string(headers), "\n") {
+		switch {
+		case strings.TrimSpace(line) == "":
+			cur = ""
+		case !strings.HasPrefix(line, " "):
+			cur = strings.TrimSpace(line)
+			blocks[cur] += line + "\n"
+		case cur != "":
+			blocks[cur] += line + "\n"
+		}
+	}
+	return blocks
+}
+
+// checkHeaderCoverage is the spec's "_headers covers every path class" rule: for each class the build emitted, the
+// block for exactly that pattern must carry the header that defines the class.
+func checkHeaderCoverage(dist string, headers []byte, probs *content.Problems) {
+	blocks := headerBlocks(headers)
+	exists := func(rel string) bool {
+		_, err := os.Stat(filepath.Join(dist, filepath.FromSlash(rel)))
+		return err == nil
+	}
+	require := func(pattern string, must ...string) {
+		for _, h := range must {
+			if !strings.Contains(blocks[pattern], h) {
+				probs.Add("_headers", 0, "no rule for %s with %s", pattern, h)
+			}
+		}
+	}
+	for _, dir := range []string{"img", "og"} {
+		if exists(dir) {
+			require("/"+dir+"/*", "Cross-Origin-Resource-Policy: cross-origin", "max-age=31536000, immutable")
+		}
+	}
+	for _, f := range []string{"feed.xml", "feed.en.xml", "feed.ro.xml"} {
+		if exists(f) {
+			require("/"+f, "Content-Type: application/rss+xml", "max-age=300")
+		}
+	}
+	if exists("feed.json") {
+		require("/feed.json", "application/feed+json", "max-age=300")
+	}
+	if exists(".well-known/security.txt") {
+		require("/.well-known/security.txt", "Content-Type: text/plain")
+	}
+}
 
 func CheckDist(o Options) error {
 	dist := filepath.Join(o.Root, o.Out)
@@ -46,6 +102,7 @@ func CheckDist(o Options) error {
 	if hm == nil {
 		probs.Add("_headers", 0, "no style-src hash in the CSP")
 	}
+	checkHeaderCoverage(dist, headers, &probs)
 	var htmlPaths []string
 	_ = filepath.WalkDir(dist, func(p string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".html") {
@@ -63,12 +120,18 @@ func CheckDist(o Options) error {
 		if reStyleAtt.MatchString(s) {
 			probs.Add(rel, 0, "style= attribute found (hash CSP forbids it)")
 		}
+		if reHandler.MatchString(s) {
+			probs.Add(rel, 0, "event handler attribute found (zero client-side JavaScript)")
+		}
+		if reJSURL.MatchString(s) {
+			probs.Add(rel, 0, "javascript: URL found")
+		}
 		for _, pre := range rePre.FindAllString(s, -1) {
 			if !strings.Contains(pre, `tabindex="0"`) {
 				probs.Add(rel, 0, "%s lacks tabindex=\"0\": a scrolling block must be keyboard-focusable", pre)
 			}
 		}
-		for _, must := range []string{`rel="canonical"`, `property="og:image"`, `name="twitter:card"`, `application/ld+json`, `rel="alternate" type="application/rss+xml"`, `<html lang="`} {
+		for _, must := range []string{`rel="canonical"`, `property="og:title"`, `property="og:type"`, `property="og:url"`, `property="og:description"`, `property="og:image"`, `name="twitter:card"`, `application/ld+json`, `rel="alternate" type="application/rss+xml"`, `<html lang="`} {
 			if !strings.Contains(s, must) {
 				probs.Add(rel, 0, "missing %s", must)
 			}

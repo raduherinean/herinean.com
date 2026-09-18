@@ -3,6 +3,7 @@ package site
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/raduherinean/herinean.com/internal/images"
@@ -82,4 +83,68 @@ func snapshot(t *testing.T, dir string) map[string]string {
 		return nil
 	})
 	return out
+}
+
+// CheckDist must notice a _headers file that stopped covering a path class, and a page that smuggled in an
+// inline handler, a quoted style attribute or a javascript: URL through raw HTML.
+func TestCheckDistCatchesHeaderGapsAndAttributes(t *testing.T) {
+	root := fixtureRoot(t)
+	o := Options{Root: root, Out: "dist"}
+	if err := Build(o); err != nil {
+		t.Fatal(err)
+	}
+	dist := filepath.Join(root, "dist")
+	h, err := os.ReadFile(filepath.Join(dist, "_headers"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// drop the /og/* block entirely and the RSS Content-Type from /feed.ro.xml
+	blocks := strings.Split(string(h), "\n\n")
+	var kept []string
+	for _, b := range blocks {
+		if strings.HasPrefix(b, "/og/*") {
+			continue
+		}
+		if strings.HasPrefix(b, "/feed.ro.xml") {
+			b = strings.ReplaceAll(b, "  Content-Type: application/rss+xml; charset=utf-8\n", "")
+		}
+		kept = append(kept, b)
+	}
+	if err := os.WriteFile(filepath.Join(dist, "_headers"), []byte(strings.Join(kept, "\n\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	page := filepath.Join(dist, "privacy", "index.html")
+	p, err := os.ReadFile(page)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bad := `<p onclick="x()" style='color:red'><a href="javascript:void(0)">x</a></p>` +
+		`<code>a=&#34; onclick=&#34;b&quot; style=&quot;c</code>` // escaped code must not count
+	p = []byte(strings.Replace(string(p), "</main>", bad+"</main>", 1))
+	if err := os.WriteFile(page, p, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err = CheckDist(o)
+	if err == nil {
+		t.Fatal("CheckDist() = nil, want header and attribute findings")
+	}
+	for _, want := range []string{
+		"no rule for /og/* with Cross-Origin-Resource-Policy: cross-origin",
+		"no rule for /og/* with max-age=31536000, immutable",
+		"no rule for /feed.ro.xml with Content-Type: application/rss+xml",
+		"event handler attribute found",
+		"style= attribute found",
+		"javascript: URL found",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("CheckDist() error lacks %q:\n%v", want, err)
+		}
+	}
+	if n := strings.Count(err.Error(), "event handler attribute found"); n != 1 {
+		t.Errorf("event handler reported %d times, want 1 (escaped code must not count)", n)
+	}
+	if strings.Contains(err.Error(), "no rule for /feed.ro.xml with max-age=300") {
+		t.Errorf("max-age=300 is still in the /feed.ro.xml block; it must not be reported:\n%v", err)
+	}
 }

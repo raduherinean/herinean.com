@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -14,18 +15,51 @@ func writeSiteYAML(t *testing.T, dir, content string) {
 	}
 }
 
-func TestCheckPlaceholderReturnsErrAuthorInputs(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("SOURCE_DATE_EPOCH", "1790000000") // load() needs a clock before it reads site.yaml; the temp dir is outside git
-	writeSiteYAML(t, dir, `base_url: https://h.com
+const placeholderSiteYAML = `base_url: https://h.com
 name: R
 tagline: {en: "⟨fill me⟩", ro: "x"}
 author: {linkedin: "a", x: "b", github: "c", email: "d"}
-ai_disclosure: {en: "e", ro: "f"}`)
+ai_disclosure: {en: "e", ro: "f"}`
 
-	err := Check(Options{Root: dir})
+// A placeholder in site.yaml on an otherwise valid site is the only failure, so it is exit 3.
+func TestCheckPlaceholderReturnsErrAuthorInputs(t *testing.T) {
+	root := fixtureRoot(t)
+	writeSiteYAML(t, root, placeholderSiteYAML)
+
+	err := Check(Options{Root: root})
 	if !errors.Is(err, ErrAuthorInputs) {
 		t.Fatalf("Check() error = %v, want errors.Is(err, ErrAuthorInputs)", err)
+	}
+}
+
+// Exit 3 only when placeholders are the only failures: a broken piece next to a placeholder is exit 1, and its
+// problem must be visible in the message rather than masked by the placeholder.
+func TestCheckContentProblemIsNotMaskedByPlaceholders(t *testing.T) {
+	root := fixtureRoot(t)
+	writeSiteYAML(t, root, placeholderSiteYAML)
+	piece := filepath.Join(root, "content", "ro", "cedila.md")
+	front := "---\ntitle: \"Un articol\"\ndate: 2026-09-01\nkey: cedilla\npillar: analysis\nsummary: \"Rezumat scurt.\"\n---\n"
+	if err := os.WriteFile(piece, []byte(front+"Un rând cu ţ cu sedilă.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := Check(Options{Root: root})
+	if err == nil {
+		t.Fatal("Check() = nil, want the cedilla problem")
+	}
+	if errors.Is(err, ErrAuthorInputs) {
+		t.Fatalf("Check() error = %v, want NOT ErrAuthorInputs while a content problem exists", err)
+	}
+	if !strings.Contains(err.Error(), "cedilla") {
+		t.Fatalf("Check() error = %v, want the cedilla problem named", err)
+	}
+
+	if err := os.WriteFile(piece, []byte(front+"Un rând cu ț cu virgulă.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err = Check(Options{Root: root})
+	if !errors.Is(err, ErrAuthorInputs) {
+		t.Fatalf("Check() error = %v after fixing the piece, want errors.Is(err, ErrAuthorInputs)", err)
 	}
 }
 

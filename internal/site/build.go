@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -36,27 +36,39 @@ type build struct {
 	portraitRaw []byte // source bytes, for the home OG card
 }
 
+// load reads everything a build or a check needs. Placeholders (site.yaml or content/) are collected into an
+// ErrAuthorInputs-wrapped error but do not stop content from loading: exit 3 is only for "placeholders are the only
+// failures". A content problem returns nil and a plain (exit 1) error that still lists the placeholders after it.
+// Otherwise the build is returned together with the author error, which may be non-nil.
 func load(o Options) (*build, error) {
 	now, err := BuildTime(o.Root)
 	if err != nil {
 		return nil, err
 	}
+	var author error
 	cfg, err := config.Load(filepath.Join(o.Root, "site.yaml"))
 	if err != nil {
-		if errors.Is(err, config.ErrPlaceholder) {
-			return nil, fmt.Errorf("%w: %v", ErrAuthorInputs, err)
+		if !errors.Is(err, config.ErrPlaceholder) {
+			return nil, err
 		}
-		return nil, err
+		author = fmt.Errorf("%w: %v", ErrAuthorInputs, err)
 	}
 	if pp := checkPlaceholders(o.Root); len(pp) > 0 {
-		return nil, fmt.Errorf("%w:\n%v", ErrAuthorInputs, pp.Err())
+		if author == nil {
+			author = fmt.Errorf("%w:\n%v", ErrAuthorInputs, pp.Err())
+		} else {
+			author = fmt.Errorf("%w\n%v", author, pp.Err())
+		}
 	}
 	s, probs := content.Load(o.Root, now)
 	if err := probs.Err(); err != nil {
+		if author != nil {
+			return nil, fmt.Errorf("%v\n%v", err, author) // %v, not %w: a content problem is exit 1 even with placeholders around
+		}
 		return nil, err
 	}
 	return &build{o: o, cfg: cfg, site: s, now: now, commit: Commit(o.Root), cache: &images.Cache{Dir: filepath.Join(o.Root, ".cache")},
-		files: map[string][]byte{}, imgs: map[string]map[string]*content.ImageInfo{}, og: map[string]string{}}, nil
+		files: map[string][]byte{}, imgs: map[string]map[string]*content.ImageInfo{}, og: map[string]string{}}, author
 }
 
 func Build(o Options) error {
@@ -202,14 +214,21 @@ func (b *build) static() error {
 	})
 }
 
-// deps lists the module graph for the colophon: what the site is built from, straight from go.mod.
-func deps(root string) string {
-	out, err := exec.Command("go", "list", "-m", "all").Output()
-	if err != nil {
+// deps lists the modules linked into this binary for the colophon, from the build info the Go linker embeds: the
+// same commit and toolchain give the same list on every machine, with no toolchain needed at run time.
+func deps() string {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
 		return "module list unavailable"
 	}
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	return strings.Join(lines[1:], " · ") // first line is this module
+	parts := make([]string, 0, len(bi.Deps))
+	for _, d := range bi.Deps {
+		if d.Replace != nil {
+			d = d.Replace
+		}
+		parts = append(parts, d.Path+" "+d.Version)
+	}
+	return strings.Join(parts, " · ")
 }
 
 func goVersion() string { return runtime.Version() }

@@ -101,7 +101,7 @@ func (b *build) pages() error {
 		return err
 	}
 	d.ScorecardHTML = template.HTML(frag)
-	d.Deps, d.Commit, d.BuildDate, d.GoVersion = deps(b.o.Root), b.commit, b.now.Format("2006-01-02"), goVersion()
+	d.Deps, d.Commit, d.BuildDate, d.GoVersion = deps(), b.commit, b.now.Format("2006-01-02"), goVersion()
 	if err := b.render("colophon", d); err != nil {
 		return err
 	}

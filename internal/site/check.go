@@ -1,6 +1,8 @@
 package site
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,11 +29,14 @@ func checkPlaceholders(root string) content.Problems {
 	return probs
 }
 
+// Check validates the sources without writing. Placeholders alone are ErrAuthorInputs (exit 3); any other problem,
+// with or without placeholders around, is exit 1 and names the placeholders after it.
 func Check(o Options) error {
 	b, err := load(o)
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrAuthorInputs) {
 		return err
 	}
+	author := err
 	var probs content.Problems
 	// images exist and are processable
 	for key, refs := range b.site.AllImageRefs() {
@@ -67,7 +72,13 @@ func Check(o Options) error {
 			}
 		}
 	}
-	return probs.Err()
+	if err := probs.Err(); err != nil {
+		if author != nil {
+			return fmt.Errorf("%v\n%v", err, author)
+		}
+		return err
+	}
+	return author
 }
 
 // knownPaths is every URL path the build emits (pages with trailing slash, plus machine files).
