@@ -25,7 +25,7 @@ export default {
           headers: { "content-type": "text/plain; charset=utf-8", "x-robots-tag": "noindex, nofollow" },
         });
       }
-      const res = await withScorecard(request, url, permanent(request, await env.ASSETS.fetch(assetRequest(request, url))), env);
+      const res = await withScorecard(request, url, charset(permanent(request, await env.ASSETS.fetch(assetRequest(request, url)))), env);
       const headers = new Headers(res.headers);
       headers.set("x-robots-tag", "noindex, nofollow");
       return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
@@ -33,7 +33,7 @@ export default {
 
     if (url.pathname === "/colophon/scorecard.json") return scorecardJSON(env);
 
-    const res = await withScorecard(request, url, permanent(request, await env.ASSETS.fetch(assetRequest(request, url))), env);
+    const res = await withScorecard(request, url, charset(permanent(request, await env.ASSETS.fetch(assetRequest(request, url)))), env);
     // A view is a GET for a page path answered 200 or 304: revalidations are the returning readers, and a 304 carries no content-type.
     if (request.method === "GET" && (res.status === 200 || res.status === 304) && isPage(url.pathname)) {
       ctx.waitUntil(Promise.resolve().then(() => count(request, url, env)).catch(() => {}));
@@ -56,6 +56,15 @@ function permanent(request, res) {
   const headers = new Headers(res.headers);
   headers.delete("content-length");
   return new Response(null, { status: 301, headers });
+}
+
+// The asset layer sends text/html and text/plain without a charset; llms.txt and the Romanian pages are UTF-8 and say so.
+function charset(res) {
+  const ct = res.headers.get("content-type");
+  if (ct !== "text/html" && ct !== "text/plain") return res;
+  const headers = new Headers(res.headers);
+  headers.set("content-type", ct + "; charset=utf-8");
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
 }
 
 // count writes: path, lang, referrer host, ref, country, 1. Never IP, user agent or the full referrer (spec §6.3; the privacy page says exactly this).

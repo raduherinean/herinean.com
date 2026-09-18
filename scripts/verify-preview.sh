@@ -34,6 +34,8 @@ expect_header "$og" cache-control 'immutable'
 expect_header /feed.xml content-type '^application/rss\+xml; charset=utf-8$'
 expect_header /feed.json content-type '^application/feed\+json; charset=utf-8$'
 expect_header /.well-known/security.txt content-type '^text/plain; charset=utf-8$'
+expect_header /llms.txt content-type '^text/plain; charset=utf-8$'
+expect_header /robots.txt content-type '^text/plain; charset=utf-8$'
 printf '\n== privacy: no executable script, no cookie, no cdn-cgi\n'
 for p in / /colophon/; do
   n=$(curl -sS --max-time 20 "$BASE$p" | grep -o '<script' | wc -l); [ "$n" = 1 ] && ok "$p has one <script> (JSON-LD)" || bad "$p has $n <script> tags"

@@ -110,6 +110,19 @@ test("a Worker error falls through to the plain asset", async () => {
   await assert.doesNotReject(h.settle());
 });
 
+test("charset: bare text/html and text/plain gain utf-8; an already-charset type and a binary type are untouched", async () => {
+  const types = { "/": "text/html", "/llms.txt": "text/plain", "/x/": "text/html; charset=utf-8", "/fonts/a.woff2": "font/woff2" };
+  const h = harness({ assets: (r) => new Response("body", { headers: { "content-type": types[new URL(r.url).pathname] } }) });
+  const page = await worker.fetch(req("https://herinean.com/"), h.env, h.ctx);
+  assert.equal(page.headers.get("content-type"), "text/html; charset=utf-8");
+  const llms = await worker.fetch(req("https://herinean.com/llms.txt"), h.env, h.ctx);
+  assert.equal(llms.headers.get("content-type"), "text/plain; charset=utf-8");
+  const x = await worker.fetch(req("https://herinean.com/x/"), h.env, h.ctx);
+  assert.equal(x.headers.get("content-type"), "text/html; charset=utf-8");
+  const font = await worker.fetch(req("https://herinean.com/fonts/a.woff2"), h.env, h.ctx);
+  assert.equal(font.headers.get("content-type"), "font/woff2");
+});
+
 test("the asset layer's 307 canonicalisation redirect becomes a 301 with the same location; POST is left alone", async () => {
   const h = harness({ assets: () => new Response(null, { status: 307, headers: { location: "https://herinean.com/writing/", "content-length": "18" } }) });
   const res = await worker.fetch(req("https://herinean.com/writing"), h.env, h.ctx);
