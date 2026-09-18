@@ -131,6 +131,20 @@ test("bots and empty user agents are not counted", async () => {
   assert.deepEqual(h.points, []);
 });
 
+test("speculative and non-document loads are not views: prefetch, prerender, iframe; a navigation still is", async () => {
+  const h = harness();
+  const ua = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/128 Mobile Safari/537.36";
+  await worker.fetch(req("https://herinean.com/writing/x/", { headers: { "user-agent": ua, "sec-purpose": "prefetch" } }), h.env, h.ctx);
+  await worker.fetch(req("https://herinean.com/writing/x/", { headers: { "user-agent": ua, "sec-purpose": "prefetch;prerender" } }), h.env, h.ctx);
+  await worker.fetch(req("https://herinean.com/writing/x/", { headers: { "user-agent": ua, purpose: "prefetch" } }), h.env, h.ctx);
+  await worker.fetch(req("https://herinean.com/writing/x/", { headers: { "user-agent": ua, "sec-fetch-dest": "iframe" } }), h.env, h.ctx);
+  await h.settle();
+  assert.deepEqual(h.points, []);
+  await worker.fetch(req("https://herinean.com/writing/x/", { headers: { "user-agent": ua, "sec-fetch-dest": "document", "sec-fetch-mode": "navigate" } }), h.env, h.ctx);
+  await h.settle();
+  assert.equal(h.points.length, 1);
+});
+
 test("weak and list validators match the composite ETag", async () => {
   const kv = { getWithMetadata: async () => ({ value: "<table data-scorecard></table>", metadata: { etag: "feed1234" } }) };
   const h = harness({ kv, assets: () => new Response("<html><table data-scorecard></table></html>", { status: 200, headers: { "content-type": "text/html; charset=utf-8", etag: '"abc"' } }) });

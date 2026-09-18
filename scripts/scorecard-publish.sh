@@ -10,8 +10,8 @@ IN=${1:-scorecard.json}
 .cache/site scorecard --in "$IN" --manual data/scorecard-manual.yaml --out .cache/scorecard.html
 grep -q '<table data-scorecard>' .cache/scorecard.html
 # The metadata is the Worker's ETag suffix: one key carries the fragment and its validator, so the Worker reads KV once.
-npx --yes wrangler@4 kv key put --binding SCORECARD --remote scorecard --path .cache/scorecard.html --metadata "{\"etag\":\"$(sha256sum .cache/scorecard.html | cut -c1-8)\"}"
+npx --yes "$WRANGLER" kv key put --binding SCORECARD --remote scorecard --path .cache/scorecard.html --metadata "{\"etag\":\"$(sha256sum .cache/scorecard.html | cut -c1-8)\"}"
 if [ -f "$IN" ]; then
-  npx --yes wrangler@4 kv key put --binding SCORECARD --remote scorecard.json --path "$IN"
+  npx --yes "$WRANGLER" kv key put --binding SCORECARD --remote scorecard.json --path "$IN"
 fi
 echo "published: $(wc -c < .cache/scorecard.html) bytes"

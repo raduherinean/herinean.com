@@ -71,10 +71,19 @@ function charset(res) {
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
 }
 
+// A view is a navigation a person made: speculative loads (Chrome's prefetch/prerender, Safari's and Firefox's
+// Purpose: prefetch) and non-document fetches (an <iframe> embed, a fetch() from someone else's page) are not.
+function speculative(request) {
+  const purpose = (request.headers.get("sec-purpose") || request.headers.get("purpose") || "").toLowerCase();
+  if (purpose.includes("prefetch") || purpose.includes("prerender")) return true;
+  const dest = request.headers.get("sec-fetch-dest");
+  return dest !== null && dest !== "document";
+}
+
 // count writes: path, lang, referrer host, ref, country, 1. Never IP, user agent or the full referrer (spec §6.3; the privacy page says exactly this).
 function count(request, url, env) {
   const ua = request.headers.get("user-agent");
-  if (!env.VIEWS || !ua || BOT_UA.test(ua)) return;
+  if (!env.VIEWS || !ua || BOT_UA.test(ua) || speculative(request)) return;
   const tag = url.searchParams.get("ref");
   const ref = tag === null ? "none" : REFS.has(tag) ? tag : "other";
   let refHost = "";
