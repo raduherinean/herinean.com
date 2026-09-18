@@ -21,7 +21,8 @@
 - Build time = commit time (`SOURCE_DATE_EPOCH` if set, else `git log -1 --format=%ct`); `security.txt` `Expires` = build + 364 days; output files sorted, mtimes fixed to build time. Same commit ⇒ byte-identical `dist/`.
 - Weight budget per content page: HTML+CSS ≤ 30 KB gzip-compressed. Fonts are M1b.
 - Headers (`_headers`) exactly as spec §6.2, with `style-src 'sha256-<hash of the inlined CSS bytes>'`. **No `X-Robots-Tag` in `_headers`** (the Worker marks non-production hosts; production must be indexable).
-- Commits: signed, `radu@herinean.com`, Claude co-author trailers; `main` via PR only; work branch `m1a/generator` on `gitea`.
+- Commits: signed, `radu@herinean.com`, Claude co-author trailers; `main` via PR only; work branch `m1a/generator` on `gitea`, **branched from `infra/m0`** — `main` has five files; `.gitignore`, `RUNBOOK.md`, `worker/`, the design renders and the placeholder files this plan uses exist only on `infra/m0` (unmerged until `gh` is installed). The M1a PR targets `infra/m0`; GitHub retargets it to `main` when M0 merges.
+- `site check` exits **3** when the only failures are ⟨author placeholders⟩ (`site.ErrAuthorInputs`); the pre-commit hook warns on 3 and blocks on anything else, so Tasks 5–12 can be committed before Radu's inputs arrive. CI (M2) treats 3 as failure.
 - `gofmt`, `go vet`, `staticcheck` clean; every task ends with `go test ./...` green.
 
 ## Operator inputs
@@ -61,7 +62,7 @@ ai_disclosure:
 | `internal/site/{build.go,check.go,serve.go,new.go,scorecard.go,clock.go}` + tests | orchestration, `dist/` invariants, local server, scaffold |
 | `templates/{base,home,index,piece,colophon,privacy,404,scorecard}.html` | pages |
 | `assets/css/site.css` | provisional CSS (M1b replaces values, not structure) |
-| `assets/fonts/SourceSerif4-Regular.ttf` + `OFL.txt` | OG rendering font (M1a); web fonts are M1b |
+| `assets/fonts/og/{Newsreader72pt-Medium,SourceSerif4-Regular}.ttf` + licences | OG rendering fonts (static instances); web fonts are M1b, in `assets/fonts/web/` |
 | `content/{en,ro}/_home.md`, `content/{en,ro}/_privacy.md`, `content/en/_colophon.md`, `content/_template.md`, `content/{en,ro}/*.md` | pages and pieces |
 | `i18n/{en,ro}.yaml` | UI strings |
 | `static/` | favicons, `.well-known/mta-sts.txt`, copied verbatim |
@@ -87,14 +88,15 @@ V=1.27.1; A=$([ "$(uname -m)" = aarch64 ] && echo arm64 || echo amd64)
 cd /tmp && curl -sSLO "https://go.dev/dl/go${V}.linux-${A}.tar.gz" && curl -sSL "https://go.dev/dl/?mode=json&include=all" | jq -r --arg f "go${V}.linux-${A}.tar.gz" '.[] | .files[] | select(.filename==$f) | .sha256' > sum && [ "$(sha256sum go${V}.linux-${A}.tar.gz | cut -d' ' -f1)" = "$(cat sum)" ] && rm -rf ~/.local/go && tar -C ~/.local -xzf go${V}.linux-${A}.tar.gz && ln -sf ~/.local/go/bin/go ~/.local/bin/go && ln -sf ~/.local/go/bin/gofmt ~/.local/bin/gofmt && export PATH="$HOME/.local/bin:$PATH" && go version
 go install honnef.co/go/tools/cmd/staticcheck@latest && ln -sf ~/go/bin/staticcheck ~/.local/bin/staticcheck
 ```
-Expected: `go version go1.27.1 linux/arm64`.
+Expected: `go version go1.27.1 linux/arm64`. If `staticcheck` reports Go 1.27 as unsupported, install `@master`; if that fails too, drop it from this plan's gates (keep `go vet`) and say so in the PR.
 
 - [ ] **Step 2: Module and branch**
 
 ```bash
-cd /home/radoo/Documents/Projects/herinean.com && git checkout main && git pull origin main && git checkout -b m1a/generator
+cd /home/radoo/Documents/Projects/herinean.com && git checkout infra/m0 && git pull gitea infra/m0 && git checkout -b m1a/generator
 go mod init github.com/raduherinean/herinean.com
 ```
+`infra/m0`, not `main` (see Global Constraints).
 
 - [ ] **Step 3: `site.yaml`** (values marked ⟨⟩ are author inputs; `check` fails while any remains)
 
@@ -195,6 +197,7 @@ name: R`))
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -219,6 +222,9 @@ type Config struct {
 
 // Placeholder markers: anything the author still has to fill in. The build refuses to ship them.
 const openMark, closeMark = "⟨", "⟩"
+
+// ErrPlaceholder marks "author inputs still missing"; site maps it to exit code 3 so the pre-commit hook warns instead of blocking before launch.
+var ErrPlaceholder = errors.New("author placeholder present")
 
 func Load(path string) (*Config, error) {
 	b, err := os.ReadFile(path)
@@ -247,7 +253,7 @@ func (c *Config) validate() error {
 			return fmt.Errorf("missing %s", k)
 		}
 		if strings.Contains(v, openMark) || strings.Contains(v, closeMark) {
-			return fmt.Errorf("%s still contains a ⟨placeholder⟩", k)
+			return fmt.Errorf("%s still contains a ⟨placeholder⟩: %w", k, ErrPlaceholder)
 		}
 	}
 	if !strings.HasPrefix(c.BaseURL, "https://") || strings.HasSuffix(c.BaseURL, "/") {
@@ -300,9 +306,11 @@ func (c *Config) Abs(path string) string { return c.BaseURL + path }
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
+	_ "time/tzdata" // Europe/Bucharest travels with the binary
 
 	"github.com/raduherinean/herinean.com/internal/site"
 )
@@ -350,6 +358,9 @@ func main() {
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "site:", err)
+		if errors.Is(err, site.ErrAuthorInputs) {
+			os.Exit(3) // author inputs missing: the pre-commit hook warns, CI fails
+		}
 		os.Exit(1)
 	}
 }
@@ -377,6 +388,9 @@ type Options struct {
 }
 
 var errNotImplemented = errors.New("not implemented yet")
+
+// ErrAuthorInputs wraps every "⟨placeholder⟩ still present" failure, from site.yaml or content/. Exit code 3.
+var ErrAuthorInputs = errors.New("author inputs missing")
 
 func Build(o Options) error                                   { return errNotImplemented }
 func Check(o Options) error                                   { return errNotImplemented }
@@ -407,7 +421,12 @@ if git diff --cached --name-only | grep -q '\.go$'; then
   go vet ./...
 fi
 if git diff --cached --name-only | grep -qE '^(content|i18n|assets|templates|site\.yaml)'; then
-  go run ./cmd/site check
+  set +e; go run ./cmd/site check; rc=$?; set -e
+  if [ "$rc" -eq 3 ]; then
+    echo "pre-commit: author inputs still missing (site check exit 3) — allowed before launch; CI will not allow it" >&2
+  elif [ "$rc" -ne 0 ]; then
+    exit "$rc"
+  fi
 fi
 ```
 
@@ -873,7 +892,7 @@ func contains(xs []string, x string) bool {
 ```bash
 go get github.com/yuin/goldmark@latest && go mod tidy && go test ./internal/content/ -run 'Slug|Parse|Diacritics' -v 2>&1 | tail -15
 ```
-Expected: all PASS. (The `time/tzdata` import goes into `cmd/site/main.go` now: add `_ "time/tzdata"` to its imports so the binary carries the Europe/Bucharest zone.)
+Expected: all PASS. (`cmd/site/main.go` already imports `_ "time/tzdata"` from Task 0, so the binary carries the Europe/Bucharest zone.)
 
 - [ ] **Step 8: Commit** — `M1a: content — front matter, slugs, dates, diacritics rules` with trailers; push to gitea.
 
@@ -886,7 +905,7 @@ Expected: all PASS. (The `time/tzdata` import goes into `cmd/site/main.go` now: 
 
 **Interfaces:**
 - Consumes: `Piece`, `ImageInfo`, `ImageRef`, `LinkRef`.
-- Produces: `content.ParseBody(p *Piece, body []byte) Problems` (parses into `p.doc`, fills `p.Images`, `p.Links`, `p.Words`, `p.ReadingMinutes`, alt problems); `content.RenderBody(p *Piece, lookup func(dest string) *ImageInfo) (template.HTML, error)`; `content.ChromaCSS(light, dark string) (string, error)` (used by render/css.go).
+- Produces: `content.ParseBody(p *Piece, body []byte) Problems` (parses into `p.doc`, fills `p.Images`, `p.Links`, `p.Words`, `p.ReadingMinutes`; alt, code-language, indented-code and diacritics problems); `content.RenderBody(p *Piece, lookup func(dest string) *ImageInfo, tableLabel string) (template.HTML, error)` (`tableLabel` names the scrollable table region; from i18n `table.label`). Highlighting CSS is hand-written in `site.css` (Task 6) from the palette tokens — nothing generated.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -904,17 +923,15 @@ func piece(lang, body string) *Piece {
 }
 
 func TestQuotesPerLanguage(t *testing.T) {
-	en := piece("en", `He said "hello" -- really...`)
-	ro := piece("ro", `A spus "salut" -- chiar...`)
-	for _, p := range []*Piece{en, ro} {
-		if err := ParseBody(p, []byte(p.File)); err.Err() != nil { // body reused as text is fine
-			t.Fatal(err.Err())
-		}
+	en, ro := piece("en", ""), piece("ro", "")
+	if probs := ParseBody(en, []byte(`He said "hello" -- really...`)); probs.Err() != nil {
+		t.Fatal(probs.Err())
 	}
-	_ = ParseBody(en, []byte(`He said "hello" -- really...`))
-	_ = ParseBody(ro, []byte(`A spus "salut" -- chiar...`))
-	enHTML, _ := RenderBody(en, nil)
-	roHTML, _ := RenderBody(ro, nil)
+	if probs := ParseBody(ro, []byte(`A spus "salut" -- chiar...`)); probs.Err() != nil {
+		t.Fatal(probs.Err())
+	}
+	enHTML, _ := RenderBody(en, nil, "Table")
+	roHTML, _ := RenderBody(ro, nil, "Tabel")
 	if !strings.Contains(string(enHTML), "&ldquo;hello&rdquo;") {
 		t.Errorf("en quotes: %s", enHTML)
 	}
@@ -949,7 +966,7 @@ func TestFigureAndResponsiveImage(t *testing.T) {
 		}
 		return nil
 	}
-	html, err := RenderBody(p, lookup)
+	html, err := RenderBody(p, lookup, "Table")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -970,9 +987,27 @@ func TestFigureAndResponsiveImage(t *testing.T) {
 func TestCodeUsesClassesNotStyles(t *testing.T) {
 	p := piece("en", "")
 	_ = ParseBody(p, []byte("```go\nfmt.Println(\"x\")\n```\n"))
-	html, _ := RenderBody(p, nil)
-	if strings.Contains(string(html), "style=") || !strings.Contains(string(html), `class="chroma"`) {
-		t.Errorf("highlighting must use classes: %s", html)
+	html, _ := RenderBody(p, nil, "Table")
+	if strings.Contains(string(html), "style=") || !strings.Contains(string(html), `class="chroma"`) || !strings.Contains(string(html), `<pre tabindex="0"`) {
+		t.Errorf("highlighting must use classes and a focusable pre: %s", html)
+	}
+}
+
+func TestCodeNeedsLanguage(t *testing.T) {
+	p := piece("en", "")
+	probs := ParseBody(p, []byte("```\nplain\n```\n\n    indented\n"))
+	if len(probs) != 2 || !strings.Contains(probs[0].Msg, "language") || !strings.Contains(probs[1].Msg, "indented") {
+		t.Errorf("want a language problem and an indented-block problem, got %+v", probs)
+	}
+}
+
+func TestTablesWrapAndNeverUseStyle(t *testing.T) {
+	p := piece("en", "")
+	_ = ParseBody(p, []byte("| a | b |\n|---:|:---|\n| 1 | 2 |\n"))
+	html, _ := RenderBody(p, nil, "Table")
+	s := string(html)
+	if !strings.Contains(s, `<div class="table" role="region" aria-label="Table" tabindex="0"><table>`) || !strings.Contains(s, "</table>\n</div>") || strings.Contains(s, "style=") || strings.Contains(s, "align=") {
+		t.Errorf("tables must be wrapped, focusable and free of style/align attributes: %s", s)
 	}
 }
 
@@ -991,7 +1026,7 @@ func TestReadingTimeAndLinks(t *testing.T) {
 func TestFootnotesAndTables(t *testing.T) {
 	p := piece("en", "")
 	_ = ParseBody(p, []byte("A claim[^1].\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n[^1]: Source.\n"))
-	html, _ := RenderBody(p, nil)
+	html, _ := RenderBody(p, nil, "Table")
 	s := string(html)
 	if !strings.Contains(s, "<table>") || !strings.Contains(s, `class="footnotes"`) {
 		t.Errorf("%s", s)
@@ -1008,6 +1043,7 @@ package content
 
 import (
 	"github.com/yuin/goldmark/ast"
+	extast "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 )
@@ -1047,6 +1083,34 @@ func (figureTransformer) Transform(doc *ast.Document, reader text.Reader, pc par
 		p.Parent().ReplaceChild(p.Parent(), p, fig)
 	}
 }
+
+// TableWrap is a block around a table: the div scrolls horizontally on narrow screens and carries tabindex so keyboard users can scroll it (axe: scrollable-region-focusable).
+type TableWrap struct{ ast.BaseBlock }
+
+var KindTableWrap = ast.NewNodeKind("TableWrap")
+
+func (n *TableWrap) Kind() ast.NodeKind { return KindTableWrap }
+func (n *TableWrap) Dump(source []byte, level int) {
+	ast.DumpHelper(n, source, level, nil, nil)
+}
+
+type tableTransformer struct{}
+
+func (tableTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
+	var tables []*extast.Table
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if t, ok := n.(*extast.Table); ok && entering {
+			tables = append(tables, t)
+		}
+		return ast.WalkContinue, nil
+	})
+	for _, t := range tables {
+		wrap := &TableWrap{}
+		parent := t.Parent()
+		parent.ReplaceChild(parent, t, wrap)
+		wrap.AppendChild(wrap, t)
+	}
+}
 ```
 
 - [ ] **Step 4: `markdown.go`**
@@ -1064,7 +1128,6 @@ import (
 	"unicode"
 
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
-	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
@@ -1090,10 +1153,11 @@ func typographer(lang string) goldmark.Extender {
 	return extension.Typographer
 }
 
-func newMarkdown(lang string, lookup func(string) *ImageInfo) goldmark.Markdown {
+func newMarkdown(lang string, lookup func(string) *ImageInfo, tableLabel string) goldmark.Markdown {
 	return goldmark.New(
 		goldmark.WithExtensions(
-			extension.Table,
+			// Column alignment would need style= (blocked by the hash CSP) or the obsolete align= (Nu error); neither is emitted.
+			extension.NewTable(extension.WithTableCellAlignMethod(extension.TableCellAlignNone)),
 			extension.Footnote,
 			typographer(lang),
 			highlighting.NewHighlighting(
@@ -1102,11 +1166,11 @@ func newMarkdown(lang string, lookup func(string) *ImageInfo) goldmark.Markdown 
 		),
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(),
-			parser.WithASTTransformers(util.Prioritized(figureTransformer{}, 100)),
+			parser.WithASTTransformers(util.Prioritized(figureTransformer{}, 100), util.Prioritized(tableTransformer{}, 200)),
 		),
 		goldmark.WithRendererOptions(
 			ghtml.WithUnsafe(), // inline SVG diagrams and the occasional raw block; check --dist polices scripts and style=
-			renderer.WithNodeRenderers(util.Prioritized(&imageRenderer{lookup: lookup}, 100)),
+			renderer.WithNodeRenderers(util.Prioritized(&nodeRenderer{lookup: lookup, tableLabel: tableLabel}, 100)),
 		),
 	)
 }
@@ -1115,7 +1179,7 @@ func newMarkdown(lang string, lookup func(string) *ImageInfo) goldmark.Markdown 
 func ParseBody(p *Piece, body []byte) Problems {
 	var probs Problems
 	p.src = body
-	md := newMarkdown(p.Lang, nil)
+	md := newMarkdown(p.Lang, nil, "")
 	p.doc = md.Parser().Parse(text.NewReader(body))
 	p.Images, p.Links = nil, nil
 	words := 0
@@ -1135,6 +1199,13 @@ func ParseBody(p *Piece, body []byte) Problems {
 			if d := string(v.Destination); strings.HasPrefix(d, "/") {
 				p.Links = append(p.Links, LinkRef{Dest: strings.SplitN(d, "#", 2)[0], Line: lineOf(body, v, p.bodyLine)})
 			}
+		case *ast.FencedCodeBlock:
+			// chroma adds tabindex="0" to every <pre> it renders; a block without a language would be a plain, unfocusable <pre>.
+			if v.Language(body) == nil {
+				probs.Add(p.File, lineOf(body, v, p.bodyLine)-1, "fenced code needs a language (```text for plain text)")
+			}
+		case *ast.CodeBlock:
+			probs.Add(p.File, lineOf(body, v, p.bodyLine), "indented code block; use a fenced block with a language")
 		case *ast.Text:
 			words += countWords(v.Segment.Value(body))
 		case *ast.String:
@@ -1148,8 +1219,8 @@ func ParseBody(p *Piece, body []byte) Problems {
 	return probs
 }
 
-// RenderBody renders the parsed document with image information injected.
-func RenderBody(p *Piece, lookup func(string) *ImageInfo) (template.HTML, error) {
+// RenderBody renders the parsed document with image information injected; tableLabel names scrollable table regions.
+func RenderBody(p *Piece, lookup func(string) *ImageInfo, tableLabel string) (template.HTML, error) {
 	if p.doc == nil {
 		return "", fmt.Errorf("%s: ParseBody must run before RenderBody", p.File)
 	}
@@ -1157,43 +1228,34 @@ func RenderBody(p *Piece, lookup func(string) *ImageInfo) (template.HTML, error)
 		lookup = func(string) *ImageInfo { return nil }
 	}
 	var buf bytes.Buffer
-	md := newMarkdown(p.Lang, lookup)
+	md := newMarkdown(p.Lang, lookup, tableLabel)
 	if err := md.Renderer().Render(&buf, p.src, p.doc); err != nil {
 		return "", fmt.Errorf("%s: render: %w", p.File, err)
 	}
 	return template.HTML(buf.String()), nil
 }
 
-// ChromaCSS returns class-based highlighting CSS: the light style at top level, the dark style under prefers-color-scheme.
-func ChromaCSS(light, dark string) (string, error) {
-	f := chromahtml.New(chromahtml.WithClasses(true))
-	var b bytes.Buffer
-	for i, name := range []string{light, dark} {
-		st := styles.Get(name)
-		if st == nil {
-			return "", fmt.Errorf("unknown chroma style %q", name)
-		}
-		if i == 1 {
-			b.WriteString("@media (prefers-color-scheme: dark){")
-		}
-		if err := f.WriteCSS(&b, st); err != nil {
-			return "", err
-		}
-		if i == 1 {
-			b.WriteString("}")
-		}
-	}
-	return b.String(), nil
+type nodeRenderer struct {
+	lookup     func(string) *ImageInfo
+	tableLabel string
 }
 
-type imageRenderer struct{ lookup func(string) *ImageInfo }
-
-func (r *imageRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
+func (r *nodeRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 	reg.Register(ast.KindImage, r.renderImage)
 	reg.Register(KindFigure, r.renderFigure)
+	reg.Register(KindTableWrap, r.renderTableWrap)
 }
 
-func (r *imageRenderer) renderFigure(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+func (r *nodeRenderer) renderTableWrap(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		_, _ = w.WriteString(`<div class="table" role="region" aria-label="` + html.EscapeString(r.tableLabel) + `" tabindex="0">`)
+	} else {
+		_, _ = w.WriteString("</div>\n")
+	}
+	return ast.WalkContinue, nil
+}
+
+func (r *nodeRenderer) renderFigure(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	fig := n.(*Figure)
 	if !entering {
 		return ast.WalkContinue, nil
@@ -1207,7 +1269,7 @@ func (r *imageRenderer) renderFigure(w util.BufWriter, source []byte, n ast.Node
 	return ast.WalkSkipChildren, nil
 }
 
-func (r *imageRenderer) renderImage(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+func (r *nodeRenderer) renderImage(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if !entering {
 		return ast.WalkContinue, nil
 	}
@@ -1215,7 +1277,7 @@ func (r *imageRenderer) renderImage(w util.BufWriter, source []byte, n ast.Node,
 	return ast.WalkSkipChildren, nil
 }
 
-func (r *imageRenderer) writeImg(w util.BufWriter, source []byte, img *ast.Image) {
+func (r *nodeRenderer) writeImg(w util.BufWriter, source []byte, img *ast.Image) {
 	dest := string(img.Destination)
 	alt := html.EscapeString(string(img.Text(source)))
 	info := r.lookup(dest)
@@ -1251,7 +1313,7 @@ func countWords(b []byte) int {
 ```bash
 go get github.com/yuin/goldmark-highlighting/v2@latest github.com/alecthomas/chroma/v2@latest && go mod tidy && go test ./internal/content/ 2>&1 | tail -20
 ```
-Expected: PASS. Known adjustment points if the goldmark version differs: the `Title` field on `ast.Image` (it is `Title []byte`), `Text(source)` deprecation (use `v.Text(body)` or walk child text nodes), and `extension.Typographer`'s substitution map type name.
+Expected: PASS. Known adjustment points if the goldmark version differs: the `Title` field on `ast.Image` (it is `Title []byte`), `Text(source)` deprecation (use `v.Text(body)` or walk child text nodes), `extension.Typographer`'s substitution map type name, and whether goldmark-highlighting routes language-less blocks through chroma (irrelevant once `check` requires a language, but the `<pre tabindex` assertion in `check --dist` is the backstop).
 
 - [ ] **Step 6: Commit** — `M1a: content — Markdown rendering with per-language typography, figures, responsive images, class-based highlighting` with trailers; push.
 
@@ -1263,9 +1325,9 @@ Expected: PASS. Known adjustment points if the goldmark version differs: the `Ti
 - Create: `internal/content/i18n.go`, `internal/content/load.go`, `internal/content/load_test.go`, `testdata/site/**` (fixture)
 
 **Interfaces:**
-- Produces: `content.Site{Pieces []*Piece (all languages, newest first), ByLang map[string][]*Piece, Pages map[string]*Page (keys "home.en", "home.ro", "privacy.en", "privacy.ro", "colophon.en"), Strings map[string]map[string]string}`; `content.Page{Lang, Kind, Title, Body template.HTML, File string}` (body parsed/rendered like a piece, no front matter beyond `title`); `content.Load(root string, now time.Time) (*Site, Problems)` (parse + validate, bodies unrendered); `(*Site).Render(lookup func(key, dest string) *ImageInfo) error`; `(*Site).Latest(n int) []*Piece`; `(*Site).T(lang, key string) string`.
+- Produces: `content.Site{Pieces []*Piece (all languages, newest first), ByLang map[string][]*Piece, Pages map[string]*Page (keys "home.en", "home.ro", "privacy.en", "privacy.ro", "colophon.en"), Strings map[string]map[string]string}`; `content.Page{Lang, Kind, Title, Summary, Body template.HTML, File string}` + `(*Page).Links() []LinkRef` (body parsed/rendered like a piece; front matter `title` + `summary`); `content.Load(root string, now time.Time) (*Site, Problems)` (parse + validate, bodies unrendered); `(*Site).Render(lookup func(key, dest string) *ImageInfo) error`; `(*Site).Latest(n int) []*Piece`; `(*Site).T(lang, key string) string`.
 
-- [ ] **Step 1: Fixture site** — `testdata/site/` mirrors the real layout with: `i18n/en.yaml`, `i18n/ro.yaml` (full key sets, below), `site.yaml` (valid, no placeholders), `content/en/_home.md`, `content/ro/_home.md`, `content/en/_privacy.md`, `content/ro/_privacy.md`, `content/en/_colophon.md`, pieces: `content/en/paired.md` + `content/ro/pereche.md` (same `key: pair`), `content/ro/doar-ro.md` (RO-only), `content/en/with-media.md` (image `fig.png` + `diagram.svg` + code + footnote + table), and `assets/img/media/fig.png` (any 1600×1000 PNG), `assets/img/media/diagram.svg` (a 24×24 SVG using `currentColor`), `static/favicon.svg`, `static/.well-known/mta-sts.txt`, `templates/` and `assets/css/site.css` are copied from the repo by the test helper (they are not part of the fixture).
+- [ ] **Step 1: Fixture site** — `testdata/site/` mirrors the real layout with: `i18n/en.yaml`, `i18n/ro.yaml` (full key sets, below), `site.yaml` (valid, no placeholders), `content/en/_home.md`, `content/ro/_home.md`, `content/en/_privacy.md`, `content/ro/_privacy.md`, `content/en/_colophon.md`, pieces, dated so all precede the build epoch the `site` tests pin (2026-09-21): `content/en/paired.md` (2026-09-05) + `content/ro/pereche.md` (2026-09-06, same `key: pair`), `content/ro/doar-ro.md` (2026-09-10, RO-only), `content/en/with-media.md` (2026-09-15; image `fig.png` + `diagram.svg` + a ```go block + footnote + a table with one right-aligned column), and `assets/img/media/fig.png` (any 1600×1000 PNG), `assets/img/media/diagram.svg` (a 24×24 SVG using `currentColor`), `static/favicon.svg`, `static/.well-known/mta-sts.txt`, `templates/` and `assets/css/site.css` are copied from the repo by the test helper (they are not part of the fixture).
 
 `i18n/en.yaml` (the complete key set; `ro.yaml` has the same keys, Romanian values):
 ```yaml
@@ -1282,6 +1344,8 @@ piece.read_in_other: Citește în română →
 piece.also_on: Also on
 piece.discuss: LinkedIn
 piece.medium: Medium
+piece.byline_role: CTO
+table.label: Table
 pillar.build-log: Build log
 pillar.opportunity: Opportunity
 pillar.governance: AI + governance
@@ -1300,9 +1364,9 @@ notfound.body: Page not found.
 notfound.home: Home
 date.months: January,February,March,April,May,June,July,August,September,October,November,December
 ```
-`ro.yaml`: `nav.writing: Articole`, `nav.language: English`, `nav.language_lang: en`, `nav.skip: Sari la conținut`, `home.latest: Recente`, `home.all: Toate articolele →`, `index.title: Articole`, `piece.updated: Actualizat`, `piece.min_read: min de citit`, `piece.read_in_other: Read in English →`, `piece.also_on: Și pe`, `piece.discuss: LinkedIn`, `piece.medium: Medium`, `pillar.build-log: Jurnal de construcție`, `pillar.opportunity: Oportunități`, `pillar.governance: AI și guvernanță`, `pillar.analysis: Analiză`, `lang.en: Engleză`, `lang.ro: Română`, `lang.badge.ro: RO`, `lang.badge.en: EN`, `footer.linkedin: LinkedIn`, `footer.rss: RSS`, `footer.colophon: Colofon`, `footer.privacy: Confidențialitate`, `footer.promise: Fără JavaScript, fără cookie-uri, fără trackere.`, `notfound.title: Pagina nu există`, `notfound.body: Pagina nu există.`, `notfound.home: Acasă`, `date.months: ianuarie,februarie,martie,aprilie,mai,iunie,iulie,august,septembrie,octombrie,noiembrie,decembrie`.
+`ro.yaml`: `nav.writing: Articole`, `nav.language: English`, `nav.language_lang: en`, `nav.skip: Sari la conținut`, `home.latest: Recente`, `home.all: Toate articolele →`, `index.title: Articole`, `piece.updated: Actualizat`, `piece.min_read: min de citit`, `piece.read_in_other: Read in English →`, `piece.also_on: Și pe`, `piece.discuss: LinkedIn`, `piece.medium: Medium`, `piece.byline_role: CTO`, `table.label: Tabel`, `pillar.build-log: Jurnal de construcție`, `pillar.opportunity: Oportunități`, `pillar.governance: AI și guvernanță`, `pillar.analysis: Analiză`, `lang.en: Engleză`, `lang.ro: Română`, `lang.badge.ro: RO`, `lang.badge.en: EN`, `footer.linkedin: LinkedIn`, `footer.rss: RSS`, `footer.colophon: Colofon`, `footer.privacy: Confidențialitate`, `footer.promise: Fără JavaScript, fără cookie-uri, fără trackere.`, `notfound.title: Pagina nu există`, `notfound.body: Pagina nu există.`, `notfound.home: Acasă`, `date.months: ianuarie,februarie,martie,aprilie,mai,iunie,iulie,august,septembrie,octombrie,noiembrie,decembrie`.
 
-Page files carry a one-field front matter: `---\ntitle: "…"\n---` then Markdown.
+Page files carry a two-field front matter: `---\ntitle: "…"\nsummary: "≤ 160 chars — the meta description"\n---` then Markdown.
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -1462,21 +1526,24 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
-	"github.com/yuin/goldmark/text"
 	"gopkg.in/yaml.v3"
 )
 
 // Page is a non-piece page (home, privacy, colophon) authored in Markdown with a title.
 type Page struct {
-	Lang  string
-	Kind  string
-	Title string
-	Body  template.HTML
-	File  string
-	doc   interface{ IsRaw() bool } // unused marker to keep Page distinct; real doc below
-	piece *Piece                     // reuse the piece pipeline for parsing/rendering
+	Lang    string
+	Kind    string
+	Title   string
+	Summary string // meta description
+	Body    template.HTML
+	File    string
+	piece   *Piece // reuse the piece pipeline for parsing/rendering
 }
+
+// Links are the internal links in the page body, for the link check.
+func (pg *Page) Links() []LinkRef { return pg.piece.Links }
 
 type Site struct {
 	Pieces  []*Piece
@@ -1559,16 +1626,20 @@ func parsePage(file string, src []byte, lang, kind string) (*Page, Problems) {
 		return nil, probs
 	}
 	var fm struct {
-		Title string `yaml:"title"`
+		Title   string `yaml:"title"`
+		Summary string `yaml:"summary"`
 	}
 	if err := yaml.Unmarshal(src[4:4+end], &fm); err != nil || strings.TrimSpace(fm.Title) == "" {
 		probs.Add(file, 1, "page front matter needs a title")
 		return nil, probs
 	}
+	if n := utf8.RuneCountInString(fm.Summary); strings.TrimSpace(fm.Summary) == "" || n > summaryMax {
+		probs.Add(file, 1, "page front matter needs a summary of 1–%d characters (the meta description)", summaryMax)
+	}
 	body := src[4+end+5:]
 	p := &Piece{Lang: lang, File: file, Key: "_" + kind, bodyLine: bytes.Count(src[:4+end+5], []byte("\n")) + 1}
 	probs = append(probs, ParseBody(p, body)...)
-	return &Page{Lang: lang, Kind: kind, Title: fm.Title, File: file, piece: p}, probs
+	return &Page{Lang: lang, Kind: kind, Title: strings.TrimSpace(fm.Title), Summary: strings.TrimSpace(fm.Summary), File: file, piece: p}, probs
 }
 
 func pair(s *Site) Problems {
@@ -1612,14 +1683,14 @@ func sortPieces(ps []*Piece) {
 // Render fills every Body. lookup resolves an image by piece key and relative name.
 func (s *Site) Render(lookup func(key, dest string) *ImageInfo) error {
 	for _, p := range s.Pieces {
-		body, err := RenderBody(p, func(dest string) *ImageInfo { return lookup(p.Key, dest) })
+		body, err := RenderBody(p, func(dest string) *ImageInfo { return lookup(p.Key, dest) }, s.T(p.Lang, "table.label"))
 		if err != nil {
 			return err
 		}
 		p.Body = body
 	}
 	for _, pg := range s.Pages {
-		body, err := RenderBody(pg.piece, func(dest string) *ImageInfo { return lookup(pg.piece.Key, dest) })
+		body, err := RenderBody(pg.piece, func(dest string) *ImageInfo { return lookup(pg.piece.Key, dest) }, s.T(pg.Lang, "table.label"))
 		if err != nil {
 			return err
 		}
@@ -1656,10 +1727,7 @@ func (s *Site) AllImageRefs() map[string][]ImageRef {
 	}
 	return out
 }
-
-var _ = text.NewReader // keep goldmark/text imported for future use of readers in tests
 ```
-Remove the unused `doc` marker field and the `text` blank use if `staticcheck` complains; they are not load-bearing.
 
 - [ ] **Step 5: Run, fix, pass** — `go test ./internal/content/ 2>&1 | tail -20`. Expected PASS on all Task 1–3 tests.
 
@@ -1670,10 +1738,10 @@ Remove the unused `doc` marker field and the `text` blank use if `staticcheck` c
 ### Task 4: `images` — responsive variants with a content-hash cache
 
 **Files:**
-- Create: `internal/images/process.go`, `internal/images/hash.go`, `internal/images/process_test.go`
+- Create: `internal/images/process.go`, `internal/images/hash.go`, `internal/images/cache.go`, `internal/images/process_test.go`
 
 **Interfaces:**
-- Produces: `images.Info{Src, Srcset string; Width, Height int; IsSVG bool; Files map[string][]byte}` (Files: output path → bytes, for the site writer); `images.Process(srcPath, key, name string) (*Info, error)`; `images.Hash8([]byte) string`; `images.Widths = []int{720, 1440}`; `images.URLPrefix = "/img/"`.
+- Produces: `images.Info{Src, Srcset string; Width, Height int; IsSVG bool; Files map[string][]byte}` (Files: output path → bytes, for the site writer); `images.Options{Widths []int; Cache *Cache}`; `images.Process(srcPath, key, name string, opt Options) (*Info, error)`; `images.Cache{Dir string}` (content-addressed store under `<Dir>/v1/`; a nil `*Cache` is a no-op); `images.Hash8([]byte) string`; `images.Widths = []int{720, 1440}` (default); `images.URLPrefix = "/img/"`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1713,7 +1781,7 @@ func tmpPNG(t *testing.T, w, h int) string {
 
 func TestProcessRaster(t *testing.T) {
 	src := tmpPNG(t, 1600, 1000)
-	info, err := Process(src, "media", "fig.png")
+	info, err := Process(src, "media", "fig.png", Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1723,8 +1791,8 @@ func TestProcessRaster(t *testing.T) {
 	if !strings.HasPrefix(info.Src, "/img/media/fig.") || !strings.HasSuffix(info.Src, ".1440.png") {
 		t.Errorf("src %s", info.Src)
 	}
-	if !strings.Contains(info.Srcset, ".720.webp 720w") || !strings.Contains(info.Srcset, ".1440.webp 1440w") {
-		t.Errorf("srcset %s", info.Srcset)
+	if !strings.Contains(info.Srcset, ".720.webp 720w") || !strings.Contains(info.Srcset, ".1440.webp 1440w") || strings.Count(info.Srcset, "1440w") != 1 {
+		t.Errorf("srcset must list each width once: %s", info.Srcset)
 	}
 	if len(info.Files) != 3 { // 720.webp, 1440.webp, 1440.png
 		t.Errorf("files: %d", len(info.Files))
@@ -1734,14 +1802,48 @@ func TestProcessRaster(t *testing.T) {
 			t.Errorf("file %s empty or misplaced", p)
 		}
 	}
-	again, _ := Process(src, "media", "fig.png")
+	again, _ := Process(src, "media", "fig.png", Options{})
 	if again.Src != info.Src {
 		t.Error("hash must be stable across runs")
 	}
 }
 
+func TestProcessCustomWidthsAndCache(t *testing.T) {
+	src := tmpPNG(t, 1000, 1000)
+	c := &Cache{Dir: t.TempDir()}
+	a, err := Process(src, "home", "portrait.png", Options{Widths: []int{320, 640}, Cache: c})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Width != 640 || !strings.Contains(a.Srcset, ".320.webp 320w") || !strings.Contains(a.Srcset, ".640.webp 640w") || strings.Contains(a.Srcset, "1440") {
+		t.Errorf("%+v", a)
+	}
+	n := 0
+	_ = filepath.WalkDir(c.Dir, func(p string, d os.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			n++
+		}
+		return nil
+	})
+	if n != 3 {
+		t.Errorf("cache holds %d files, want 3 (two WebP, one PNG)", n)
+	}
+	b, err := Process(src, "home", "portrait.png", Options{Widths: []int{320, 640}, Cache: c})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Width != a.Width || b.Height != a.Height || b.Srcset != a.Srcset {
+		t.Errorf("cache hit changed the result: %+v vs %+v", a, b)
+	}
+	for p := range a.Files {
+		if !bytes.Equal(a.Files[p], b.Files[p]) {
+			t.Errorf("%s differs on cache hit", p)
+		}
+	}
+}
+
 func TestProcessSmallRaster(t *testing.T) {
-	info, err := Process(tmpPNG(t, 600, 400), "k", "small.png")
+	info, err := Process(tmpPNG(t, 600, 400), "k", "small.png", Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1752,8 +1854,8 @@ func TestProcessSmallRaster(t *testing.T) {
 
 func TestProcessSVG(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "d.svg")
-	_ = os.WriteFile(p, []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="currentColor"/></svg>`), 0o644)
-	info, err := Process(p, "k", "d.svg")
+	_ = os.WriteFile(p, []byte(`<svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="currentColor"/></svg>`), 0o644) // height before width on purpose
+	info, err := Process(p, "k", "d.svg", Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1765,7 +1867,7 @@ func TestProcessSVG(t *testing.T) {
 func TestProcessRejectsStyleAttrInSVG(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "bad.svg")
 	_ = os.WriteFile(p, []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect style="fill:red"/></svg>`), 0o644)
-	if _, err := Process(p, "k", "bad.svg"); err == nil || !strings.Contains(err.Error(), "style=") {
+	if _, err := Process(p, "k", "bad.svg", Options{}); err == nil || !strings.Contains(err.Error(), "style=") {
 		t.Errorf("want style= error, got %v", err)
 	}
 }
@@ -1787,6 +1889,38 @@ import (
 func Hash8(b []byte) string {
 	s := sha256.Sum256(b)
 	return hex.EncodeToString(s[:])[:8]
+}
+```
+
+- [ ] **Step 3b: `cache.go`** — encoded outputs are keyed by names that already embed a content hash (source bytes + width, or the OG inputs + font hashes), so a hit is valid by construction; `v1/` changes when encoder settings change.
+
+```go
+package images
+
+import (
+	"os"
+	"path/filepath"
+)
+
+// Cache stores encoded outputs under <Dir>/v1/<name>. Nil or empty Dir disables it. Never part of dist/; gitignored.
+type Cache struct{ Dir string }
+
+func (c *Cache) get(name string) ([]byte, bool) {
+	if c == nil || c.Dir == "" {
+		return nil, false
+	}
+	b, err := os.ReadFile(filepath.Join(c.Dir, "v1", filepath.FromSlash(name)))
+	return b, err == nil
+}
+
+func (c *Cache) put(name string, b []byte) {
+	if c == nil || c.Dir == "" {
+		return
+	}
+	p := filepath.Join(c.Dir, "v1", filepath.FromSlash(name))
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err == nil {
+		_ = os.WriteFile(p, b, 0o644)
+	}
 }
 ```
 
@@ -1812,9 +1946,15 @@ import (
 	"golang.org/x/image/draw"
 )
 
+// Widths are the default responsive widths; the portrait passes its own.
 var Widths = []int{720, 1440}
 
 const URLPrefix = "/img/"
+
+type Options struct {
+	Widths []int  // defaults to Widths; the largest is never exceeded by upscaling
+	Cache  *Cache // optional
+}
 
 type Info struct {
 	Src    string // largest fallback, original format
@@ -1826,13 +1966,15 @@ type Info struct {
 }
 
 var (
-	svgDim   = regexp.MustCompile(`(?is)<svg[^>]*\bwidth="(\d+)(?:px)?"[^>]*\bheight="(\d+)(?:px)?"`)
-	svgStyle = regexp.MustCompile(`(?i)\bstyle="`)
+	svgTag    = regexp.MustCompile(`(?is)<svg\b[^>]*>`)
+	svgW      = regexp.MustCompile(`(?i)\bwidth="(\d+)(?:px)?"`)
+	svgH      = regexp.MustCompile(`(?i)\bheight="(\d+)(?:px)?"`)
+	svgStyle  = regexp.MustCompile(`(?i)\bstyle="`)
 	svgScript = regexp.MustCompile(`(?i)<script`)
 )
 
 // Process reads one source image and returns everything the renderer and the writer need.
-func Process(srcPath, key, name string) (*Info, error) {
+func Process(srcPath, key, name string, opt Options) (*Info, error) {
 	raw, err := os.ReadFile(srcPath)
 	if err != nil {
 		return nil, err
@@ -1849,65 +1991,104 @@ func Process(srcPath, key, name string) (*Info, error) {
 		if svgScript.Match(raw) {
 			return nil, fmt.Errorf("%s: SVG contains a script", srcPath)
 		}
-		m := svgDim.FindSubmatch(raw)
-		if m == nil {
-			return nil, fmt.Errorf("%s: SVG needs explicit width and height attributes", srcPath)
+		tag := svgTag.Find(raw)
+		mw, mh := svgW.FindSubmatch(tag), svgH.FindSubmatch(tag)
+		if tag == nil || mw == nil || mh == nil {
+			return nil, fmt.Errorf("%s: SVG needs explicit width and height attributes on <svg>", srcPath)
 		}
-		w, _ := strconv.Atoi(string(m[1]))
-		hh, _ := strconv.Atoi(string(m[2]))
+		w, _ := strconv.Atoi(string(mw[1]))
+		hh, _ := strconv.Atoi(string(mh[1]))
 		out := dir + base + "." + h + ".svg"
 		return &Info{Src: "/" + out, Width: w, Height: hh, IsSVG: true, Files: map[string][]byte{out: raw}}, nil
 	}
 
-	src, format, err := image.Decode(bytes.NewReader(raw))
+	cfg, format, err := image.DecodeConfig(bytes.NewReader(raw))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", srcPath, err)
 	}
 	if format != "png" && format != "jpeg" {
 		return nil, fmt.Errorf("%s: only PNG, JPEG and SVG are supported (got %s)", srcPath, format)
 	}
-	ow := src.Bounds().Dx()
-	info := &Info{Files: map[string][]byte{}}
-	var widths []int
-	for _, w := range Widths {
-		if w < ow {
-			widths = append(widths, w)
+	bounds := image.Rect(0, 0, cfg.Width, cfg.Height)
+	var decoded image.Image // decoded lazily: a full cache hit never decodes
+	decode := func() (image.Image, error) {
+		if decoded == nil {
+			decoded, _, err = image.Decode(bytes.NewReader(raw))
 		}
+		return decoded, err
 	}
-	largest := ow
-	if ow > Widths[len(Widths)-1] {
-		largest = Widths[len(Widths)-1]
-	}
-	widths = append(widths, largest)
 
-	var srcset []string
+	widths := opt.Widths
+	if len(widths) == 0 {
+		widths = Widths
+	}
+	largest := widths[len(widths)-1]
+	if cfg.Width < largest {
+		largest = cfg.Width // never upscale
+	}
+	var ws []int
 	for _, w := range widths {
-		img := resize(src, w)
-		wb, err := webp.Encode(img, webp.Options{Quality: 82})
-		if err != nil {
-			return nil, fmt.Errorf("%s: webp: %w", srcPath, err)
+		if w < largest {
+			ws = append(ws, w)
 		}
+	}
+	ws = append(ws, largest)
+
+	info := &Info{Files: map[string][]byte{}}
+	var srcset []string
+	fallbackExt := map[string]string{"png": "png", "jpeg": "jpg"}[format]
+	for _, w := range ws {
 		p := fmt.Sprintf("%s%s.%s.%d.webp", dir, base, h, w)
+		wb, ok := opt.Cache.get(p)
+		if !ok {
+			src, err := decode()
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", srcPath, err)
+			}
+			var buf bytes.Buffer
+			if err := webp.Encode(&buf, resize(src, w), webp.Options{Quality: 82}); err != nil {
+				return nil, fmt.Errorf("%s: webp: %w", srcPath, err)
+			}
+			wb = buf.Bytes()
+			opt.Cache.put(p, wb)
+		}
 		info.Files[p] = wb
 		srcset = append(srcset, fmt.Sprintf("/%s %dw", p, w))
 		if w == largest {
-			var fb bytes.Buffer
-			if format == "png" {
-				err = png.Encode(&fb, img)
-			} else {
-				err = jpeg.Encode(&fb, img, &jpeg.Options{Quality: 85})
+			fp := fmt.Sprintf("%s%s.%s.%d.%s", dir, base, h, w, fallbackExt)
+			fb, ok := opt.Cache.get(fp)
+			if !ok {
+				src, err := decode()
+				if err != nil {
+					return nil, fmt.Errorf("%s: %w", srcPath, err)
+				}
+				var buf bytes.Buffer
+				if format == "png" {
+					err = png.Encode(&buf, resize(src, w))
+				} else {
+					err = jpeg.Encode(&buf, resize(src, w), &jpeg.Options{Quality: 85})
+				}
+				if err != nil {
+					return nil, err
+				}
+				fb = buf.Bytes()
+				opt.Cache.put(fp, fb)
 			}
-			if err != nil {
-				return nil, err
-			}
-			fp := fmt.Sprintf("%s%s.%s.%d.%s", dir, base, h, w, map[string]string{"png": "png", "jpeg": "jpg"}[format])
-			info.Files[fp] = fb.Bytes()
+			info.Files[fp] = fb
 			info.Src = "/" + fp
-			info.Width, info.Height = img.Bounds().Dx(), img.Bounds().Dy()
+			info.Width, info.Height = w, heightFor(bounds, w)
 		}
 	}
 	info.Srcset = strings.Join(srcset, ", ")
 	return info, nil
+}
+
+// heightFor keeps the aspect ratio with the same rounding resize uses, so dimensions are known without decoding.
+func heightFor(b image.Rectangle, w int) int {
+	if b.Dx() == w {
+		return b.Dy()
+	}
+	return int(float64(b.Dy()) * float64(w) / float64(b.Dx()))
 }
 
 func resize(src image.Image, w int) image.Image {
@@ -1915,20 +2096,19 @@ func resize(src image.Image, w int) image.Image {
 	if b.Dx() == w {
 		return src
 	}
-	h := int(float64(b.Dy()) * float64(w) / float64(b.Dx()))
-	dst := image.NewRGBA(image.Rect(0, 0, w, h))
-	draw.CatmullRom.Scale(dst, dst.Bounds(), src, b, draw.Over, nil)
+	dst := image.NewRGBA(image.Rect(0, 0, w, heightFor(b, w)))
+	draw.CatmullRom.Scale(dst, dst.Bounds(), src, b, draw.Src, nil)
 	return dst
 }
 ```
-Note: for JPEG sources the PNG encoder is never used and vice versa; `image/jpeg` and `image/png` are imported for both decode registration and encoding.
+Note: for JPEG sources the PNG encoder is never used and vice versa; `image/jpeg` and `image/png` are imported for both decode registration and encoding. EXIF orientation is not applied: rotate phone photos before committing them (`check` cannot see it; the page can).
 
 - [ ] **Step 5: Dependencies, run, pass**
 
 ```bash
 go get github.com/gen2brain/webp@latest golang.org/x/image@latest && go mod tidy && go test ./internal/images/ 2>&1 | tail -8
 ```
-Expected PASS. If `gen2brain/webp` pulls wazero and the first encode is slow (~1 s warm-up), that is the known cost and is cached per process.
+Expected PASS. `gen2brain/webp` runs libwebp under wazero: the first encode pays a warm-up and each encode is slower than native — that is why the cache exists; a `serve` rebuild with unchanged images encodes nothing.
 
 - [ ] **Step 6: Commit** — `M1a: images — responsive WebP variants, SVG pass-through with style/script rejection` with trailers; push.
 
@@ -1937,22 +2117,24 @@ Expected PASS. If `gen2brain/webp` pulls wazero and the first encode is slow (~1
 ### Task 5: `images` — OG cards and font glyph checks
 
 **Files:**
-- Create: `internal/images/og.go`, `internal/images/fonts.go`, `internal/images/og_test.go`, `assets/fonts/Newsreader.ttf`, `assets/fonts/SourceSerif4.ttf`, `assets/fonts/OFL-Newsreader.txt`, `assets/fonts/OFL-SourceSerif4.txt`
+- Create: `internal/images/og.go`, `internal/images/fonts.go`, `internal/images/og_test.go`, `assets/fonts/og/Newsreader72pt-Medium.ttf`, `assets/fonts/og/SourceSerif4-Regular.ttf`, `assets/fonts/og/OFL-Newsreader.txt`, `assets/fonts/og/LICENSE-SourceSerif4.md` (web fonts land in `assets/fonts/web/` in M1b)
 
 **Interfaces:**
-- Produces: `images.OG{Title, Name, Domain, Pillar, Lang string}`; `images.Fonts{Display, Body *opentype.Font}`; `images.LoadFonts(dir string) (*Fonts, error)` (also runs the glyph check); `images.RenderOG(og OG, f *Fonts) ([]byte /*PNG*/, error)`; `images.CheckGlyphs(fontPath string) error` (requires U+0218–021B, ă â î and their capitals).
+- Produces: `images.OG{Title, Name, Domain, Pillar, Lang string; Portrait []byte /*optional JPEG/PNG*/}`; `images.Fonts{Display, Body *opentype.Font; Hash string}`; `images.LoadFonts(dir string) (*Fonts, error)` (also runs the glyph check); `images.RenderOG(og OG, f *Fonts, cache *Cache) ([]byte /*PNG*/, error)`; `images.CheckGlyphs(fontPath string) error` (requires U+0218–021B, ă â î and their capitals); `images.OGFontFiles = []string{"Newsreader72pt-Medium.ttf", "SourceSerif4-Regular.ttf"}`.
 
-- [ ] **Step 1: Vendor the fonts (OFL) from the Google Fonts repository**
+- [ ] **Step 1: Vendor the OG fonts (OFL) — static instances at the optical size and weight the cards use**
+
+Go's `x/image` rasterizer cannot instantiate a variable font, so it would draw the variable master's default (Newsreader wght 400 / opsz 16) while page titles are wght 500. The upstream repositories ship statics; google/fonts does not.
 
 ```bash
-mkdir -p assets/fonts && cd assets/fonts
-curl -sSL -o Newsreader.ttf   'https://github.com/google/fonts/raw/main/ofl/newsreader/Newsreader%5Bopsz%2Cwght%5D.ttf'
-curl -sSL -o OFL-Newsreader.txt 'https://github.com/google/fonts/raw/main/ofl/newsreader/OFL.txt'
-curl -sSL -o SourceSerif4.ttf 'https://github.com/google/fonts/raw/main/ofl/sourceserif4/SourceSerif4%5Bopsz%2Cwght%5D.ttf'
-curl -sSL -o OFL-SourceSerif4.txt 'https://github.com/google/fonts/raw/main/ofl/sourceserif4/OFL.txt'
-file *.ttf && cd ../..
+mkdir -p assets/fonts/og && cd assets/fonts/og
+curl -sSL -o Newsreader72pt-Medium.ttf 'https://github.com/productiontype/Newsreader/raw/master/fonts/static/ttf/Newsreader72pt-Medium.ttf'
+curl -sSL -o OFL-Newsreader.txt        'https://github.com/productiontype/Newsreader/raw/master/OFL.txt'
+curl -sSL -o SourceSerif4-Regular.ttf  'https://github.com/adobe-fonts/source-serif/raw/release/TTF/SourceSerif4-Regular.ttf'
+curl -sSL -o LICENSE-SourceSerif4.md   'https://github.com/adobe-fonts/source-serif/raw/release/LICENSE.md'
+file *.ttf && ls -l && cd ../../..
 ```
-Expected: two `TrueType Font data` files and two licence texts. (These are the variable masters; Go renders their default instance for OG cards. M1b derives the subset web instances from the same files.)
+Expected: two `TrueType Font data` files (≈132 KB and ≈262 KB; URLs verified 2026-09-18) and two licence texts. Web fonts (M1b) are a separate concern: subsets of the variable masters, in `assets/fonts/web/`.
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -1962,24 +2144,29 @@ package images
 
 import (
 	"bytes"
+	"image"
+	"image/color"
 	"image/png"
 	"testing"
 )
 
 func TestFontsHaveRomanianGlyphs(t *testing.T) {
-	for _, f := range []string{"../../assets/fonts/Newsreader.ttf", "../../assets/fonts/SourceSerif4.ttf"} {
-		if err := CheckGlyphs(f); err != nil {
+	for _, f := range OGFontFiles {
+		if err := CheckGlyphs("../../assets/fonts/og/" + f); err != nil {
 			t.Errorf("%s: %v", f, err)
 		}
 	}
 }
 
 func TestRenderOG(t *testing.T) {
-	f, err := LoadFonts("../../assets/fonts")
+	f, err := LoadFonts("../../assets/fonts/og")
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := RenderOG(OG{Title: "Ce ar trebui să întrebe un board despre AI înainte de a aproba bugetul — și de ce contează", Name: "Radu Herinean", Domain: "herinean.com", Pillar: "AI ȘI GUVERNANȚĂ", Lang: "RO"}, f)
+	if f.Hash == "" {
+		t.Error("fonts must carry a hash for the OG cache key")
+	}
+	b, err := RenderOG(OG{Title: "Ce ar trebui să întrebe un board despre AI înainte de a aproba bugetul — și de ce contează", Name: "Radu Herinean", Domain: "herinean.com", Pillar: "AI ȘI GUVERNANȚĂ", Lang: "RO"}, f, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1993,10 +2180,42 @@ func TestRenderOG(t *testing.T) {
 	if len(b) > 200*1024 {
 		t.Errorf("OG PNG is %d bytes; budget 200 KB", len(b))
 	}
-	b2, _ := RenderOG(OG{Title: "Same", Name: "Radu Herinean", Domain: "herinean.com", Pillar: "ANALYSIS", Lang: "EN"}, f)
-	b3, _ := RenderOG(OG{Title: "Same", Name: "Radu Herinean", Domain: "herinean.com", Pillar: "ANALYSIS", Lang: "EN"}, f)
+	b2, _ := RenderOG(OG{Title: "Same", Name: "Radu Herinean", Domain: "herinean.com", Pillar: "ANALYSIS", Lang: "EN"}, f, nil)
+	b3, _ := RenderOG(OG{Title: "Same", Name: "Radu Herinean", Domain: "herinean.com", Pillar: "ANALYSIS", Lang: "EN"}, f, nil)
 	if !bytes.Equal(b2, b3) {
 		t.Error("OG rendering must be deterministic")
+	}
+}
+
+func TestRenderOGWithPortraitAndCache(t *testing.T) {
+	f, err := LoadFonts("../../assets/fonts/og")
+	if err != nil {
+		t.Fatal(err)
+	}
+	portrait := image.NewRGBA(image.Rect(0, 0, 300, 400)) // not square: the crop must centre it
+	for y := 0; y < 400; y++ {
+		for x := 0; x < 300; x++ {
+			portrait.Set(x, y, color.RGBA{uint8(x), uint8(y / 2), 90, 255})
+		}
+	}
+	var pb bytes.Buffer
+	_ = png.Encode(&pb, portrait)
+	c := &Cache{Dir: t.TempDir()}
+	og := OG{Title: "A tagline that is long enough to wrap beside the portrait on the home card", Name: "Radu Herinean", Domain: "herinean.com", Lang: "EN", Portrait: pb.Bytes()}
+	a, err := RenderOG(og, f, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if img, _ := png.Decode(bytes.NewReader(a)); img.Bounds().Dx() != 1200 || img.Bounds().Dy() != 630 {
+		t.Fatalf("size %v", img.Bounds())
+	}
+	b, err := RenderOG(og, f, c)
+	if err != nil || !bytes.Equal(a, b) {
+		t.Error("cache hit must return identical bytes")
+	}
+	plain, _ := RenderOG(OG{Title: og.Title, Name: og.Name, Domain: og.Domain, Lang: og.Lang}, f, c)
+	if bytes.Equal(plain, a) {
+		t.Error("the portrait must change the card (and the cache key)")
 	}
 }
 ```
@@ -2019,9 +2238,13 @@ import (
 // would let the browser substitute a cedilla lookalike, which is exactly the failure the spec forbids.
 var RequiredRunes = []rune("ȘșȚțĂăÂâÎî")
 
+// OGFontFiles live in assets/fonts/og/: static instances (see Task 5 step 1).
+var OGFontFiles = []string{"Newsreader72pt-Medium.ttf", "SourceSerif4-Regular.ttf"}
+
 type Fonts struct {
-	Display *opentype.Font // Newsreader: titles
-	Body    *opentype.Font // Source Serif 4: name, labels
+	Display *opentype.Font // Newsreader 72pt Medium: titles
+	Body    *opentype.Font // Source Serif 4 Regular: name, labels
+	Hash    string         // of both files; part of every OG cache key
 }
 
 func CheckGlyphs(path string) error {
@@ -2048,6 +2271,7 @@ func CheckGlyphs(path string) error {
 }
 
 func LoadFonts(dir string) (*Fonts, error) {
+	var all []byte
 	load := func(name string) (*opentype.Font, error) {
 		p := filepath.Join(dir, name)
 		if err := CheckGlyphs(p); err != nil {
@@ -2057,32 +2281,35 @@ func LoadFonts(dir string) (*Fonts, error) {
 		if err != nil {
 			return nil, err
 		}
+		all = append(all, b...)
 		return opentype.Parse(b)
 	}
-	d, err := load("Newsreader.ttf")
+	d, err := load(OGFontFiles[0])
 	if err != nil {
 		return nil, err
 	}
-	b, err := load("SourceSerif4.ttf")
+	b, err := load(OGFontFiles[1])
 	if err != nil {
 		return nil, err
 	}
-	return &Fonts{Display: d, Body: b}, nil
+	return &Fonts{Display: d, Body: b, Hash: Hash8(all)}, nil
 }
 ```
 
-- [ ] **Step 4: `og.go`** — the export's OG template: paper ground, hairlines, pillar top-left, language top-right, title in Newsreader (≤ 3 lines, ellipsis), name bottom-left, domain bottom-right.
+- [ ] **Step 4: `og.go`** — the export's OG template: paper ground, hairlines, pillar top-left, language top-right, title in Newsreader (≤ 3 lines, ellipsis), name bottom-left, domain bottom-right; the home variant carries the portrait (spec §9) on the right with a hairline border.
 
 ```go
 package images
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
 	"strings"
 
+	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
@@ -2090,7 +2317,10 @@ import (
 
 type OG struct {
 	Title, Name, Domain, Pillar, Lang string
+	Portrait                          []byte // optional JPEG/PNG bytes; the home card
 }
+
+const ogPortrait = 200 // px, square
 
 var (
 	ogPaper = color.RGBA{0xFA, 0xF8, 0xF4, 0xFF}
@@ -2109,8 +2339,12 @@ func face(f *opentype.Font, size float64) (font.Face, error) {
 	return opentype.NewFace(f, &opentype.FaceOptions{Size: size, DPI: 72, Hinting: font.HintingNone})
 }
 
-// RenderOG draws a 1200×630 PNG. Deterministic: same input, same bytes.
-func RenderOG(og OG, f *Fonts) ([]byte, error) {
+// RenderOG draws a 1200×630 PNG. Deterministic: same input, same bytes. Cached by a hash of every input.
+func RenderOG(og OG, f *Fonts, cache *Cache) ([]byte, error) {
+	key := "og/" + Hash8([]byte(strings.Join([]string{og.Title, og.Name, og.Domain, og.Pillar, og.Lang, Hash8(og.Portrait), f.Hash}, "\x00"))) + ".png"
+	if b, ok := cache.get(key); ok {
+		return b, nil
+	}
 	img := image.NewRGBA(image.Rect(0, 0, ogW, ogH))
 	fill(img, image.Rect(0, 0, ogW, ogH), ogPaper)
 	fill(img, image.Rect(ogMargin, 118, ogW-ogMargin, 119), ogRule)
@@ -2124,11 +2358,29 @@ func RenderOG(og OG, f *Fonts) ([]byte, error) {
 	lang := spaced(strings.ToUpper(og.Lang))
 	drawText(img, label, ogInk2, ogW-ogMargin-textWidth(label, lang), 96, lang)
 
+	titleWidth := ogW - 2*ogMargin
+	if len(og.Portrait) > 0 {
+		src, _, err := image.Decode(bytes.NewReader(og.Portrait))
+		if err != nil {
+			return nil, fmt.Errorf("og portrait: %w", err)
+		}
+		sq := squareCrop(src)
+		small := image.NewRGBA(image.Rect(0, 0, ogPortrait, ogPortrait))
+		draw.CatmullRom.Scale(small, small.Bounds(), sq, sq.Bounds(), draw.Src, nil)
+		x, y := ogW-ogMargin-ogPortrait, 213
+		draw.Draw(img, image.Rect(x, y, x+ogPortrait, y+ogPortrait), small, image.Point{}, draw.Src)
+		fill(img, image.Rect(x-1, y-1, x+ogPortrait+1, y), ogRule) // hairline, as on the page
+		fill(img, image.Rect(x-1, y+ogPortrait, x+ogPortrait+1, y+ogPortrait+1), ogRule)
+		fill(img, image.Rect(x-1, y, x, y+ogPortrait), ogRule)
+		fill(img, image.Rect(x+ogPortrait, y, x+ogPortrait+1, y+ogPortrait), ogRule)
+		titleWidth -= ogPortrait + 40
+	}
+
 	title, err := face(f.Display, 72)
 	if err != nil {
 		return nil, err
 	}
-	lines := wrap(title, og.Title, ogW-2*ogMargin, ogTitleMax)
+	lines := wrap(title, og.Title, titleWidth, ogTitleMax)
 	y := 250
 	if len(lines) == 2 {
 		y = 290
@@ -2153,7 +2405,20 @@ func RenderOG(og OG, f *Fonts) ([]byte, error) {
 	if err := enc.Encode(&buf, img); err != nil {
 		return nil, err
 	}
+	cache.put(key, buf.Bytes())
 	return buf.Bytes(), nil
+}
+
+// squareCrop takes the centred square of an image.
+func squareCrop(m image.Image) image.Image {
+	b := m.Bounds()
+	side := b.Dx()
+	if b.Dy() < side {
+		side = b.Dy()
+	}
+	out := image.NewRGBA(image.Rect(0, 0, side, side))
+	draw.Draw(out, out.Bounds(), m, image.Point{X: b.Min.X + (b.Dx()-side)/2, Y: b.Min.Y + (b.Dy()-side)/2}, draw.Src)
+	return out
 }
 
 func fill(img *image.RGBA, r image.Rectangle, c color.RGBA) {
@@ -2208,35 +2473,35 @@ func wrap(fc font.Face, s string, width, max int) []string {
 		lines = append(lines, cur)
 	}
 	if joined := strings.Join(lines, " "); len(lines) == max && joined != strings.Join(words, " ") {
-		last := lines[max-1]
-		for textWidth(fc, last+"…") > width && len(last) > 1 {
-			last = strings.TrimSpace(last[:len(last)-1])
+		last := []rune(lines[max-1]) // runes, never bytes: "ș" must not be cut in half before the ellipsis
+		for textWidth(fc, string(last)+"…") > width && len(last) > 1 {
+			last = last[:len(last)-1]
 		}
-		lines[max-1] = last + "…"
+		lines[max-1] = strings.TrimSpace(string(last)) + "…"
 	}
 	return lines
 }
 ```
 
-- [ ] **Step 5: Run, pass** — `go test ./internal/images/ 2>&1 | tail -6`. If a variable font fails `opentype.Parse` (it should not; both are TrueType-flavoured), fall back to downloading the static `Newsreader-Medium.ttf` / `SourceSerif4-Regular.ttf` from the same repository's `static/` directories and keep the file names above.
+- [ ] **Step 5: Run, pass** — `go test ./internal/images/ 2>&1 | tail -6`. Known limitation, accepted: `x/image/font` applies no kerning or GSUB, so an OG title is set slightly looser than the browser sets the same words. Open one PNG and compare with `docs/design/claude-design-export/renders/og-piece.png`.
 
-- [ ] **Step 6: Commit** — `M1a: images — OG cards in Newsreader/Source Serif 4; Romanian glyph check on vendored fonts` with trailers (fonts and OFL texts included); push.
+- [ ] **Step 6: Commit** — `M1a: images — OG cards in Newsreader 72pt Medium / Source Serif 4, portrait variant, cache; Romanian glyph check` with trailers (fonts and licence texts included); push. The hook's `site check` exits 3 here (site.yaml placeholders) — expected, see Global Constraints.
 
 ---
 
 ### Task 6: `render` — templates, CSS, head metadata, JSON-LD, golden tests
 
 **Files:**
-- Create: `internal/render/render.go`, `internal/render/page.go`, `internal/render/jsonld.go`, `internal/render/css.go`, `internal/render/render_test.go`, `templates/base.html`, `templates/home.html`, `templates/index.html`, `templates/piece.html`, `templates/colophon.html`, `templates/privacy.html`, `templates/404.html`, `templates/scorecard.html`, `assets/css/site.css`
+- Create: `internal/render/render.go`, `internal/render/page.go`, `internal/render/jsonld.go`, `internal/render/css.go`, `internal/render/render_test.go`, `templates/base.html`, `templates/entries.html`, `templates/home.html`, `templates/index.html`, `templates/piece.html`, `templates/colophon.html`, `templates/privacy.html`, `templates/404.html`, `templates/scorecard.html`, `assets/css/site.css`
 - Modify: `i18n/en.yaml`, `i18n/ro.yaml`, `testdata/site/i18n/*.yaml` (add `date.months_short`)
 
 **Interfaces:**
-- Consumes: `config.Config`, `content.Site/Piece/Page`, `content.ChromaCSS`.
+- Consumes: `config.Config`, `content.Site/Piece/Page`.
 - Produces: `render.New(templatesDir, cssPath string) (*Renderer, error)`; `(*Renderer).CSS() string`; `(*Renderer).CSSHash() string` (`sha256-…` base64, of the exact inlined bytes); `render.PageData{…}` (below); `(*Renderer).Render(kind string, d *PageData) ([]byte, error)` for kinds `home|index|piece|colophon|privacy|404`; `(*Renderer).Fragment(name string, data any) ([]byte, error)` (used by `site scorecard`); `render.Alternate{Lang, Href string}`; `render.Entry` (index/home rows); `render.YearGroup{Year int; Entries []Entry}`.
 
 - [ ] **Step 1: Add the short month key** to `i18n/en.yaml`: `date.months_short: Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec` and `i18n/ro.yaml`: `date.months_short: ian.,feb.,mar.,apr.,mai,iun.,iul.,aug.,sept.,oct.,nov.,dec.`; same in `testdata/site/i18n/`.
 
-- [ ] **Step 2: `assets/css/site.css`** — the export's system, hand-written. Tokens verbatim; system mono for code (decided 2026-09-18); no `data-scheme`, no `cqw`.
+- [ ] **Step 2: `assets/css/site.css`** — the export's system, hand-written. Tokens verbatim; system mono for code (decided 2026-09-18); no `data-scheme`, no `cqw`. Code colours are the palette (accent for keywords/tags, ink-2 italic for comments, ink-2 for strings) — contrast is already verified for those tokens and nothing generated can clash with `pre{background}`.
 
 ```css
 /* herinean.com — one column, one accent, hairlines. Tokens from docs/design/export-review.md. */
@@ -2284,6 +2549,11 @@ blockquote{margin:var(--s4) 0;padding-left:var(--s3);border-left:1px solid var(-
 pre{background:var(--paper-2);padding:var(--s3);overflow-x:auto;font:400 var(--fs--1)/1.5 var(--mono);tab-size:2;margin:0 0 var(--s3)}
 code{font-family:var(--mono);font-size:.92em}
 pre code{font-size:inherit}
+pre:focus-visible,.table:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.chroma .k,.chroma .kd,.chroma .kn,.chroma .kr,.chroma .kt,.chroma .kc,.chroma .kp,.chroma .nt,.chroma .gd{color:var(--accent)}
+.chroma .c,.chroma .c1,.chroma .cm,.chroma .cp,.chroma .cs,.chroma .ch{color:var(--ink-2);font-style:italic}
+.chroma .s,.chroma .s1,.chroma .s2,.chroma .sb,.chroma .sd,.chroma .sh,.chroma .sx,.chroma .sr,.chroma .dl{color:var(--ink-2)}
+.chroma .gh,.chroma .gu{font-weight:600}
 .table{overflow-x:auto;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);margin:var(--s4) 0}
 table{border-collapse:collapse;width:100%;font-size:var(--fs--1)}
 th,td{text-align:left;vertical-align:top;padding:var(--s1) var(--s2) var(--s1) 0;border-bottom:1px solid var(--rule)}
@@ -2297,7 +2567,7 @@ img{max-width:100%;height:auto}
 .footnotes hr{border:0;border-top:1px solid var(--rule);margin:0 0 var(--s2)}
 .also{color:var(--ink-2);font-size:var(--fs--1);margin:var(--s5) 0 0;padding-top:var(--s3);border-top:1px solid var(--rule)}
 .byline{color:var(--ink-2);font-size:var(--fs--1);margin-top:var(--s3)}
-.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 footer{border-top:1px solid var(--rule);margin-top:var(--s6);padding:var(--s4) 0 var(--s6);color:var(--ink-2);font-size:var(--fs--1)}
 footer p{margin:0 0 var(--s1)}
 .deps{font:400 var(--fs--2)/1.5 var(--mono);white-space:pre-wrap}
@@ -2320,7 +2590,7 @@ a[href^="http"]::after{content:" <" attr(href) ">";font-family:var(--mono);font-
 
 - [ ] **Step 3: Templates** — `html/template`, one file per page kind plus the shared base.
 
-`templates/base.html`:
+`templates/base.html` (on home the masthead name is the page's `h1`; the tagline lives inside `header` so every element sits in a landmark — axe `page-has-heading-one`, `heading-order`, `region`):
 ```html
 {{define "base"}}<!doctype html>
 <html lang="{{.Lang}}">
@@ -2355,11 +2625,13 @@ a[href^="http"]::after{content:" <" attr(href) ">";font-family:var(--mono);font-
 <body>
 <a class="skip" href="#main">{{.T "nav.skip"}}</a>
 <div class="wrap">
-<header class="mast">
-<p class="name"><a href="{{.HomeURL}}">{{.SiteName}}</a></p>
+<header>
+<div class="mast">
+{{if eq .Kind "home"}}<h1 class="name"><a href="{{.HomeURL}}">{{.SiteName}}</a></h1>{{else}}<p class="name"><a href="{{.HomeURL}}">{{.SiteName}}</a></p>{{end}}
 <nav><a href="{{.IndexURL}}">{{.T "nav.writing"}}</a><a href="{{.OtherHomeURL}}" lang="{{.T "nav.language_lang"}}" hreflang="{{.T "nav.language_lang"}}">{{.T "nav.language"}}</a></nav>
-</header>
+</div>
 {{if .Tagline}}<p class="tagline">{{.Tagline}}</p>{{end}}
+</header>
 <main id="main">
 {{template "content" .}}
 </main>
@@ -2377,7 +2649,7 @@ a[href^="http"]::after{content:" <" attr(href) ">";font-family:var(--mono);font-
 ```html
 {{define "content"}}
 <section class="about">
-{{if .Portrait}}<img class="portrait" src="{{.Portrait.Src}}" width="{{.Portrait.Width}}" height="{{.Portrait.Height}}" alt="{{.SiteName}}" fetchpriority="high">{{end}}
+{{if .Portrait}}<picture><source type="image/webp" srcset="{{.Portrait.Srcset}}" sizes="(max-width: 34rem) 30vw, 10rem"><img class="portrait" src="{{.Portrait.Src}}" width="{{.Portrait.Width}}" height="{{.Portrait.Height}}" alt="{{.SiteName}}" fetchpriority="high"></picture>{{end}}
 {{.Body}}
 </section>
 <hr class="rule">
@@ -2401,7 +2673,7 @@ a[href^="http"]::after{content:" <" attr(href) ">";font-family:var(--mono);font-
 ```html
 {{define "entries"}}<ul class="entries">
 {{range .Entries}}<li class="entry">
-<p class="meta"><time datetime="{{.DateISO}}">{{.DateText}}</time> · <span class="label">{{.PillarText}}</span>{{if .Foreign}} · <span class="badge" lang="{{.Lang}}">{{.Badge}}<span class="vh"> ({{.LangName}})</span></span>{{end}}</p>
+<p class="meta"><time datetime="{{.DateISO}}">{{.DateText}}</time> · <span class="label">{{.PillarText}}</span>{{if .Foreign}} · <span class="badge"><span lang="{{.Lang}}">{{.Badge}}</span><span class="vh"> ({{.LangName}})</span></span>{{end}}</p>
 <p class="t"><a href="{{.URL}}"{{if .Foreign}} lang="{{.Lang}}" hreflang="{{.Lang}}"{{end}}>{{.Title}}</a></p>
 <p{{if .Foreign}} lang="{{.Lang}}"{{end}}>{{.Summary}}</p>
 </li>
@@ -2417,7 +2689,7 @@ a[href^="http"]::after{content:" <" attr(href) ">";font-family:var(--mono);font-
 <p class="meta"><time datetime="{{.DateISO}}">{{.DateText}}</time>{{if .UpdatedText}} · {{.T "piece.updated"}} <time datetime="{{.UpdatedISO}}">{{.UpdatedText}}</time>{{end}} · {{.Piece.ReadingMinutes}} {{.T "piece.min_read"}} · <span class="label">{{.PillarText}}</span></p>
 {{.Body}}
 {{if or .Piece.LinkedIn .Piece.Medium}}<p class="also">{{.T "piece.also_on"}} {{if .Piece.LinkedIn}}<a href="{{.Piece.LinkedIn}}">{{.T "piece.discuss"}}</a>{{end}}{{if and .Piece.LinkedIn .Piece.Medium}} · {{end}}{{if .Piece.Medium}}<a href="{{.Piece.Medium}}">{{.T "piece.medium"}}</a>{{end}}</p>{{end}}
-<p class="byline">{{.SiteName}} — CTO. <a href="{{.Cfg.Author.LinkedIn}}">LinkedIn</a></p>
+<p class="byline">{{.SiteName}} — {{.T "piece.byline_role"}}. <a href="{{.Cfg.Author.LinkedIn}}">LinkedIn</a></p>
 </article>
 {{end}}
 ```
@@ -2452,9 +2724,9 @@ a[href^="http"]::after{content:" <" attr(href) ">";font-family:var(--mono);font-
 {{end}}
 ```
 
-`templates/scorecard.html` (a fragment; also rendered by `site scorecard` for KV):
+`templates/scorecard.html` (a fragment; also rendered by `site scorecard` for KV; `data-scorecard` is the hook the Worker's HTMLRewriter fills in M1b — spec §5.4):
 ```html
-{{define "scorecard"}}<table>
+{{define "scorecard"}}<table data-scorecard>
 <thead><tr><th>Check</th><th>Result</th><th>Value</th><th>Verified</th><th>Verify</th></tr></thead>
 <tbody>
 {{range .Rows}}<tr>
@@ -2661,7 +2933,7 @@ func jsonLD(v any) template.JS {
 }
 ```
 
-- [ ] **Step 6: `css.go`** — minify (comments and whitespace only; the CSS is hand-written), append chroma classes, hash.
+- [ ] **Step 6: `css.go`** — minify (comments and whitespace only; the CSS is hand-written) and hash.
 
 ```go
 package render
@@ -2671,8 +2943,6 @@ import (
 	"encoding/base64"
 	"regexp"
 	"strings"
-
-	"github.com/raduherinean/herinean.com/internal/content"
 )
 
 var (
@@ -2687,14 +2957,6 @@ func minifyCSS(s string) string {
 	s = cssSpace.ReplaceAllString(s, "$1")
 	s = strings.ReplaceAll(s, ";}", "}")
 	return strings.TrimSpace(s)
-}
-
-func buildCSS(raw string) (string, error) {
-	chroma, err := content.ChromaCSS("github", "github-dark")
-	if err != nil {
-		return "", err
-	}
-	return minifyCSS(raw) + minifyCSS(chroma), nil
 }
 
 // CSPHash returns the style-src hash for the exact bytes inlined in <style>.
@@ -2719,46 +2981,54 @@ import (
 )
 
 type Renderer struct {
-	tpl  *template.Template
-	css  string
-	hash string
+	base  *template.Template            // base + entries + scorecard
+	pages map[string]*template.Template // kind → clone of base with that page's "content"
+	css   string
+	hash  string
 }
 
+var kinds = []string{"home", "index", "piece", "colophon", "privacy", "404"}
+
+// New parses the shared templates once, then one clone per page kind. Every page file defines "content";
+// cloning before parsing each keeps the definitions apart (in one set, the last file parsed would win for all kinds).
 func New(templatesDir, cssPath string) (*Renderer, error) {
 	raw, err := os.ReadFile(cssPath)
 	if err != nil {
 		return nil, err
 	}
-	css, err := buildCSS(string(raw))
+	css := minifyCSS(string(raw))
+	shared := []string{"base.html", "entries.html", "scorecard.html"}
+	for i, f := range shared {
+		shared[i] = filepath.Join(templatesDir, f)
+	}
+	base, err := template.ParseFiles(shared...)
 	if err != nil {
 		return nil, err
 	}
-	tpl, err := template.ParseGlob(filepath.Join(templatesDir, "*.html"))
-	if err != nil {
-		return nil, err
+	r := &Renderer{base: base, pages: map[string]*template.Template{}, css: css, hash: CSPHash(css)}
+	for _, k := range kinds {
+		t, err := base.Clone()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := t.ParseFiles(filepath.Join(templatesDir, k+".html")); err != nil {
+			return nil, err
+		}
+		r.pages[k] = t
 	}
-	return &Renderer{tpl: tpl, css: css, hash: CSPHash(css)}, nil
+	return r, nil
 }
 
 func (r *Renderer) CSS() string     { return r.css }
 func (r *Renderer) CSSHash() string { return r.hash }
 
 // Render executes the page template for kind (home, index, piece, colophon, privacy, 404).
-// Each page template defines "content"; base wraps it. Templates are re-parsed per kind because "content" is redefined.
 func (r *Renderer) Render(kind string, d *PageData) ([]byte, error) {
+	t := r.pages[kind]
+	if t == nil {
+		return nil, fmt.Errorf("render: no template for kind %q", kind)
+	}
 	d.CSS = template.CSS(r.css)
-	t, err := r.tpl.Clone()
-	if err != nil {
-		return nil, err
-	}
-	page := t.Lookup(kind + ".html")
-	if page == nil {
-		return nil, fmt.Errorf("render: no template %s.html", kind)
-	}
-	// Re-associate: parse the page's "content" definition last so it wins.
-	if _, err := t.AddParseTree("content", page.Lookup("content").Tree); err != nil {
-		return nil, err
-	}
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, "base", d); err != nil {
 		return nil, fmt.Errorf("render %s: %w", kind, err)
@@ -2766,16 +3036,15 @@ func (r *Renderer) Render(kind string, d *PageData) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Fragment executes a named non-page template (e.g. "scorecard").
+// Fragment executes a named shared template (e.g. "scorecard").
 func (r *Renderer) Fragment(name string, data any) ([]byte, error) {
 	var buf bytes.Buffer
-	if err := r.tpl.ExecuteTemplate(&buf, name, data); err != nil {
+	if err := r.base.ExecuteTemplate(&buf, name, data); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
 }
 ```
-Template mechanics: every page file defines `content`; with `ParseGlob` the last file wins. `Render` clones the set and re-adds the requested page's `content` tree so the right one executes. If `page.Lookup("content")` returns nil under the installed Go version, parse each page file into its own clone of base + entries + scorecard instead (a map of kind → *template.Template built in `New`); behaviour is identical.
 
 - [ ] **Step 8: Golden tests**
 
@@ -2916,7 +3185,7 @@ func Test404AndPrivacyAndColophon(t *testing.T) {
 	golden(t, "404.html", out)
 
 	pv := s.Pages["privacy.ro"]
-	d := &PageData{Cfg: cfg, Site: s, Lang: "ro", Kind: "privacy", Page: pv, Title: pv.Title, HeadTitle: pv.Title + " — " + cfg.Name, Description: pv.Title,
+	d := &PageData{Cfg: cfg, Site: s, Lang: "ro", Kind: "privacy", Page: pv, Title: pv.Title, HeadTitle: pv.Title + " — " + cfg.Name, Description: pv.Summary,
 		Path: cfg.PrivacyURL("ro"), Canonical: cfg.Abs(cfg.PrivacyURL("ro")), OGImage: cfg.Abs("/og/home-ro.deadbeef.png"), OGType: "website", OGLocale: "ro_RO", Body: pv.Body,
 		Alternates: AlternatesFor(cfg, cfg.PrivacyURL("en"), cfg.PrivacyURL("ro")), JSONLD: WebSiteLD(cfg, "ro", "")}
 	out, err = r.Render("privacy", d)
@@ -2930,7 +3199,7 @@ func Test404AndPrivacyAndColophon(t *testing.T) {
 		t.Fatal(err)
 	}
 	co := s.Pages["colophon.en"]
-	c := &PageData{Cfg: cfg, Site: s, Lang: "en", Kind: "colophon", Page: co, Title: co.Title, HeadTitle: co.Title + " — " + cfg.Name, Description: co.Title,
+	c := &PageData{Cfg: cfg, Site: s, Lang: "en", Kind: "colophon", Page: co, Title: co.Title, HeadTitle: co.Title + " — " + cfg.Name, Description: co.Summary,
 		Path: "/colophon/", Canonical: cfg.Abs("/colophon/"), OGImage: cfg.Abs("/og/home-en.deadbeef.png"), OGType: "website", OGLocale: "en_US", Body: co.Body,
 		Alternates: AlternatesFor(cfg, "/colophon/", ""), JSONLD: WebSiteLD(cfg, "en", ""), ScorecardHTML: template.HTML(frag), Deps: "github.com/yuin/goldmark v1.7.8", Commit: "abc1234", BuildDate: "2026-10-11", GoVersion: "go1.27.1"}
 	out, err = r.Render("colophon", c)
@@ -2965,6 +3234,9 @@ func assertInvariants(t *testing.T, html []byte) {
 			t.Errorf("missing %s", must)
 		}
 	}
+	if strings.Count(s, "<h1") != 1 {
+		t.Errorf("every page has exactly one h1, got %d", strings.Count(s, "<h1"))
+	}
 }
 ```
 (`template` import: add `"html/template"` to the test imports for `template.HTML(frag)`.)
@@ -2986,7 +3258,7 @@ Open two goldens in a browser via `python3 -m http.server -d testdata/golden 809
 - Create: `internal/feeds/rss.go`, `internal/feeds/jsonfeed.go`, `internal/feeds/abs.go`, `internal/feeds/feeds_test.go`
 
 **Interfaces:**
-- Produces: `feeds.RSS(cfg *config.Config, s *content.Site, lang string /* "" = all */, now time.Time) ([]byte, error)`; `feeds.JSON(cfg, s, now) ([]byte, error)`; `feeds.Absolutize(html, base string) string` (also used by `seo` for llms.txt and by the site writer nowhere else).
+- Produces: `feeds.RSS(cfg *config.Config, s *content.Site, lang string /* "" = all */, now time.Time) ([]byte, error)`; `feeds.JSON(cfg, s, now) ([]byte, error)`; `feeds.Absolutize(html, base, pageURL string) string` (href/src/srcset rooted at `base`; `#fragment` links rooted at `pageURL`, so footnotes work in a reader).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -3023,9 +3295,9 @@ func fixture(t *testing.T) (*config.Config, *content.Site, time.Time) {
 }
 
 func TestAbsolutize(t *testing.T) {
-	in := `<a href="/writing/x/">a</a><img src="/img/k/f.png" srcset="/img/k/f.720.webp 720w, /img/k/f.1440.webp 1440w"><a href="https://ext/">e</a>`
-	got := Absolutize(in, "https://herinean.com")
-	for _, want := range []string{`href="https://herinean.com/writing/x/"`, `src="https://herinean.com/img/k/f.png"`, `srcset="https://herinean.com/img/k/f.720.webp 720w, https://herinean.com/img/k/f.1440.webp 1440w"`, `href="https://ext/"`} {
+	in := `<p>prose, /not a url</p><a href="/writing/x/">a</a><a href="#fn:1">1</a><img src="/img/k/f.png" srcset="/img/k/f.720.webp 720w, /img/k/f.1440.webp 1440w"><a href="https://ext/">e</a>`
+	got := Absolutize(in, "https://herinean.com", "https://herinean.com/writing/y/")
+	for _, want := range []string{`<p>prose, /not a url</p>`, `href="https://herinean.com/writing/x/"`, `href="https://herinean.com/writing/y/#fn:1"`, `src="https://herinean.com/img/k/f.png"`, `srcset="https://herinean.com/img/k/f.720.webp 720w, https://herinean.com/img/k/f.1440.webp 1440w"`, `href="https://ext/"`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %s in %s", want, got)
 		}
@@ -3110,12 +3382,27 @@ func TestJSONFeed(t *testing.T) {
 ```go
 package feeds
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
-// Absolutize rewrites site-relative href/src/srcset values to absolute URLs, for feed readers and aggregators.
-func Absolutize(html, base string) string {
-	r := strings.NewReplacer(`href="/`, `href="`+base+`/`, `src="/`, `src="`+base+`/`, `srcset="/`, `srcset="`+base+`/`, `, /`, `, `+base+`/`)
-	return r.Replace(html)
+var srcsetAttr = regexp.MustCompile(`srcset="([^"]*)"`)
+
+// Absolutize rewrites site-relative href/src/srcset values to absolute URLs and roots #fragments at the page, for feed readers and aggregators.
+func Absolutize(html, base, pageURL string) string {
+	html = strings.NewReplacer(`href="/`, `href="`+base+`/`, `src="/`, `src="`+base+`/`, `href="#`, `href="`+pageURL+`#`).Replace(html)
+	return srcsetAttr.ReplaceAllStringFunc(html, func(m string) string {
+		parts := strings.Split(m[len(`srcset="`):len(m)-1], ",")
+		for i, c := range parts {
+			c = strings.TrimSpace(c)
+			if strings.HasPrefix(c, "/") {
+				c = base + c
+			}
+			parts[i] = c
+		}
+		return `srcset="` + strings.Join(parts, ", ") + `"`
+	})
 }
 ```
 
@@ -3191,7 +3478,7 @@ func RSS(cfg *config.Config, s *content.Site, lang string, now time.Time) ([]byt
 	for _, p := range pieces {
 		u := cfg.Abs(cfg.PieceURL(p.Lang, p.Slug))
 		ch.Items = append(ch.Items, item{Title: p.Title, Link: u, GUID: guid{IsPermaLink: true, Value: u}, PubDate: pub(p.Date),
-			Category: s.T(p.Lang, "pillar."+p.Pillar), Description: p.Summary, Content: Absolutize(string(p.Body), cfg.BaseURL)})
+			Category: s.T(p.Lang, "pillar."+p.Pillar), Description: p.Summary, Content: Absolutize(string(p.Body), cfg.BaseURL, u)})
 	}
 	var buf bytes.Buffer
 	buf.WriteString(xml.Header)
@@ -3251,7 +3538,7 @@ func JSON(cfg *config.Config, s *content.Site, now time.Time) ([]byte, error) {
 		Description: cfg.Tagline["en"], Language: "en", Authors: []jsonAuthor{{Name: cfg.Name, URL: cfg.Abs("/")}}}
 	for _, p := range s.Pieces {
 		u := cfg.Abs(cfg.PieceURL(p.Lang, p.Slug))
-		it := jsonItem{ID: u, URL: u, Title: p.Title, ContentHTML: Absolutize(string(p.Body), cfg.BaseURL), Summary: p.Summary,
+		it := jsonItem{ID: u, URL: u, Title: p.Title, ContentHTML: Absolutize(string(p.Body), cfg.BaseURL, u), Summary: p.Summary,
 			DatePublished: p.Date.Add(6 * time.Hour).Format(time.RFC3339), Language: p.Lang, Tags: []string{p.Pillar}}
 		if p.Updated != nil {
 			it.DateModified = p.Updated.Add(6 * time.Hour).Format(time.RFC3339)
@@ -3444,9 +3731,9 @@ func TestHeaders(t *testing.T) {
 		"/*\n  Content-Security-Policy: default-src 'none'; style-src 'sha256-abc'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
 		"Strict-Transport-Security: max-age=63072000; includeSubDomains; preload",
 		"Cross-Origin-Resource-Policy: same-origin",
-		"/img/*\n  Cross-Origin-Resource-Policy: cross-origin\n  Cache-Control: public, max-age=31536000, immutable",
-		"/og/*\n  Cross-Origin-Resource-Policy: cross-origin",
-		"/feed.xml\n  Content-Type: application/rss+xml; charset=utf-8\n  Cache-Control: public, max-age=300",
+		"/img/*\n  ! Cross-Origin-Resource-Policy\n  ! Cache-Control\n  Cross-Origin-Resource-Policy: cross-origin\n  Cache-Control: public, max-age=31536000, immutable",
+		"/og/*\n  ! Cross-Origin-Resource-Policy\n  ! Cache-Control\n  Cross-Origin-Resource-Policy: cross-origin",
+		"/feed.xml\n  ! Cache-Control\n  Content-Type: application/rss+xml; charset=utf-8\n  Cache-Control: public, max-age=300",
 		"/feed.json\n  Content-Type: application/feed+json; charset=utf-8",
 		"/.well-known/security.txt\n  Content-Type: text/plain; charset=utf-8",
 	} {
@@ -3457,6 +3744,9 @@ func TestHeaders(t *testing.T) {
 	if strings.Contains(strings.ToLower(h), "x-robots-tag") {
 		t.Error("_headers must never carry X-Robots-Tag: production is indexable; the Worker marks previews")
 	}
+	if strings.Contains(h, "interest-cohort") {
+		t.Error("interest-cohort is a dead feature name; Chrome logs a console message for it")
+	}
 }
 ```
 
@@ -3464,6 +3754,8 @@ func TestHeaders(t *testing.T) {
 
 ```go
 // Package edge generates the Cloudflare _headers file. The CSS hash comes from the exact bytes inlined by render.
+// Cloudflare applies every matching rule; a header set by /* is not replaced by a more specific rule unless that rule
+// first detaches it with "! Name". Every override below does that, so /img/* really is immutable and cross-origin.
 package edge
 
 import "fmt"
@@ -3474,37 +3766,45 @@ func Headers(cssHash string) []byte {
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), interest-cohort=()
+  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
   X-Frame-Options: DENY
   Cache-Control: public, max-age=0, must-revalidate
 
 /img/*
+  ! Cross-Origin-Resource-Policy
+  ! Cache-Control
   Cross-Origin-Resource-Policy: cross-origin
   Cache-Control: public, max-age=31536000, immutable
 
 /og/*
+  ! Cross-Origin-Resource-Policy
+  ! Cache-Control
   Cross-Origin-Resource-Policy: cross-origin
   Cache-Control: public, max-age=31536000, immutable
 
 /fonts/*
-  Cross-Origin-Resource-Policy: same-origin
+  ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
 
 /feed.xml
+  ! Cache-Control
   Content-Type: application/rss+xml; charset=utf-8
   Cache-Control: public, max-age=300
 
 /feed.en.xml
+  ! Cache-Control
   Content-Type: application/rss+xml; charset=utf-8
   Cache-Control: public, max-age=300
 
 /feed.ro.xml
+  ! Cache-Control
   Content-Type: application/rss+xml; charset=utf-8
   Cache-Control: public, max-age=300
 
 /feed.json
+  ! Cache-Control
   Content-Type: application/feed+json; charset=utf-8
   Cache-Control: public, max-age=300
 
@@ -3525,17 +3825,19 @@ func Headers(cssHash string) []byte {
 
 - [ ] **Step 3: Run, pass, commit** — `M1a: edge — _headers with the CSS hash, per-path CORP and caching` with trailers; push.
 
+To verify at the first M1b deploy (add to `scripts/verify-edge.sh` then): `/img/<any>` returns exactly one `cache-control` (`immutable`) and `cross-origin-resource-policy: cross-origin`; `/feed.xml` returns `content-type: application/rss+xml; charset=utf-8`. If Cloudflare ignores a `Content-Type` override from `_headers`, the Worker sets it for `/feed.*` — a five-line change there, not here.
+
 ---
 
 ### Task 10: `site` — build orchestration, reproducibility, `check`, `check --dist`
 
 **Files:**
 - Create: `internal/site/clock.go`, `internal/site/build.go`, `internal/site/pages.go`, `internal/site/check.go`, `internal/site/checkdist.go`, `internal/site/build_test.go`
-- Modify: `internal/site/site.go` (remove the stubs that are now implemented)
+- Modify: `internal/site/site.go` (keep `Options` and `ErrAuthorInputs`; remove the stubs that are now implemented)
 - Create: `testdata/site/assets/portrait.jpg` (any 800×800 JPEG), `testdata/site/static/favicon.svg`, `testdata/site/static/.well-known/mta-sts.txt`
 
 **Interfaces:**
-- Produces: `site.BuildTime(root) (time.Time, error)`; `site.Commit(root) string`; `site.Build(o Options) error`; `site.Check(o) error`; `site.CheckDist(o) error`; internal `type build struct{…}` with `pages() error`; package-private `deps(root) string`, `goVersion() string`.
+- Produces: `site.BuildTime(root) (time.Time, error)`; `site.Commit(root) string`; `site.fileTime(root, rel string, fallback time.Time) time.Time` (last commit touching a file; sitemap lastmod for pages); `site.Build(o Options) error`; `site.Check(o) error`; `site.CheckDist(o) error`; internal `type build struct{…}` with `pages() error`; package-private `deps(root) string`, `goVersion() string`.
 
 - [ ] **Step 1: `clock.go`**
 
@@ -3580,6 +3882,19 @@ func Commit(root string) string {
 	}
 	return strings.TrimSpace(string(out))
 }
+
+// fileTime is the last commit that touched rel, so a page's sitemap lastmod only moves when the page does. Outside git: fallback.
+func fileTime(root, rel string, fallback time.Time) time.Time {
+	out, err := exec.Command("git", "-C", root, "log", "-1", "--format=%ct", "--", rel).Output()
+	if err != nil {
+		return fallback
+	}
+	n, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
+	if err != nil || n == 0 {
+		return fallback
+	}
+	return time.Unix(n, 0).In(content.Bucharest)
+}
 ```
 
 - [ ] **Step 2: `build.go`** — the pipeline. Every output goes into `files map[string][]byte`, written sorted into a temp dir that replaces `dist/` atomically.
@@ -3588,6 +3903,7 @@ func Commit(root string) string {
 package site
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -3607,17 +3923,19 @@ import (
 )
 
 type build struct {
-	o      Options
-	cfg    *config.Config
-	site   *content.Site
-	now    time.Time
-	commit string
-	r      *render.Renderer
-	fonts  *images.Fonts
-	imgs   map[string]map[string]*content.ImageInfo // key → dest → info
-	og     map[string]string                        // "lang-slug" or "home-lang" → /og/… path
-	files  map[string][]byte                        // dist-relative path → bytes
-	portrait *content.ImageInfo
+	o           Options
+	cfg         *config.Config
+	site        *content.Site
+	now         time.Time
+	commit      string
+	r           *render.Renderer
+	fonts       *images.Fonts
+	cache       *images.Cache
+	imgs        map[string]map[string]*content.ImageInfo // key → dest → info
+	og          map[string]string                        // "lang-slug" or "home-lang" → /og/… path
+	files       map[string][]byte                        // dist-relative path → bytes
+	portrait    *content.ImageInfo
+	portraitRaw []byte // source bytes, for the home OG card
 }
 
 func load(o Options) (*build, error) {
@@ -3627,14 +3945,20 @@ func load(o Options) (*build, error) {
 	}
 	cfg, err := config.Load(filepath.Join(o.Root, "site.yaml"))
 	if err != nil {
+		if errors.Is(err, config.ErrPlaceholder) {
+			return nil, fmt.Errorf("%w: %v", ErrAuthorInputs, err)
+		}
 		return nil, err
 	}
+	if pp := checkPlaceholders(o.Root); len(pp) > 0 {
+		return nil, fmt.Errorf("%w:\n%v", ErrAuthorInputs, pp.Err())
+	}
 	s, probs := content.Load(o.Root, now)
-	probs = append(probs, checkPlaceholders(o.Root)...)
 	if err := probs.Err(); err != nil {
 		return nil, err
 	}
-	return &build{o: o, cfg: cfg, site: s, now: now, commit: Commit(o.Root), files: map[string][]byte{}, imgs: map[string]map[string]*content.ImageInfo{}, og: map[string]string{}}, nil
+	return &build{o: o, cfg: cfg, site: s, now: now, commit: Commit(o.Root), cache: &images.Cache{Dir: filepath.Join(o.Root, ".cache")},
+		files: map[string][]byte{}, imgs: map[string]map[string]*content.ImageInfo{}, og: map[string]string{}}, nil
 }
 
 func Build(o Options) error {
@@ -3682,7 +4006,7 @@ func (b *build) images() error {
 				continue
 			}
 			src := filepath.Join(b.o.Root, "assets", "img", key, ref.Dest)
-			info, err := images.Process(src, key, ref.Dest)
+			info, err := images.Process(src, key, ref.Dest, images.Options{Cache: b.cache})
 			if err != nil {
 				probs.Add(src, ref.Line, "%v", err)
 				continue
@@ -3696,7 +4020,10 @@ func (b *build) images() error {
 			}
 		}
 	}
-	info, err := images.Process(filepath.Join(b.o.Root, "assets", "portrait.jpg"), "home", "portrait.jpg")
+	portrait := filepath.Join(b.o.Root, "assets", "portrait.jpg")
+	b.portraitRaw, _ = os.ReadFile(portrait)
+	// Displayed at ≤ 10rem: 320 for 1× and 640 for 2× screens. The default 720/1440 would ship a photo for a thumbnail.
+	info, err := images.Process(portrait, "home", "portrait.jpg", images.Options{Widths: []int{320, 640}, Cache: b.cache})
 	if err != nil {
 		probs.Add("assets/portrait.jpg", 0, "%v (the home page needs a portrait)", err)
 	} else {
@@ -3710,12 +4037,12 @@ func (b *build) images() error {
 
 func (b *build) ogImages() error {
 	var err error
-	b.fonts, err = images.LoadFonts(filepath.Join(b.o.Root, "assets", "fonts"))
+	b.fonts, err = images.LoadFonts(filepath.Join(b.o.Root, "assets", "fonts", "og"))
 	if err != nil {
 		return err
 	}
 	put := func(id string, og images.OG) error {
-		png, err := images.RenderOG(og, b.fonts)
+		png, err := images.RenderOG(og, b.fonts, b.cache)
 		if err != nil {
 			return err
 		}
@@ -3731,7 +4058,7 @@ func (b *build) ogImages() error {
 		}
 	}
 	for _, lang := range content.Langs {
-		if err := put("home-"+lang, images.OG{Title: b.cfg.Tagline[lang], Name: b.cfg.Name, Domain: strings.TrimPrefix(b.cfg.BaseURL, "https://"), Lang: strings.ToUpper(lang)}); err != nil {
+		if err := put("home-"+lang, images.OG{Title: b.cfg.Tagline[lang], Name: b.cfg.Name, Domain: strings.TrimPrefix(b.cfg.BaseURL, "https://"), Lang: strings.ToUpper(lang), Portrait: b.portraitRaw}); err != nil {
 			return err
 		}
 	}
@@ -3875,7 +4202,7 @@ func (b *build) pages() error {
 		}
 		// privacy
 		pv := s.Pages["privacy."+lang]
-		d = b.base(lang, "privacy", cfg.PrivacyURL(lang), pv.Title, pv.Title)
+		d = b.base(lang, "privacy", cfg.PrivacyURL(lang), pv.Title, pv.Summary)
 		d.Page, d.Body = pv, pv.Body
 		d.Alternates = render.AlternatesFor(cfg, cfg.PrivacyURL("en"), cfg.PrivacyURL("ro"))
 		d.JSONLD = render.WebSiteLD(cfg, lang, "")
@@ -3916,7 +4243,7 @@ func (b *build) pages() error {
 	}
 	// colophon (EN only)
 	co := s.Pages["colophon.en"]
-	d := b.base("en", "colophon", cfg.ColophonURL(), co.Title, co.Title)
+	d := b.base("en", "colophon", cfg.ColophonURL(), co.Title, co.Summary)
 	d.Page, d.Body = co, co.Body
 	d.Alternates = render.AlternatesFor(cfg, cfg.ColophonURL(), "")
 	d.JSONLD = render.WebSiteLD(cfg, "en", "")
@@ -3961,7 +4288,7 @@ func (b *build) sitemapEntries() []seo.URLEntry {
 	for _, lang := range content.Langs {
 		es = append(es, seo.URLEntry{Loc: cfg.Abs(cfg.HomeURL(lang)), LastMod: latest, Alternates: alts(cfg.HomeURL("en"), cfg.HomeURL("ro"))})
 		es = append(es, seo.URLEntry{Loc: cfg.Abs(cfg.IndexURL(lang)), LastMod: latest, Alternates: alts(cfg.IndexURL("en"), cfg.IndexURL("ro"))})
-		es = append(es, seo.URLEntry{Loc: cfg.Abs(cfg.PrivacyURL(lang)), LastMod: b.now, Alternates: alts(cfg.PrivacyURL("en"), cfg.PrivacyURL("ro"))})
+		es = append(es, seo.URLEntry{Loc: cfg.Abs(cfg.PrivacyURL(lang)), LastMod: fileTime(b.o.Root, "content/"+lang+"/_privacy.md", b.now), Alternates: alts(cfg.PrivacyURL("en"), cfg.PrivacyURL("ro"))})
 	}
 	for _, p := range s.Pieces {
 		mod := p.Date
@@ -3983,7 +4310,7 @@ func (b *build) sitemapEntries() []seo.URLEntry {
 		}
 		es = append(es, seo.URLEntry{Loc: cfg.Abs(cfg.PieceURL(p.Lang, p.Slug)), LastMod: mod, Alternates: alts(en, ro)})
 	}
-	es = append(es, seo.URLEntry{Loc: cfg.Abs(cfg.ColophonURL()), LastMod: b.now, Alternates: alts(cfg.ColophonURL(), "")})
+	es = append(es, seo.URLEntry{Loc: cfg.Abs(cfg.ColophonURL()), LastMod: fileTime(b.o.Root, "content/en/_colophon.md", b.now), Alternates: alts(cfg.ColophonURL(), "")})
 	return es
 }
 ```
@@ -4040,9 +4367,9 @@ func Check(o Options) error {
 		probs.Add("assets/portrait.jpg", 0, "the home page needs a portrait")
 	}
 	// fonts carry the Romanian glyphs
-	for _, f := range []string{"Newsreader.ttf", "SourceSerif4.ttf"} {
-		if err := images.CheckGlyphs(filepath.Join(o.Root, "assets", "fonts", f)); err != nil {
-			probs.Add(filepath.Join("assets", "fonts", f), 0, "%v", err)
+	for _, f := range images.OGFontFiles {
+		if err := images.CheckGlyphs(filepath.Join(o.Root, "assets", "fonts", "og", f)); err != nil {
+			probs.Add(filepath.Join("assets", "fonts", "og", f), 0, "%v", err)
 		}
 	}
 	// internal links resolve to pages or files the build will produce
@@ -4051,6 +4378,13 @@ func Check(o Options) error {
 		for _, l := range p.Links {
 			if !known[l.Dest] {
 				probs.Add(p.File, l.Line, "internal link %s does not resolve", l.Dest)
+			}
+		}
+	}
+	for _, pg := range b.site.Pages {
+		for _, l := range pg.Links() {
+			if !known[l.Dest] {
+				probs.Add(pg.File, l.Line, "internal link %s does not resolve", l.Dest)
 			}
 		}
 	}
@@ -4101,6 +4435,7 @@ var (
 	reStyleTag = regexp.MustCompile(`(?is)<style>(.*?)</style>`)
 	reOGImage  = regexp.MustCompile(`property="og:image" content="([^"]+)"`)
 	reHash     = regexp.MustCompile(`style-src '(sha256-[^']+)'`)
+	rePre      = regexp.MustCompile(`<pre\b[^>]*>`)
 )
 
 func CheckDist(o Options) error {
@@ -4137,6 +4472,11 @@ func CheckDist(o Options) error {
 		}
 		if reStyleAtt.MatchString(s) {
 			probs.Add(rel, 0, "style= attribute found (hash CSP forbids it)")
+		}
+		for _, pre := range rePre.FindAllString(s, -1) {
+			if !strings.Contains(pre, `tabindex="0"`) {
+				probs.Add(rel, 0, "%s lacks tabindex=\"0\": a scrolling block must be keyboard-focusable", pre)
+			}
 		}
 		for _, must := range []string{`rel="canonical"`, `property="og:image"`, `name="twitter:card"`, `application/ld+json`, `rel="alternate" type="application/rss+xml"`, `<html lang="`} {
 			if !strings.Contains(s, must) {
@@ -4285,7 +4625,7 @@ func snapshot(t *testing.T, dir string) map[string]string {
 ```
 with `fmtHash` = `images.Hash8` re-exported locally (`func fmtHash(b []byte) string { return images.Hash8(b) }`, import `internal/images`).
 
-- [ ] **Step 7: Run, fix, pass** — `go test ./... 2>&1 | tail -15`; then `go run ./cmd/site check` on the real repo is expected to **fail** on the ⟨placeholder⟩ rule until Task 12 supplies content — that is the rule working.
+- [ ] **Step 7: Run, fix, pass** — `go test ./... 2>&1 | tail -15`; then `go run ./cmd/site check` on the real repo is expected to exit **3** on the ⟨placeholder⟩ rule until Task 12 supplies content — that is the rule working.
 
 - [ ] **Step 8: Commit** — `M1a: site — build pipeline, reproducible output, check and check --dist` with trailers; push.
 
@@ -4329,7 +4669,12 @@ func parseHeaders(b []byte) []headerRule {
 		if len(rules) == 0 {
 			continue
 		}
-		k, v, ok := strings.Cut(strings.TrimSpace(line), ": ")
+		l := strings.TrimSpace(line)
+		if name, ok := strings.CutPrefix(l, "! "); ok { // Cloudflare's detach syntax: drop a header an earlier rule set
+			rules[len(rules)-1].headers = append(rules[len(rules)-1].headers, [2]string{"!", name})
+			continue
+		}
+		k, v, ok := strings.Cut(l, ": ")
 		if ok {
 			rules[len(rules)-1].headers = append(rules[len(rules)-1].headers, [2]string{k, v})
 		}
@@ -4398,6 +4743,10 @@ func Serve(o Options, host string, port int) error {
 		for _, rule := range rules {
 			if rule.match(p) {
 				for _, kv := range rule.headers {
+					if kv[0] == "!" {
+						w.Header().Del(kv[1])
+						continue
+					}
 					w.Header().Set(kv[0], kv[1])
 				}
 			}
@@ -4706,7 +5055,8 @@ func FaviconSVG(fontBytes []byte) ([]byte, error) {
 	// Glyph space: y grows downward in sfnt segments (already flipped); centre the advance box in a 1000-unit square with the baseline at 76%.
 	w := fx(adv)
 	tx := (1000 - w) / 2
-	svg := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><rect width="1000" height="1000" fill="#7D2B22"/><path transform="translate(%.1f 760)" fill="#FAF8F4" d="%s"/></svg>`, tx, d.String())
+	// Baseline at 840 of 1000: the h ascender (~720 units) then sits with ~120 above and ~160 below — optically centred.
+	svg := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><rect width="1000" height="1000" fill="#7D2B22"/><path transform="translate(%.1f 840)" fill="#FAF8F4" d="%s"/></svg>`, tx, d.String())
 	return []byte(svg), nil
 }
 
@@ -4747,6 +5097,7 @@ Test (`favicon_test.go`): SVG contains `<path` and `fill="#FAF8F4"`; raster deco
 ```markdown
 ---
 title: "Privacy"
+summary: "No cookies, no analytics scripts, no third-party requests. What Cloudflare sees, and what the edge counts."
 ---
 This site stores no personal data and sets no cookies. There is no analytics script, no third-party request, and nothing to consent to.
 
@@ -4763,6 +5114,7 @@ Questions: [security@herinean.com](mailto:security@herinean.com).
 ```markdown
 ---
 title: "Confidențialitate"
+summary: "Fără cookie-uri, fără scripturi de analiză, fără cereri către terți. Ce vede Cloudflare și ce numără marginea rețelei."
 ---
 Acest site nu stochează date personale și nu setează cookie-uri. Nu există niciun script de analiză, nicio cerere către terți și nimic la care să consimțiți.
 
@@ -4779,6 +5131,7 @@ Dacă asta se schimbă vreodată — un newsletter, de exemplu — această pagi
 ```markdown
 ---
 title: "Colophon"
+summary: "How herinean.com is built and audited: the scorecard, the stack, the dependencies, the trade-offs."
 ---
 This page is the site's test suite, written down. Every claim below is checked on each commit; the build fails loudly rather than quietly. If a row says fail, it is failing right now and the fix is queued, not hidden.
 
@@ -4790,7 +5143,7 @@ The platform is a Go program of a few hundred lines that turns Markdown into the
 
 **Known trade-offs.** No comments (discussion is on LinkedIn), no search (the index is small and browsers find text), no dark-mode toggle (the OS decides), no unique-visitor counts (see above), no tags or related posts, no embeds of any kind (they need scripts), TLS 1.3 only (SSL Labs withholds A+ from 1.3-only servers — see ADR-0011 — while internet.nl scores 100%), and one vendor at the edge (the runbook covers the day it fails). URLs never change and pieces are never deleted; corrections carry an "updated" date.
 ```
-`content/en/_home.md` and `content/ro/_home.md` are the About paragraphs — **author input**; commit them with the ⟨⟩ markers so `check` fails until Radu writes them, exactly as designed.
+`content/en/_home.md` and `content/ro/_home.md` are the About paragraphs — **author input**; commit them with the ⟨⟩ markers (title `Radu Herinean`, summary = the tagline) so `check` exits 3 until Radu writes them, exactly as designed.
 
 - [ ] **Step 3: Static files** — generate the favicons with a one-off run:
 ```bash
@@ -4798,18 +5151,18 @@ cat > /tmp/fav.go <<'EOF'
 package main
 import ("os"; "github.com/raduherinean/herinean.com/internal/images")
 func main() {
-	nb, _ := os.ReadFile("assets/fonts/Newsreader.ttf")
+	nb, _ := os.ReadFile("assets/fonts/og/Newsreader72pt-Medium.ttf")
 	svg, err := images.FaviconSVG(nb); if err != nil { panic(err) }
 	_ = os.WriteFile("static/favicon.svg", svg, 0o644)
-	f, err := images.LoadFonts("assets/fonts"); if err != nil { panic(err) }
+	f, err := images.LoadFonts("assets/fonts/og"); if err != nil { panic(err) }
 	p32, _ := images.FaviconRaster(f, 32); _ = os.WriteFile("static/favicon.ico", images.ICO(p32, 32), 0o644)
 	p180, _ := images.FaviconRaster(f, 180); _ = os.WriteFile("static/apple-touch-icon.png", p180, 0o644)
 }
 EOF
 mkdir -p static/.well-known && cp /tmp/fav.go ./fav_tmp.go && go run ./fav_tmp.go && rm fav_tmp.go
-git mv infra/placeholder/.well-known/mta-sts.txt static/.well-known/mta-sts.txt
+cp infra/placeholder/.well-known/mta-sts.txt static/.well-known/mta-sts.txt   # copy, not move: deploy-placeholder.sh still serves infra/placeholder until M1b points wrangler at dist/
 ```
-Open `static/favicon.svg` in a browser and compare with `docs/design/claude-design-export/renders/favicons.png` option B; if the glyph sits too high or low, adjust the `760` baseline in `FaviconSVG` and regenerate.
+Open `static/favicon.svg` in a browser and compare with `docs/design/claude-design-export/renders/favicons.png` option B; if the glyph sits too high or low, adjust the `840` baseline in `FaviconSVG` and regenerate.
 
 - [ ] **Step 4: Author inputs** — Radu supplies: `site.yaml` values (tagline EN/RO, LinkedIn and X URLs, AI-disclosure sentence), `content/{en,ro}/_home.md` (3–4 paragraphs), the ⟨⟩ line in `_colophon.md`, and `assets/portrait.jpg` (≥ 800 px square). `go run ./cmd/site check` is the gate: it lists every placeholder left.
 
@@ -4830,7 +5183,7 @@ Claude-Session: https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 MSG
 )"
 git push gitea m1a/generator && git push -u origin m1a/generator
-gh pr create --title "M1a: generator core" --body "$(cat <<'BODY'
+gh pr create --base infra/m0 --title "M1a: generator core" --body "$(cat <<'BODY'
 Bespoke Go static generator: content model with validation (dates, slugs, Romanian diacritics, alt text, i18n completeness, pairing by key), Markdown rendering with per-language typography, responsive WebP images, OG cards, templates and CSS from the Claude Design export, feeds, sitemap/robots/llms/security.txt, _headers with the CSS hash, deterministic dist/, check and check --dist, serve/new/scorecard. Golden tests pin every page.
 
 Spec: docs/specs/2026-09-17-herinean-com-design.md §4, §5, §9. Design: docs/design/export-review.md.
@@ -4841,7 +5194,7 @@ https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 BODY
 )"
 ```
-Merge after review (squash). M1b (Worker analytics + colophon KV, self-hosted fonts, preview deploy) follows on `main`.
+`--base infra/m0` while M0 is unmerged (GitHub retargets the PR to `main` when M0's PR merges and its branch is deleted); drop it if M0 has merged. Merge after review (squash). M1b (Worker analytics + colophon KV, self-hosted fonts, preview deploy) follows on `main`.
 
 ---
 
@@ -4849,6 +5202,8 @@ Merge after review (squash). M1b (Worker analytics + colophon KV, self-hosted fo
 
 **Spec coverage.** §4.1 URLs → `config` (Task 0) and `pages()` (Task 10); §4.2 front matter and rules → Task 1; typography, figures, code classes, alt, links → Task 2; i18n completeness, pairing, sorting, required pages → Task 3; images and hashed names → Task 4; OG cards and glyph check (row 21 first half) → Task 5; page anatomy, entry format, `lang` on foreign fragments, badge with hidden name, skip link, meta/OG/twitter/canonical/hreflang/feed autodiscovery, JSON-LD (rows 6–8) → Task 6; feeds (row 5) → Task 7; sitemap/robots/llms/security.txt (row 16) → Task 8; `_headers` (rows 9, 15, 17 static half) → Task 9; reproducibility, all-or-nothing writes, `check --dist` invariants (rows 2 partial, 7, 14, 15) → Task 10; `serve`, `new`, `scorecard`, manual rows with staleness → Task 11; privacy page, colophon policy text, favicon, author inputs → Task 12. Deferred by design: fonts and metric-matched fallbacks (row 21 second half, row 14 font budget), Worker analytics and KV colophon, preview deploy — M1b; external validators, Lighthouse, axe — M2.
 
-**Placeholder scan.** ⟨⟩ markers appear only where the spec (§14) names author inputs; the build refuses them. One illustrative import stub in Task 10 step 3 is explicitly marked "delete this line" and replaced in the same step.
+**Placeholder scan.** ⟨⟩ markers appear only where the spec (§14) names author inputs; the build refuses them with exit 3 (warning in the hook, failure in CI).
 
-**Type consistency.** `config.Config` methods `HomeURL/IndexURL/PieceURL/PrivacyURL/ColophonURL/FeedURL/Abs` used identically in Tasks 6, 7, 8, 10; `content.ImageInfo{Src, Srcset, Width, Height, IsSVG}` produced in Task 10 from `images.Info` and consumed by Task 2's renderer; `render.PageData` fields set in Task 10 match Task 6's struct; `render.ScorecardRow` is shared by Task 6 (template), Task 11 (rows) and the fragment; `images.Hash8`, `RenderOG`, `LoadFonts`, `CheckGlyphs` names match between Tasks 4/5/10/12; `content.Site.T/Latest/AllImageRefs/Render/ByLang/Pages` as declared in Task 3.
+**Adversarial review 2026-09-18, folded in.** Branch base `infra/m0` (main has five files); exit-3 hook so fonts/templates/content commit before author inputs; per-kind template clones (one `ParseGlob` set would render the last `content` everywhere); `webp.Encode(w, img, opts)`; tables: no align/style, wrapped in a focusable region; portrait at 320/640 in `<picture>`; srcset widths deduplicated; code colours from the palette (no generated chroma CSS clashing with `pre`); `! Header` detach in `_headers`; `interest-cohort` dropped; fenced code needs a language + `<pre tabindex` asserted in `check --dist`; home `h1` in the masthead and tagline inside `header`; content-hash cache for variants and OG cards; home OG carries the portrait; static OG fonts at the right optical size and weight; page bodies in the link check; fixture dates pinned before the build epoch; rune-safe ellipsis; byline role via i18n; `data-scorecard` hook; badge `lang` scoped to the code; sitemap `lastmod` from the file's last commit; placeholder `mta-sts.txt` copied, not moved; cruft removed; staticcheck fallback; SVG width/height in any order; srcset-aware `Absolutize` with page-rooted fragments; `clip-path` for `.vh`; page `summary` for meta descriptions.
+
+**Type consistency.** `config.Config` methods `HomeURL/IndexURL/PieceURL/PrivacyURL/ColophonURL/FeedURL/Abs` used identically in Tasks 6, 7, 8, 10; `content.ImageInfo{Src, Srcset, Width, Height, IsSVG}` produced in Task 10 from `images.Info` and consumed by Task 2's renderer; `render.PageData` fields set in Task 10 match Task 6's struct; `render.ScorecardRow` is shared by Task 6 (template), Task 11 (rows) and the fragment; `images.Process(src, key, name, images.Options{…})`, `images.Cache`, `RenderOG(og, fonts, cache)`, `LoadFonts`, `OGFontFiles`, `CheckGlyphs` match between Tasks 4/5/10/12; `content.RenderBody(p, lookup, tableLabel)` between Tasks 2/3; `config.ErrPlaceholder` → `site.ErrAuthorInputs` → exit 3 between Tasks 0/10; `content.Site.T/Latest/AllImageRefs/Render/ByLang/Pages` as declared in Task 3.
