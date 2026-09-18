@@ -112,8 +112,7 @@ expect_header "$U/" permissions-policy 'camera=\(\)'
 expect_header "$U/" cross-origin-opener-policy '^same-origin$'
 expect_header "$U/" cross-origin-resource-policy '^same-origin$'
 expect_header "$U/" x-frame-options '^DENY$'
-expect_header "$U/" x-robots-tag '^noindex$'                     # placeholder only; M1 removes it on production
-expect_no_body "$U/" '<script|cdn-cgi|style='
+# body, robots and script expectations differ between the placeholder and the site: scripts/verify-preview.sh [--prod] owns them
 expect_status "$U/nope/" 404
 expect_location "$U/404" "$U/404/"                                # force-trailing-slash (404.html is a real asset)
 expect_location "http://herinean.com/" "$U/"

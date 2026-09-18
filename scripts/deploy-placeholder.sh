@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Deploys the M0 placeholder: dist/ is rebuilt from infra/placeholder/ and pushed with wrangler.
-# M1 replaces this with `site build && wrangler deploy` from CI.
+# Rollback to the M0 placeholder (one noindex line with the full header set). Production deploys are scripts/deploy.sh.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . scripts/env.sh
