@@ -43,7 +43,7 @@ func Check(o Options) error {
 	var probs content.Problems
 	// templates parse and the CSS reads: a broken template is a real problem the pre-commit hook must catch, not
 	// something only `site build` discovers later
-	if _, err := render.New(filepath.Join(o.Root, "templates"), filepath.Join(o.Root, "assets", "css", "site.css")); err != nil {
+	if _, err := render.New(filepath.Join(o.Root, "templates"), filepath.Join(o.Root, "assets", "css", "site.css"), nil); err != nil {
 		probs.Add("templates", 0, "%v", err)
 	}
 	// images exist and are processable

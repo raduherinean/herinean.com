@@ -33,6 +33,16 @@ var (
 	reOGImage  = regexp.MustCompile(`property="og:image" content="([^"]+)"`)
 	reHash     = regexp.MustCompile(`style-src '(sha256-[^']+)'`)
 	rePre      = regexp.MustCompile(`<pre\b[^>]*>`)
+
+	// row 14: the preload, the CSS font urls, and what a first view fetches. reItalic mirrors every font-style:italic rule in
+	// site.css (blockquote and the chroma comment classes .c .c1 .cm .cp .cs .ch) plus the inline italic elements.
+	rePreload      = regexp.MustCompile(`<link rel="preload" href="([^"]+)" as="font"`)
+	reFontURL      = regexp.MustCompile(`url\((/fonts/[^)]+)\)`)
+	reItalic       = regexp.MustCompile(`<em\b|<i\b|<blockquote\b|<cite\b|class="c1?"|class="cm"|class="cp"|class="cs"|class="ch"`)
+	reEagerPicture = regexp.MustCompile(`<picture><source type="image/webp" srcset="([^"]+)"[^>]*><img [^>]*fetchpriority="high"`)
+	rePictureBlock = regexp.MustCompile(`(?s)<picture>.*?</picture>`)
+	reImg          = regexp.MustCompile(`<img\b[^>]*>`)
+	reSrc          = regexp.MustCompile(`src="([^"]+)"`)
 )
 
 // withoutCode blanks every <code>…</code> element (inline spans and the body of highlighted blocks alike) so the
@@ -119,6 +129,23 @@ func CheckDist(o Options) error {
 		probs.Add("_headers", 0, "no style-src hash in the CSP")
 	}
 	checkHeaderCoverage(dist, headers, &probs)
+	// Fonts: ≤ 100 KB shipped, every page preloads exactly one (the body regular), every preload and CSS url() target exists.
+	var fontBytes int64
+	_ = filepath.WalkDir(filepath.Join(dist, "fonts"), func(p string, d os.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			if info, err := d.Info(); err == nil {
+				fontBytes += info.Size()
+			}
+		}
+		return nil
+	})
+	if fontBytes == 0 || fontBytes > 100*1024 {
+		probs.Add("fonts", 0, "shipped fonts total %d bytes; want 1..102400 (row 14)", fontBytes)
+	}
+	var faviconBytes int64
+	if info, err := os.Stat(filepath.Join(dist, "favicon.svg")); err == nil {
+		faviconBytes = info.Size()
+	}
 	var htmlPaths []string
 	_ = filepath.WalkDir(dist, func(p string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".html") {
@@ -184,6 +211,51 @@ func CheckDist(o Options) error {
 		_ = w.Close()
 		if gz.Len() > htmlBudget {
 			probs.Add(rel, 0, "page is %d bytes gzipped; budget %d (row 14 — every page, the colophon included)", gz.Len(), htmlBudget)
+		}
+		// Row 14 estimate: document + favicon + fonts (italic only when the page uses it) + images that are not lazy.
+		fonts := 2 // body regular + display
+		if reItalic.MatchString(s) {
+			fonts++
+		}
+		var eagerBytes int64
+		eager := 0
+		for _, m := range reEagerPicture.FindAllStringSubmatch(s, -1) { // <picture> with WebP candidates: the browser picks at most the largest
+			eager++
+			cands := strings.Split(m[1], ",")
+			last := strings.Fields(strings.TrimSpace(cands[len(cands)-1]))[0]
+			if info, err := os.Stat(filepath.Join(dist, filepath.FromSlash(last))); err == nil {
+				eagerBytes += info.Size()
+			}
+		}
+		for _, tag := range reImg.FindAllString(rePictureBlock.ReplaceAllString(s, ""), -1) { // plain <img> outside any <picture>
+			if strings.Contains(tag, `loading="lazy"`) {
+				continue
+			}
+			eager++
+			if m := reSrc.FindStringSubmatch(tag); m != nil { // the fallback file: an upper bound, WebP browsers never fetch it
+				if info, err := os.Stat(filepath.Join(dist, filepath.FromSlash(m[1]))); err == nil {
+					eagerBytes += info.Size()
+				}
+			}
+		}
+		if n := 2 + fonts + eager; n > 6 {
+			probs.Add(rel, 0, "estimated first-view requests %d > 6 (row 14): document, favicon, %d fonts, %d eager images", n, fonts, eager)
+		}
+		if total := int64(gz.Len()) + faviconBytes + fontBytes + eagerBytes; total > 150*1024 {
+			probs.Add(rel, 0, "estimated first-view transfer %d bytes > 153600 (row 14): html %d, favicon %d, fonts %d, images %d", total, gz.Len(), faviconBytes, fontBytes, eagerBytes)
+		}
+		if n := strings.Count(s, `rel="preload"`); n != 1 {
+			probs.Add(rel, 0, "%d preloads; exactly one (the body regular) is allowed", n)
+		}
+		for _, m := range rePreload.FindAllStringSubmatch(s, -1) {
+			if _, err := os.Stat(filepath.Join(dist, filepath.FromSlash(m[1]))); err != nil || !strings.Contains(m[1], ".woff2") {
+				probs.Add(rel, 0, "preload target %s is not a shipped font", m[1])
+			}
+		}
+		for _, m := range reFontURL.FindAllStringSubmatch(s, -1) {
+			if _, err := os.Stat(filepath.Join(dist, filepath.FromSlash(m[1]))); err != nil {
+				probs.Add(rel, 0, "CSS references %s which is not in dist", m[1])
+			}
 		}
 		return nil
 	})

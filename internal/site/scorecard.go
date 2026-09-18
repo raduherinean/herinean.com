@@ -68,7 +68,7 @@ func (b *build) scorecardFragment() ([]byte, error) {
 
 // Scorecard renders the fragment for CI to validate and store in KV (M2).
 func Scorecard(o Options, in, manual, out string) error {
-	r, err := render.New(filepath.Join(o.Root, "templates"), filepath.Join(o.Root, "assets", "css", "site.css"))
+	r, err := render.New(filepath.Join(o.Root, "templates"), filepath.Join(o.Root, "assets", "css", "site.css"), nil)
 	if err != nil {
 		return err
 	}

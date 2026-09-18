@@ -13,7 +13,7 @@ var locales = map[string]string{"en": "en_US", "ro": "ro_RO"}
 
 func (b *build) base(lang, kind, path, title, description string) *render.PageData {
 	return &render.PageData{Cfg: b.cfg, Site: b.site, Lang: lang, Kind: kind, Title: title, HeadTitle: title + " — " + b.cfg.Name,
-		Description: description, Path: path, Canonical: b.cfg.Abs(path), OGType: "website", OGLocale: locales[lang], OGImage: b.cfg.Abs(b.og["home-"+lang])}
+		Description: description, Path: path, Canonical: b.cfg.Abs(path), OGType: "website", OGLocale: locales[lang], OGImage: b.cfg.Abs(b.og["home-"+lang]), PreloadFont: b.preload}
 }
 
 func (b *build) put(path string, html []byte) {

@@ -9,7 +9,8 @@
 <link rel="canonical" href="{{.Canonical}}">
 {{range .Alternates}}<link rel="alternate" hreflang="{{.Lang}}" href="{{.Href}}">
 {{end}}<link rel="alternate" type="application/rss+xml" title="{{.SiteName}} ({{.Lang}})" href="{{.FeedURL}}">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+{{if .PreloadFont}}<link rel="preload" href="{{.PreloadFont}}" as="font" type="font/woff2" crossorigin>
+{{end}}<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:site_name" content="{{.SiteName}}">

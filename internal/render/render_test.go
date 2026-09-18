@@ -16,6 +16,12 @@ import (
 
 var update = flag.Bool("update", false, "rewrite golden files")
 
+var testFonts = map[string]string{
+	"/fonts/SourceSerif4-Regular.woff2": "/fonts/SourceSerif4-Regular.00000001.woff2",
+	"/fonts/SourceSerif4-It.woff2":      "/fonts/SourceSerif4-It.00000002.woff2",
+	"/fonts/Newsreader-Medium.woff2":    "/fonts/Newsreader-Medium.00000003.woff2",
+}
+
 func fixture(t *testing.T) (*config.Config, *content.Site, *Renderer) {
 	t.Helper()
 	cfg, err := config.Load("../../testdata/site/site.yaml")
@@ -32,7 +38,7 @@ func fixture(t *testing.T) (*config.Config, *content.Site, *Renderer) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	r, err := New("../../templates", "../../assets/css/site.css")
+	r, err := New("../../templates", "../../assets/css/site.css", testFonts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +67,7 @@ func golden(t *testing.T, name string, got []byte) {
 func TestPieceGolden(t *testing.T) {
 	cfg, s, r := fixture(t)
 	for _, p := range s.Pieces {
-		d := &PageData{Cfg: cfg, Site: s, Lang: p.Lang, Kind: "piece", Piece: p, Title: p.Title, HeadTitle: p.Title + " — " + cfg.Name,
+		d := &PageData{Cfg: cfg, Site: s, Lang: p.Lang, Kind: "piece", Piece: p, PreloadFont: testFonts["/fonts/SourceSerif4-Regular.woff2"], Title: p.Title, HeadTitle: p.Title + " — " + cfg.Name,
 			Description: p.Summary, Path: cfg.PieceURL(p.Lang, p.Slug), Canonical: cfg.Abs(cfg.PieceURL(p.Lang, p.Slug)),
 			OGImage: cfg.Abs("/og/" + p.Lang + "-" + p.Slug + ".deadbeef.png"), OGType: "article", OGLocale: map[string]string{"en": "en_US", "ro": "ro_RO"}[p.Lang],
 			Body: p.Body, DateISO: p.Date.Format("2006-01-02"), DateText: DateText(s, p.Lang, p.Date), PillarText: s.T(p.Lang, "pillar."+p.Pillar)}
@@ -102,7 +108,7 @@ func TestHomeIndexGolden(t *testing.T) {
 			entries = append(entries, EntryFor(cfg, s, lang, p))
 		}
 		home := s.Pages["home."+lang]
-		d := &PageData{Cfg: cfg, Site: s, Lang: lang, Kind: "home", Page: home, Title: cfg.Name, HeadTitle: cfg.Name, Description: home.Summary,
+		d := &PageData{Cfg: cfg, Site: s, Lang: lang, Kind: "home", Page: home, PreloadFont: testFonts["/fonts/SourceSerif4-Regular.woff2"], Title: cfg.Name, HeadTitle: cfg.Name, Description: home.Summary,
 			Path: cfg.HomeURL(lang), Canonical: cfg.Abs(cfg.HomeURL(lang)), OGImage: cfg.Abs("/og/home-" + lang + ".deadbeef.png"), OGType: "website",
 			OGLocale: map[string]string{"en": "en_US", "ro": "ro_RO"}[lang], Body: home.Body, Tagline: cfg.Tagline[lang], Entries: entries,
 			Alternates: AlternatesFor(cfg, cfg.HomeURL("en"), cfg.HomeURL("ro")), JSONLD: WebSiteLD(cfg, lang, cfg.Tagline[lang])}
@@ -113,7 +119,7 @@ func TestHomeIndexGolden(t *testing.T) {
 		golden(t, "home-"+lang+".html", out)
 		assertInvariants(t, out)
 
-		idx := &PageData{Cfg: cfg, Site: s, Lang: lang, Kind: "index", Title: s.T(lang, "index.title"), HeadTitle: s.T(lang, "index.title") + " — " + cfg.Name,
+		idx := &PageData{Cfg: cfg, Site: s, Lang: lang, Kind: "index", PreloadFont: testFonts["/fonts/SourceSerif4-Regular.woff2"], Title: s.T(lang, "index.title"), HeadTitle: s.T(lang, "index.title") + " — " + cfg.Name,
 			Description: cfg.Tagline[lang], Path: cfg.IndexURL(lang), Canonical: cfg.Abs(cfg.IndexURL(lang)), OGImage: cfg.Abs("/og/home-" + lang + ".deadbeef.png"),
 			OGType: "website", OGLocale: map[string]string{"en": "en_US", "ro": "ro_RO"}[lang], Years: Years(cfg, s, lang, s.Pieces),
 			Alternates: AlternatesFor(cfg, cfg.IndexURL("en"), cfg.IndexURL("ro")), JSONLD: WebSiteLD(cfg, lang, cfg.Tagline[lang])}
@@ -128,7 +134,7 @@ func TestHomeIndexGolden(t *testing.T) {
 
 func Test404AndPrivacyAndColophon(t *testing.T) {
 	cfg, s, r := fixture(t)
-	nf := &PageData{Cfg: cfg, Site: s, Lang: "en", Kind: "404", Title: s.T("en", "notfound.title"), HeadTitle: s.T("en", "notfound.title"), Description: s.T("en", "notfound.body"),
+	nf := &PageData{Cfg: cfg, Site: s, Lang: "en", Kind: "404", PreloadFont: testFonts["/fonts/SourceSerif4-Regular.woff2"], Title: s.T("en", "notfound.title"), HeadTitle: s.T("en", "notfound.title"), Description: s.T("en", "notfound.body"),
 		Path: "/404.html", Canonical: cfg.Abs("/404.html"), OGImage: cfg.Abs("/og/home-en.deadbeef.png"), OGType: "website", OGLocale: "en_US", Robots: "noindex", JSONLD: WebSiteLD(cfg, "en", "")}
 	out, err := r.Render("404", nf)
 	if err != nil {
@@ -137,7 +143,7 @@ func Test404AndPrivacyAndColophon(t *testing.T) {
 	golden(t, "404.html", out)
 
 	pv := s.Pages["privacy.ro"]
-	d := &PageData{Cfg: cfg, Site: s, Lang: "ro", Kind: "privacy", Page: pv, Title: pv.Title, HeadTitle: pv.Title + " — " + cfg.Name, Description: pv.Summary,
+	d := &PageData{Cfg: cfg, Site: s, Lang: "ro", Kind: "privacy", Page: pv, PreloadFont: testFonts["/fonts/SourceSerif4-Regular.woff2"], Title: pv.Title, HeadTitle: pv.Title + " — " + cfg.Name, Description: pv.Summary,
 		Path: cfg.PrivacyURL("ro"), Canonical: cfg.Abs(cfg.PrivacyURL("ro")), OGImage: cfg.Abs("/og/home-ro.deadbeef.png"), OGType: "website", OGLocale: "ro_RO", Body: pv.Body,
 		Alternates: AlternatesFor(cfg, cfg.PrivacyURL("en"), cfg.PrivacyURL("ro")), JSONLD: WebSiteLD(cfg, "ro", "")}
 	out, err = r.Render("privacy", d)
@@ -151,7 +157,7 @@ func Test404AndPrivacyAndColophon(t *testing.T) {
 		t.Fatal(err)
 	}
 	co := s.Pages["colophon.en"]
-	c := &PageData{Cfg: cfg, Site: s, Lang: "en", Kind: "colophon", Page: co, Title: co.Title, HeadTitle: co.Title + " — " + cfg.Name, Description: co.Summary,
+	c := &PageData{Cfg: cfg, Site: s, Lang: "en", Kind: "colophon", Page: co, PreloadFont: testFonts["/fonts/SourceSerif4-Regular.woff2"], Title: co.Title, HeadTitle: co.Title + " — " + cfg.Name, Description: co.Summary,
 		Path: "/colophon/", Canonical: cfg.Abs("/colophon/"), OGImage: cfg.Abs("/og/home-en.deadbeef.png"), OGType: "website", OGLocale: "en_US", Body: co.Body,
 		Alternates: AlternatesFor(cfg, "/colophon/", ""), JSONLD: WebSiteLD(cfg, "en", ""), ScorecardHTML: template.HTML(frag), Deps: "github.com/yuin/goldmark v1.7.8", Commit: "abc1234", BuildDate: "2026-10-11", GoVersion: "go1.27.1"}
 	out, err = r.Render("colophon", c)
@@ -169,6 +175,9 @@ func TestCSSHashMatchesInlined(t *testing.T) {
 	}
 	if strings.Contains(r.CSS(), "/*") || strings.Contains(r.CSS(), "\n") {
 		t.Error("CSS must be minified")
+	}
+	if n := strings.Count(r.CSS(), "@font-face"); n != 6 {
+		t.Errorf("six @font-face rules (three faces, three fallbacks), got %d", n)
 	}
 }
 
@@ -188,5 +197,11 @@ func assertInvariants(t *testing.T, html []byte) {
 	}
 	if strings.Count(s, "<h1") != 1 {
 		t.Errorf("every page has exactly one h1, got %d", strings.Count(s, "<h1"))
+	}
+	if strings.Count(s, `rel="preload"`) != 1 || !strings.Contains(s, `<link rel="preload" href="/fonts/SourceSerif4-Regular.00000001.woff2" as="font" type="font/woff2" crossorigin>`) {
+		t.Error("exactly one font preload, the body regular, hashed")
+	}
+	if strings.Contains(s, "url(/fonts/SourceSerif4-Regular.woff2)") || !strings.Contains(s, "url(/fonts/SourceSerif4-Regular.00000001.woff2)") {
+		t.Error("CSS font URLs must be rewritten to the hashed paths")
 	}
 }

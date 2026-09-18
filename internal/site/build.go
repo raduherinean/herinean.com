@@ -34,6 +34,7 @@ type build struct {
 	files       map[string][]byte                        // dist-relative path → bytes
 	portrait    *content.ImageInfo
 	portraitRaw []byte           // source bytes, for the home OG card
+	preload     string           // hashed URL of the body regular, the one font every page preloads
 	warnings    content.Problems // draft mode only: the blanks the preview filled in
 }
 
@@ -88,7 +89,11 @@ func Build(o Options) error {
 	if err := b.site.Render(b.lookup); err != nil {
 		return err
 	}
-	b.r, err = render.New(filepath.Join(o.Root, "templates"), filepath.Join(o.Root, "assets", "css", "site.css"))
+	fontURLs, err := b.webFonts()
+	if err != nil {
+		return err
+	}
+	b.r, err = render.New(filepath.Join(o.Root, "templates"), filepath.Join(o.Root, "assets", "css", "site.css"), fontURLs)
 	if err != nil {
 		return err
 	}
@@ -150,6 +155,23 @@ func (b *build) images() error {
 		}
 	}
 	return probs.Err()
+}
+
+// webFonts copies the shipped WOFF2 files under content-hashed names and returns the CSS rewrite map.
+func (b *build) webFonts() (map[string]string, error) {
+	m := map[string]string{}
+	for _, name := range WebFonts {
+		src := filepath.Join(b.o.Root, "assets", "fonts", "web", name+".woff2")
+		data, err := os.ReadFile(src)
+		if err != nil {
+			return nil, fmt.Errorf("fonts: %w (run scripts/fonts.sh)", err)
+		}
+		p := "fonts/" + name + "." + images.Hash8(data) + ".woff2"
+		b.files[p] = data
+		m["/fonts/"+name+".woff2"] = "/" + p
+	}
+	b.preload = m["/fonts/"+WebFonts[0]+".woff2"]
+	return m, nil
 }
 
 func (b *build) ogImages() error {
