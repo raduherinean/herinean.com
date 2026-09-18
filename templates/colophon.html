@@ -1,6 +1,7 @@
 {{define "content"}}
 <h1 class="title">{{.Page.Title}}</h1>
 {{.Body}}
+<p><strong>How AI is used.</strong> {{index .Cfg.AIDisclosure "en"}}</p>
 <div class="sc" id="scorecard">{{.ScorecardHTML}}</div>
 <h2>Dependencies</h2>
 <p class="deps">{{.Deps}}</p>

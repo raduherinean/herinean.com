@@ -57,7 +57,7 @@ Every row is pass/fail. **CI** blocks deploy. **post** runs against production r
 | 17 | Caching | `/img/*` `/og/*` content-hashed, `max-age=31536000, immutable`; HTML `max-age=0, must-revalidate`, edge-cached with ETag; feeds `max-age=300`; correct `Content-Type` on feeds and `security.txt` | post |
 | 18 | Sustainability | websitecarbon A+ | ext (API-automatable in the weekly job) |
 | 19 | Global latency and uptime | TTFB p50 < 100 ms from 5 regions (globalping in the weekly job); external uptime monitor with alerting | weekly + ext |
-| 20 | Repo hygiene | README, LICENSE (code MIT; content CC BY-NC-ND 4.0), ADRs, this spec, RUNBOOK, CI badge, dependency count on colophon (`go list -m all`), reproducible build (`-trimpath`, pinned toolchain, `SOURCE_DATE_EPOCH` = commit time), Dependabot (modules, actions, bench), CodeQL, OpenSSF Scorecard badge (shown honestly; 10/10 is structurally unreachable) | ext (Scorecard/CodeQL run on their own) |
+| 20 | Repo hygiene | README, LICENSE (code MIT; content CC BY-NC-ND 4.0), ADRs, this spec, RUNBOOK, CI badge, dependency count on colophon (the modules linked into the generator, from the binary's build info), reproducible build (`-trimpath`, pinned toolchain, `SOURCE_DATE_EPOCH` = commit time), Dependabot (modules, actions, bench), CodeQL, OpenSSF Scorecard badge (shown honestly; 10/10 is structurally unreachable) | ext (Scorecard/CodeQL run on their own) |
 | 21 | Font correctness | Vendored fonts contain U+0218–021B (ș ț Ș Ț comma-below) and ă â î; metric-matched fallback produces no layout shift (Playwright: font blocked vs. allowed, positions equal within 1 px) | CI |
 
 ## 4. Content model, URLs, pages
@@ -133,7 +133,7 @@ site scorecard    scorecard.json (+ data/scorecard-manual.yaml) → validated HT
 | `edge` | Generate `_headers` (CSP style hash computed from the exact inlined CSS bytes; per-path CORP and Cache-Control; feed content types) and `_redirects` | stdlib |
 | `site` | Orchestrate: load → validate → images → render → feeds/seo/edge → write `dist/` in sorted order, fixed mtimes; `SOURCE_DATE_EPOCH` from the commit | all |
 
-Target: under a dozen modules; `go list -m all` is printed on the colophon. The build time is the commit timestamp, so the same commit yields byte-identical `dist/` (security.txt `Expires` = commit + 364 d; colophon build date = commit date).
+Target: under a dozen modules; the modules linked into the generator (from the binary's build info, so the list is reproducible per build) are printed on the colophon. The build time is the commit timestamp, so the same commit yields byte-identical `dist/` (security.txt `Expires` = commit + 364 d; colophon build date = commit date).
 
 ### 5.2 Validation (`check`) — fails with `file:line`
 
