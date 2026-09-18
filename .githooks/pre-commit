@@ -3,8 +3,11 @@
 set -euo pipefail
 export PATH="$HOME/.local/bin:$PATH"
 if git diff --cached --name-only | grep -q '\.go$'; then
-  unf=$(gofmt -l $(git diff --cached --name-only --diff-filter=ACM | grep '\.go$') || true)
-  [ -z "$unf" ] || { echo "gofmt needed: $unf" >&2; exit 1; }
+  files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+  if [ -n "$files" ]; then
+    unf=$(gofmt -l $files)
+    [ -z "$unf" ] || { echo "gofmt needed: $unf" >&2; exit 1; }
+  fi
   go vet ./...
 fi
 if git diff --cached --name-only | grep -qE '^(content|i18n|assets|templates|site\.yaml)'; then
