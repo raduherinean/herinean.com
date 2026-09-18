@@ -68,6 +68,16 @@ test("colophon: composite ETag from the asset and the KV fragment; a matching If
   assert.equal(h.points.length, 1, "the 304 is a view");
 });
 
+test("colophon with empty KV: the asset's own ETag still gets a 304", async () => {
+  const kv = { get: async () => null };
+  const h = harness({ kv, assets: () => new Response("<html><table data-scorecard></table></html>", { status: 200, headers: { "content-type": "text/html; charset=utf-8", etag: '"abc"' } }) });
+  const res = await worker.fetch(req("https://herinean.com/colophon/", { headers: { "if-none-match": '"abc"', "user-agent": "Mozilla/5.0" } }), h.env, h.ctx);
+  assert.equal(res.status, 304);
+  assert.equal(res.headers.get("etag"), '"abc"');
+  await h.settle();
+  assert.equal(h.points.length, 1, "the 304 is a view");
+});
+
 test("preview hosts: noindex on every response and a disallow-all robots.txt", async () => {
   const h = harness();
   const page = await worker.fetch(req("https://abc-herinean-com.example.workers.dev/"), h.env, h.ctx);
@@ -101,10 +111,11 @@ test("a Worker error falls through to the plain asset", async () => {
 });
 
 test("the asset layer's 307 canonicalisation redirect becomes a 301 with the same location; POST is left alone", async () => {
-  const h = harness({ assets: () => new Response(null, { status: 307, headers: { location: "https://herinean.com/writing/" } }) });
+  const h = harness({ assets: () => new Response(null, { status: 307, headers: { location: "https://herinean.com/writing/", "content-length": "18" } }) });
   const res = await worker.fetch(req("https://herinean.com/writing"), h.env, h.ctx);
   assert.equal(res.status, 301);
   assert.equal(res.headers.get("location"), "https://herinean.com/writing/");
+  assert.equal(res.headers.get("content-length"), null);
   const post = await worker.fetch(req("https://herinean.com/writing", { method: "POST" }), h.env, h.ctx);
   assert.equal(post.status, 307);
   await h.settle();
