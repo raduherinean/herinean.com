@@ -35,10 +35,11 @@ var (
 	rePre      = regexp.MustCompile(`<pre\b[^>]*>`)
 
 	// row 14: the preload, the CSS font urls, and what a first view fetches. reItalic mirrors every font-style:italic rule in
-	// site.css (blockquote and the chroma comment classes .c .c1 .cm .cp .cs .ch) plus the inline italic elements.
+	// site.css (blockquote and the chroma comment classes .c .c1 .cm .cp .cs .ch) plus the inline italic elements; a
+	// <strong> or <b> is italic mid-sentence, while a run-in head — the first child, right after its <p> or <li> — is not.
 	rePreload      = regexp.MustCompile(`<link rel="preload" href="([^"]+)" as="font"`)
 	reFontURL      = regexp.MustCompile(`url\((/fonts/[^)]+)\)`)
-	reItalic       = regexp.MustCompile(`<em\b|<i\b|<blockquote\b|<cite\b|class="c1?"|class="cm"|class="cp"|class="cs"|class="ch"`)
+	reItalic       = regexp.MustCompile(`<em\b|<i\b|<blockquote\b|<cite\b|<dfn\b|<var\b|<address\b|[^>]<strong\b|[^>]<b\b|class="c1?"|class="cm"|class="cp"|class="cs"|class="ch"`)
 	reEagerPicture = regexp.MustCompile(`<picture><source type="image/webp" srcset="([^"]+)"[^>]*><img [^>]*fetchpriority="high"`)
 	rePictureBlock = regexp.MustCompile(`(?s)<picture>.*?</picture>`)
 	reImg          = regexp.MustCompile(`<img\b[^>]*>`)
@@ -94,6 +95,9 @@ func checkHeaderCoverage(dist string, headers []byte, probs *content.Problems) {
 			require("/"+dir+"/*", "Cross-Origin-Resource-Policy: cross-origin", "max-age=31536000, immutable")
 		}
 	}
+	if exists("fonts") {
+		require("/fonts/*", "Cache-Control: public, max-age=31536000, immutable")
+	}
 	for _, f := range []string{"feed.xml", "feed.en.xml", "feed.ro.xml"} {
 		if exists(f) {
 			require("/"+f, "Content-Type: application/rss+xml", "max-age=300")
@@ -130,11 +134,18 @@ func CheckDist(o Options) error {
 	}
 	checkHeaderCoverage(dist, headers, &probs)
 	// Fonts: ≤ 100 KB shipped, every page preloads exactly one (the body regular), every preload and CSS url() target exists.
+	// faceBytes is each shipped face by its WebFonts name (the dist file is <name>.<hash8>.woff2), for the per-page estimate.
 	var fontBytes int64
+	faceBytes := map[string]int64{}
 	_ = filepath.WalkDir(filepath.Join(dist, "fonts"), func(p string, d os.DirEntry, err error) error {
 		if err == nil && !d.IsDir() {
 			if info, err := d.Info(); err == nil {
 				fontBytes += info.Size()
+				for _, name := range WebFonts {
+					if strings.HasPrefix(d.Name(), name+".") {
+						faceBytes[name] += info.Size()
+					}
+				}
 			}
 		}
 		return nil
@@ -214,17 +225,20 @@ func CheckDist(o Options) error {
 		}
 		// Row 14 estimate: document + favicon + fonts (italic only when the page uses it) + images that are not lazy.
 		fonts := 2 // body regular + display
+		pageFontBytes := faceBytes[WebFonts[0]] + faceBytes[WebFonts[2]]
 		if reItalic.MatchString(s) {
 			fonts++
+			pageFontBytes += faceBytes[WebFonts[1]]
 		}
 		var eagerBytes int64
 		eager := 0
 		for _, m := range reEagerPicture.FindAllStringSubmatch(s, -1) { // <picture> with WebP candidates: the browser picks at most the largest
 			eager++
 			cands := strings.Split(m[1], ",")
-			last := strings.Fields(strings.TrimSpace(cands[len(cands)-1]))[0]
-			if info, err := os.Stat(filepath.Join(dist, filepath.FromSlash(last))); err == nil {
-				eagerBytes += info.Size()
+			if f := strings.Fields(cands[len(cands)-1]); len(f) > 0 {
+				if info, err := os.Stat(filepath.Join(dist, filepath.FromSlash(f[0]))); err == nil {
+					eagerBytes += info.Size()
+				}
 			}
 		}
 		for _, tag := range reImg.FindAllString(rePictureBlock.ReplaceAllString(s, ""), -1) { // plain <img> outside any <picture>
@@ -241,8 +255,8 @@ func CheckDist(o Options) error {
 		if n := 2 + fonts + eager; n > 6 {
 			probs.Add(rel, 0, "estimated first-view requests %d > 6 (row 14): document, favicon, %d fonts, %d eager images", n, fonts, eager)
 		}
-		if total := int64(gz.Len()) + faviconBytes + fontBytes + eagerBytes; total > 150*1024 {
-			probs.Add(rel, 0, "estimated first-view transfer %d bytes > 153600 (row 14): html %d, favicon %d, fonts %d, images %d", total, gz.Len(), faviconBytes, fontBytes, eagerBytes)
+		if total := int64(gz.Len()) + faviconBytes + pageFontBytes + eagerBytes; total > 150*1024 {
+			probs.Add(rel, 0, "estimated first-view transfer %d bytes > 153600 (row 14): html %d, favicon %d, fonts %d, images %d", total, gz.Len(), faviconBytes, pageFontBytes, eagerBytes)
 		}
 		if n := strings.Count(s, `rel="preload"`); n != 1 {
 			probs.Add(rel, 0, "%d preloads; exactly one (the body regular) is allowed", n)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"unicode"
 
@@ -78,28 +79,50 @@ func Check(o Options) error {
 	if body, err := os.ReadFile(filepath.Join(o.Root, "assets", "fonts", "web", WebFonts[0]+".ttf")); err == nil {
 		if f, err := sfnt.Parse(body); err == nil {
 			var buf sfnt.Buffer
+			has := func(r rune) bool {
+				gi, err := f.GlyphIndex(&buf, r)
+				return err == nil && gi != 0
+			}
 			for lang, m := range b.site.Strings {
 				for key, v := range m {
 					for _, r := range v {
-						if unicode.IsSpace(r) {
+						if !unicode.IsSpace(r) && !has(r) {
+							probs.Add(filepath.Join("i18n", lang+".yaml"), 0, "%s uses %q (U+%04X), which the body font lacks; add it to UNICODES in scripts/fonts.sh or change the string", key, string(r), r)
+						}
+					}
+				}
+			}
+			// The content too, front matter included (titles and summaries are text). Code is set in the system mono stack,
+			// so fenced blocks and inline spans are skipped; the ⟨placeholder⟩ brackets are checkPlaceholders' finding (exit 3).
+			for _, file := range b.contentFiles() {
+				src, err := os.ReadFile(file)
+				if err != nil {
+					continue // load already reported it
+				}
+				for i, line := range strings.Split(withoutMarkdownCode(string(src)), "\n") {
+					seen := map[rune]bool{}
+					for _, r := range line {
+						if unicode.IsSpace(r) || r == '⟨' || r == '⟩' || seen[r] {
 							continue
 						}
-						if gi, err := f.GlyphIndex(&buf, r); err != nil || gi == 0 {
-							probs.Add(filepath.Join("i18n", lang+".yaml"), 0, "%s uses %q (U+%04X), which the body font lacks; add it to UNICODES in scripts/fonts.sh or change the string", key, string(r), r)
+						seen[r] = true
+						if !has(r) {
+							probs.Add(file, i+1, "%q (U+%04X) is not in the web-font subset; add it to UNICODES in scripts/fonts.sh or change the text", string(r), r)
 						}
 					}
 				}
 			}
 		}
 	}
-	css, _ := os.ReadFile(filepath.Join(o.Root, "assets", "css", "site.css"))
-	fb, err := os.ReadFile(filepath.Join(o.Root, "assets", "fonts", "web", "fallback.css"))
-	if err != nil {
-		probs.Add("assets/fonts/web/fallback.css", 0, "missing; run scripts/fonts.sh")
-	} else {
-		for i, line := range strings.Split(strings.TrimSpace(string(fb)), "\n") {
-			if !strings.Contains(string(css), line) {
-				probs.Add("assets/css/site.css", 0, "fallback rule %d differs from assets/fonts/web/fallback.css; paste it verbatim", i+1)
+	// site.css must embed the generated fallback rules verbatim. An unreadable site.css is already render.New's problem above.
+	if css, err := os.ReadFile(filepath.Join(o.Root, "assets", "css", "site.css")); err == nil {
+		if fb, err := os.ReadFile(filepath.Join(o.Root, "assets", "fonts", "web", "fallback.css")); err != nil {
+			probs.Add("assets/fonts/web/fallback.css", 0, "missing; run scripts/fonts.sh")
+		} else {
+			for i, line := range strings.Split(strings.TrimSpace(string(fb)), "\n") {
+				if !strings.Contains(string(css), line) {
+					probs.Add("assets/css/site.css", 0, "fallback rule %d differs from assets/fonts/web/fallback.css; paste it verbatim", i+1)
+				}
 			}
 		}
 	}
@@ -135,6 +158,84 @@ func joinAuthor(existing, add error) error {
 		return add
 	}
 	return errors.Join(existing, add)
+}
+
+// contentFiles is every Markdown source the site loaded — pieces and pages — in a stable order.
+func (b *build) contentFiles() []string {
+	files := make([]string, 0, len(b.site.Pieces)+len(b.site.Pages))
+	for _, p := range b.site.Pieces {
+		files = append(files, p.File)
+	}
+	for _, pg := range b.site.Pages {
+		files = append(files, pg.File)
+	}
+	sort.Strings(files)
+	return files
+}
+
+// withoutMarkdownCode removes fenced code blocks and inline code spans from Markdown source, keeping every newline so
+// line numbers still address the file. A fence is three or more backticks or tildes at the start of a line and closes
+// on a line of at least as many of the same character; a span is a backtick run closed by a run of the same length.
+func withoutMarkdownCode(src string) string {
+	lines := strings.Split(src, "\n")
+	fence := ""
+	for i, line := range lines {
+		trimmed := strings.TrimLeft(line, " ")
+		if fence != "" {
+			if strings.HasPrefix(trimmed, fence) && strings.Trim(trimmed, fence[:1]+" ") == "" {
+				fence = ""
+			}
+			lines[i] = ""
+			continue
+		}
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			fence = trimmed[:len(trimmed)-len(strings.TrimLeft(trimmed, trimmed[:1]))]
+			lines[i] = "" // the info string is not prose
+			continue
+		}
+		lines[i] = withoutCodeSpans(line)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// withoutCodeSpans removes `code` spans from one line; an unclosed backtick run is literal text and stays.
+func withoutCodeSpans(line string) string {
+	var out strings.Builder
+	for i := 0; i < len(line); {
+		if line[i] != '`' {
+			out.WriteByte(line[i])
+			i++
+			continue
+		}
+		n := 0
+		for i+n < len(line) && line[i+n] == '`' {
+			n++
+		}
+		open := line[i : i+n]
+		rest := line[i+n:]
+		end := -1
+		for j := 0; j < len(rest); j++ {
+			if rest[j] != '`' {
+				continue
+			}
+			m := 0
+			for j+m < len(rest) && rest[j+m] == '`' {
+				m++
+			}
+			if m == n {
+				end = j + m
+				break
+			}
+			j += m - 1
+		}
+		if end < 0 {
+			out.WriteString(open)
+			i += n
+			continue
+		}
+		i += n + end
+	}
+	return out.String()
 }
 
 // knownPaths is every URL path the build emits (pages with trailing slash, plus machine files).
