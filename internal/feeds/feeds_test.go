@@ -29,9 +29,9 @@ func fixture(t *testing.T) (*config.Config, *content.Site, time.Time) {
 }
 
 func TestAbsolutize(t *testing.T) {
-	in := `<p>prose, /not a url</p><a href="/writing/x/">a</a><a href="#fn:1">1</a><img src="/img/k/f.png" srcset="/img/k/f.720.webp 720w, /img/k/f.1440.webp 1440w"><a href="https://ext/">e</a>`
+	in := `<p>prose, /not a url</p><a href="/writing/x/">a</a><a href="#fn:1">1</a><img src="/img/k/f.png" srcset="/img/k/f.720.webp 720w, /img/k/f.1440.webp 1440w"><a href="https://ext/">e</a><a href="//cdn.example/x">p</a><img srcset="//cdn.example/f.webp 720w"><a href="/">home</a>`
 	got := Absolutize(in, "https://herinean.com", "https://herinean.com/writing/y/")
-	for _, want := range []string{`<p>prose, /not a url</p>`, `href="https://herinean.com/writing/x/"`, `href="https://herinean.com/writing/y/#fn:1"`, `src="https://herinean.com/img/k/f.png"`, `srcset="https://herinean.com/img/k/f.720.webp 720w, https://herinean.com/img/k/f.1440.webp 1440w"`, `href="https://ext/"`} {
+	for _, want := range []string{`<p>prose, /not a url</p>`, `href="https://herinean.com/writing/x/"`, `href="https://herinean.com/writing/y/#fn:1"`, `src="https://herinean.com/img/k/f.png"`, `srcset="https://herinean.com/img/k/f.720.webp 720w, https://herinean.com/img/k/f.1440.webp 1440w"`, `href="https://ext/"`, `href="//cdn.example/x"`, `srcset="//cdn.example/f.webp 720w"`, `href="https://herinean.com/"`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %s in %s", want, got)
 		}
