@@ -47,8 +47,9 @@ func Check(o Options) error {
 			}
 		}
 	}
+	// the portrait is an author input (spec §14): missing is exit 3, not a real failure. Build still refuses without it.
 	if _, err := os.Stat(filepath.Join(o.Root, "assets", "portrait.jpg")); err != nil {
-		probs.Add("assets/portrait.jpg", 0, "the home page needs a portrait")
+		author = joinAuthor(author, fmt.Errorf("%w: assets/portrait.jpg is missing (the home page needs a portrait)", ErrAuthorInputs))
 	}
 	// fonts carry the Romanian glyphs
 	for _, f := range images.OGFontFiles {
@@ -79,6 +80,15 @@ func Check(o Options) error {
 		return err
 	}
 	return author
+}
+
+// joinAuthor accumulates author-input errors. errors.Is(result, ErrAuthorInputs) holds whenever it holds for any member,
+// and every member keeps its own text, one per line.
+func joinAuthor(existing, add error) error {
+	if existing == nil {
+		return add
+	}
+	return errors.Join(existing, add)
 }
 
 // knownPaths is every URL path the build emits (pages with trailing slash, plus machine files).

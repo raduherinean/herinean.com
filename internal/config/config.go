@@ -49,23 +49,33 @@ func Load(path string) (*Config, error) {
 	return &c, nil
 }
 
+// validate reports fields in struct order, and real errors before placeholders: a missing field (or a malformed
+// base_url) is exit 1 even if placeholders remain elsewhere; placeholders alone are reported together, so the
+// "what is still missing" report lists every one at once.
 func (c *Config) validate() error {
-	req := map[string]string{
-		"base_url": c.BaseURL, "name": c.Name,
-		"tagline.en": c.Tagline["en"], "tagline.ro": c.Tagline["ro"],
-		"author.linkedin": c.Author.LinkedIn, "author.x": c.Author.X, "author.github": c.Author.GitHub, "author.email": c.Author.Email,
-		"ai_disclosure.en": c.AIDisclosure["en"], "ai_disclosure.ro": c.AIDisclosure["ro"],
+	req := []struct{ key, val string }{
+		{"base_url", c.BaseURL}, {"name", c.Name},
+		{"tagline.en", c.Tagline["en"]}, {"tagline.ro", c.Tagline["ro"]},
+		{"author.linkedin", c.Author.LinkedIn}, {"author.x", c.Author.X}, {"author.github", c.Author.GitHub}, {"author.email", c.Author.Email},
+		{"ai_disclosure.en", c.AIDisclosure["en"]}, {"ai_disclosure.ro", c.AIDisclosure["ro"]},
 	}
-	for k, v := range req {
-		if strings.TrimSpace(v) == "" {
-			return fmt.Errorf("missing %s", k)
-		}
-		if strings.Contains(v, openMark) || strings.Contains(v, closeMark) {
-			return fmt.Errorf("%s still contains a ⟨placeholder⟩: %w", k, ErrPlaceholder)
+	for _, r := range req {
+		if strings.TrimSpace(r.val) == "" {
+			return fmt.Errorf("missing %s", r.key)
 		}
 	}
-	if !strings.HasPrefix(c.BaseURL, "https://") || strings.HasSuffix(c.BaseURL, "/") {
+	isPlaceholder := func(v string) bool { return strings.Contains(v, openMark) || strings.Contains(v, closeMark) }
+	if !isPlaceholder(c.BaseURL) && (!strings.HasPrefix(c.BaseURL, "https://") || strings.HasSuffix(c.BaseURL, "/")) {
 		return fmt.Errorf("base_url must start with https:// and have no trailing slash")
+	}
+	var ph []string
+	for _, r := range req {
+		if isPlaceholder(r.val) {
+			ph = append(ph, r.key)
+		}
+	}
+	if len(ph) > 0 {
+		return fmt.Errorf("%s still contain a ⟨placeholder⟩: %w", strings.Join(ph, ", "), ErrPlaceholder)
 	}
 	return nil
 }

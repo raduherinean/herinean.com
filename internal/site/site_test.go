@@ -77,3 +77,31 @@ name: R`)
 		t.Fatalf("Check() error = %v, want an error that is NOT ErrAuthorInputs", err)
 	}
 }
+
+// The portrait is an author input (spec §14): without it, Check is exit 3, not exit 1 — and it stays exit 3 next to
+// a placeholder, with both named.
+func TestCheckMissingPortraitIsAuthorInput(t *testing.T) {
+	root := fixtureRoot(t)
+	if err := os.Remove(filepath.Join(root, "assets", "portrait.jpg")); err != nil {
+		t.Fatal(err)
+	}
+
+	err := Check(Options{Root: root})
+	if !errors.Is(err, ErrAuthorInputs) {
+		t.Fatalf("Check() error = %v, want errors.Is(err, ErrAuthorInputs)", err)
+	}
+	if !strings.Contains(err.Error(), "portrait") {
+		t.Fatalf("Check() error = %v, want the portrait named", err)
+	}
+
+	writeSiteYAML(t, root, placeholderSiteYAML)
+	err = Check(Options{Root: root})
+	if !errors.Is(err, ErrAuthorInputs) {
+		t.Fatalf("Check() error = %v, want errors.Is(err, ErrAuthorInputs) with a placeholder and no portrait", err)
+	}
+	for _, want := range []string{"portrait", "tagline.en"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("Check() error lacks %q:\n%v", want, err)
+		}
+	}
+}

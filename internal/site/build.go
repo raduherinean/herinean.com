@@ -54,11 +54,7 @@ func load(o Options) (*build, error) {
 		author = fmt.Errorf("%w: %v", ErrAuthorInputs, err)
 	}
 	if pp := checkPlaceholders(o.Root); len(pp) > 0 {
-		if author == nil {
-			author = fmt.Errorf("%w:\n%v", ErrAuthorInputs, pp.Err())
-		} else {
-			author = fmt.Errorf("%w\n%v", author, pp.Err())
-		}
+		author = joinAuthor(author, fmt.Errorf("%w:\n%v", ErrAuthorInputs, pp.Err()))
 	}
 	s, probs := content.Load(o.Root, now)
 	if err := probs.Err(); err != nil {
