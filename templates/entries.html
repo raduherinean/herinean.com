@@ -1,0 +1,7 @@
+{{define "entries"}}<ul class="entries">
+{{range .Entries}}<li class="entry">
+<p class="meta"><time datetime="{{.DateISO}}">{{.DateText}}</time> · <span class="label">{{.PillarText}}</span>{{if .Foreign}} · <span class="badge"><span lang="{{.Lang}}">{{.Badge}}</span><span class="vh"> ({{.LangName}})</span></span>{{end}}</p>
+<p class="t"><a href="{{.URL}}"{{if .Foreign}} lang="{{.Lang}}" hreflang="{{.Lang}}"{{end}}>{{.Title}}</a></p>
+<p{{if .Foreign}} lang="{{.Lang}}"{{end}}>{{.Summary}}</p>
+</li>
+{{end}}</ul>{{end}}

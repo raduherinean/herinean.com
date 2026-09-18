@@ -1,0 +1,6 @@
+{{define "content"}}
+<h1 class="title">{{.T "index.title"}}</h1>
+{{range .Years}}<h2 class="year label">{{.Year}}</h2>
+{{template "entries" .}}
+{{end}}
+{{end}}

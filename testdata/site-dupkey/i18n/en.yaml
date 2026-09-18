@@ -30,3 +30,4 @@ notfound.title: Page not found
 notfound.body: Page not found.
 notfound.home: Home
 date.months: January,February,March,April,May,June,July,August,September,October,November,December
+date.months_short: Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec
