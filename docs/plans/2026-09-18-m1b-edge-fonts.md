@@ -22,11 +22,9 @@
 
 ## Operator inputs
 
-Radu, before Task 3:
-- Add to the infra token (Cloudflare → My Profile → API Tokens → edit): **Workers KV Storage: Edit** (account) and **Account Analytics: Read** (account). Both are used from this machine now and by the CI token in M2.
-- `sudo apt install -y fonts-liberation` only if Task 0 step 3 reports it missing (it is present on dgx as of 2026-09-18).
+Done 2026-09-18: the infra token carries **Workers KV Storage: Edit** (already there) and **Account Analytics: Read** (added). Task 0 step 4 only confirms it.
 
-Nothing else. The KV namespace id is produced by Task 3 and committed in `wrangler.toml`; account id and token come from `~/.config/herinean/m0.env` as in M0.
+Nothing else is needed from Radu; `sudo apt install -y fonts-liberation` only if Task 0 step 3 reports it missing (present on dgx as of 2026-09-18). The KV namespace id is produced by Task 3 and committed in `wrangler.toml`; account id and token come from `~/.config/herinean/m0.env` as in M0.
 
 ## File map
 
@@ -65,7 +63,7 @@ If `m1a/generator` has merged, branch from its merge target instead. M1a must be
 ```bash
 python3 -m venv ~/.local/share/fonttools && ~/.local/share/fonttools/bin/pip install -q --upgrade pip && ~/.local/share/fonttools/bin/pip install -q 'fonttools[woff]>=4.58,<5' 'brotli>=1.1'
 ln -sf ~/.local/share/fonttools/bin/pyftsubset ~/.local/share/fonttools/bin/fonttools ~/.local/bin/
-fonttools --version && pyftsubset --help | head -1
+~/.local/share/fonttools/bin/python -c 'import fontTools; print(fontTools.version)' && pyftsubset --help | head -1
 ```
 Expected: a version line (the exact version is recorded into `assets/fonts/web/BUILD.txt` by `scripts/fonts.sh`, which is how the outputs stay reproducible: same inputs, same fonttools, same bytes).
 
@@ -83,7 +81,7 @@ Expected: both present (they are, 2026-09-18). Missing → ask Radu for `sudo ap
 curl -sS -o /dev/null -w 'kv list: %{http_code}\n' -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces"
 curl -sS -o /dev/null -w 'analytics sql: %{http_code}\n' -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" --data "SELECT 1" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/analytics_engine/sql"
 ```
-Expected: `200` and `200` (the SQL endpoint answers 200 to `SELECT 1` with a readable token; 403 means the permission is missing). Never print the token.
+Expected: `200` and `200` — a `400` from the SQL endpoint also proves the permission (the query was parsed); only `403` means it is missing. Never print the token.
 
 - [ ] **Step 5: `scripts/setup.sh`** — extend the tool loop: `for t in go tofu jq dig curl node fonttools pyftsubset; do …` and add after it: `[ -f /usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf ] || echo "missing: fonts-liberation (sudo apt install -y fonts-liberation)"`. Commit: `M1b: setup — fonttools and node in the tool check` with trailers; push `gitea m1b/edge`.
 
@@ -108,6 +106,7 @@ Expected: `200` and `200` (the SQL endpoint answers 200 to `SELECT 1` with a rea
 package main
 
 import (
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"os"
@@ -159,7 +158,56 @@ func read(path string) (metrics, error) {
 		return metrics{}, fmt.Errorf("%s: no glyphs for the sample", path)
 	}
 	asc, desc, h := float64(m.Ascent)/64, float64(m.Descent)/64, float64(m.Height)/64
-	return metrics{upem: float64(f.UnitsPerEm()), ascent: asc, descent: desc, lineGap: h - asc - desc, avg: total / float64(n)}, nil
+	out := metrics{upem: float64(f.UnitsPerEm()), ascent: asc, descent: desc, lineGap: h - asc - desc, avg: total / float64(n)}
+	// Browsers take vertical metrics from OS/2 typo when USE_TYPO_METRICS is set; otherwise hhea (macOS, Linux) or usWin (Windows).
+	// x/image/font/sfnt exposes hhea only, so OS/2 is read directly.
+	if o, ok := readOS2(b); ok {
+		if o.useTypo {
+			out.ascent, out.descent, out.lineGap = o.typoAsc, o.typoDesc, o.typoGap
+		}
+		if o.typoAsc != asc || o.typoDesc != desc || o.winAsc != asc || o.winDesc != desc {
+			fmt.Fprintf(os.Stderr, "fontface: %s: hhea %.0f/%.0f, typo %.0f/%.0f, win %.0f/%.0f, USE_TYPO_METRICS=%v — platforms that read a different table shift by the difference\n",
+				path, asc, desc, o.typoAsc, o.typoDesc, o.winAsc, o.winDesc, o.useTypo)
+		}
+	}
+	return out, nil
+}
+
+type os2 struct {
+	useTypo                                          bool
+	typoAsc, typoDesc, typoGap, winAsc, winDesc float64 // descents positive, like font.Metrics
+}
+
+// readOS2 walks the sfnt table directory to the OS/2 table: fsSelection at 62, sTypoAscender 68, sTypoDescender 70, sTypoLineGap 72, usWinAscent 74, usWinDescent 76.
+func readOS2(b []byte) (os2, bool) {
+	if len(b) < 12 {
+		return os2{}, false
+	}
+	n := int(binary.BigEndian.Uint16(b[4:]))
+	for i := 0; i < n; i++ {
+		rec := 12 + 16*i
+		if rec+16 > len(b) {
+			return os2{}, false
+		}
+		if string(b[rec:rec+4]) != "OS/2" {
+			continue
+		}
+		off := int(binary.BigEndian.Uint32(b[rec+8:]))
+		if off+78 > len(b) {
+			return os2{}, false
+		}
+		t := b[off:]
+		i16 := func(o int) float64 { return float64(int16(binary.BigEndian.Uint16(t[o:]))) }
+		return os2{
+			useTypo:  binary.BigEndian.Uint16(t[62:])&(1<<7) != 0,
+			typoAsc:  i16(68),
+			typoDesc: -i16(70),
+			typoGap:  i16(72),
+			winAsc:   float64(binary.BigEndian.Uint16(t[74:])),
+			winDesc:  float64(binary.BigEndian.Uint16(t[76:])),
+		}, true
+	}
+	return os2{}, false
 }
 
 func pct(v float64) string {
@@ -227,6 +275,17 @@ func TestSelfMatchIsIdentity(t *testing.T) {
 	}
 }
 
+func TestOS2(t *testing.T) {
+	b, err := os.ReadFile(liberation)
+	if err != nil {
+		t.Skip("fonts-liberation not installed")
+	}
+	o, ok := readOS2(b)
+	if !ok || o.typoAsc <= 0 || o.typoDesc <= 0 || o.winAsc < o.typoAsc || o.winDesc < o.typoDesc {
+		t.Errorf("OS/2 metrics look wrong: %+v ok=%v", o, ok)
+	}
+}
+
 func TestPct(t *testing.T) {
 	for in, want := range map[float64]string{1: "100%", 0.9512: "95.12%", 0.2634567: "26.346%", 0: "0%"} {
 		if got := pct(in); got != want {
@@ -246,6 +305,7 @@ Run: `go test ./scripts/fontface/ && go vet ./...` → PASS. (`staticcheck` cove
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.local/bin:$PATH"
+export SOURCE_DATE_EPOCH=1758153600   # fonttools stamps head.modified from this (instancer and subsetter alike): same inputs → same bytes
 SRC=.cache/fonts/src; OUT=assets/fonts/web; LIB=/usr/share/fonts/truetype/liberation
 mkdir -p "$SRC" "$OUT"
 GF=a54f7446f84a1125ef6bf08baa46f3639e8905e0   # google/fonts main, 2026-09-18 (Newsreader variable master + OFL)
@@ -267,10 +327,11 @@ fonttools varLib.instancer "$SRC/Newsreader[opsz,wght].ttf" wght=500 opsz=36 -o 
 
 # Latin, Latin-1, Latin Extended-A, Romanian comma-below, and the punctuation the templates and typographer emit (– — ‘ ’ ‚ “ ” „ … ‹ › € → −).
 UNICODES='U+0020-007E,U+00A0-00FF,U+0100-017F,U+0218-021B,U+02C6,U+02DC,U+2013-2014,U+2018-201A,U+201C-201E,U+2026,U+2039-203A,U+20AC,U+2192,U+2212'
-FEATURES='kern,liga,calt,locl,tnum'   # tnum: .meta uses tabular-nums; no smcp — labels are letter-spaced uppercase, not small caps
+# --layout-features+= APPENDS to pyftsubset's defaults (kern, liga, calt, locl, ccmp, mark, mkmk, rlig …); "=" would replace them and break combining marks.
+# tnum: .meta uses tabular-nums. No smcp: labels are letter-spaced uppercase, not small caps.
 subset() { # name source
   for flavor in woff2 ttf; do
-    args=(--unicodes="$UNICODES" --layout-features="$FEATURES" --name-IDs=0,1,2,3,4,5,6,13,14 --no-hinting --no-recalc-timestamp --output-file="$OUT/$1.$flavor")
+    args=(--unicodes="$UNICODES" --layout-features+=tnum --name-IDs=0,1,2,3,4,5,6,13,14 --no-hinting --no-recalc-timestamp --output-file="$OUT/$1.$flavor")
     [ "$flavor" = woff2 ] && args+=(--flavor=woff2)
     pyftsubset "$2" "${args[@]}"
   done
@@ -288,9 +349,9 @@ subset Newsreader-Medium    "$SRC/Newsreader-Medium.ttf"
 
 {
   echo "generated by scripts/fonts.sh"
-  fonttools --version | sed 's/^/fonttools /'
-  echo "google/fonts $GF"; echo "adobe-fonts/source-serif $AS"
-  echo "newsreader instance: wght=500 opsz=36"; echo "unicodes: $UNICODES"; echo "features: $FEATURES"
+  ~/.local/share/fonttools/bin/python -c 'import fontTools; print("fonttools", fontTools.version)'
+  echo "google/fonts $GF"; echo "adobe-fonts/source-serif $AS"; echo "SOURCE_DATE_EPOCH $SOURCE_DATE_EPOCH"
+  echo "newsreader instance: wght=500 opsz=36"; echo "unicodes: $UNICODES"; echo "features: defaults + tnum"
   for f in "$OUT"/*.woff2; do printf '%s %s\n' "$(wc -c <"$f")" "$(basename "$f")"; done
 } > "$OUT/BUILD.txt"
 
@@ -305,7 +366,7 @@ cat "$OUT/fallback.css"
 ```bash
 chmod +x scripts/fonts.sh && scripts/fonts.sh && ls -l assets/fonts/web/ && cat assets/fonts/web/BUILD.txt
 ```
-Expected: three `.woff2` (roughly 25–35 KB each), three `.ttf` twins, two licences, `BUILD.txt`, `fallback.css` with three rules whose `size-adjust` is within 90–110% and `ascent-override` around 90–100% (Source Serif 4 hhea ascender ≈ 0.918 em; Liberation ≈ 0.891). If the total exceeds 100 KB: first drop `U+0100-017F` to the Romanian and Western-European letters actually used (`U+0102-0103,U+00C2-00E2,U+00CE-00EE,U+0218-021B` plus `U+0100-017F` is mostly unused), rerun; if still over, that is a finding for Radu, not a silent budget change. If `varLib.instancer` refuses `opsz=36` (outside the axis range), read the range from the error and pick the closest value; record it in `BUILD.txt`.
+Expected: three `.woff2` (roughly 25–35 KB each), three `.ttf` twins, two licences, `BUILD.txt`, `fallback.css` with three rules. Run it twice: `git status` must show no change the second time (that is what `SOURCE_DATE_EPOCH` buys). `fallback.css` rules whose `size-adjust` is within 90–110% and `ascent-override` around 90–100% (Source Serif 4 hhea ascender ≈ 0.918 em; Liberation ≈ 0.891). If the total exceeds 100 KB: first drop `U+0100-017F` to the Romanian and Western-European letters actually used (`U+0102-0103,U+00C2-00E2,U+00CE-00EE,U+0218-021B` plus `U+0100-017F` is mostly unused), rerun; if still over, that is a finding for Radu, not a silent budget change. If `varLib.instancer` refuses `opsz=36` (outside the axis range), read the range from the error and pick the closest value; record it in `BUILD.txt`.
 
 Check the italic rule: Liberation Serif Italic vs Source Serif 4 It — average widths differ more than the uprights; a `size-adjust` around 92–105% is normal.
 
@@ -340,6 +401,24 @@ Weight 600 is not shipped and `font-synthesis:none` forbids faking it, so remove
 			probs.Add(filepath.Join("assets", "fonts", "web", name+".woff2"), 0, "missing; run scripts/fonts.sh")
 		}
 	}
+	// Every character the UI strings use must have a glyph in the body font, or the fallback draws it (a different "→" on every page).
+	if body, err := os.ReadFile(filepath.Join(o.Root, "assets", "fonts", "web", WebFonts[0]+".ttf")); err == nil {
+		if f, err := sfnt.Parse(body); err == nil {
+			var buf sfnt.Buffer
+			for lang, m := range b.site.Strings {
+				for key, v := range m {
+					for _, r := range v {
+						if unicode.IsSpace(r) {
+							continue
+						}
+						if gi, err := f.GlyphIndex(&buf, r); err != nil || gi == 0 {
+							probs.Add(filepath.Join("i18n", lang+".yaml"), 0, "%s uses %q (U+%04X), which the body font lacks; add it to UNICODES in scripts/fonts.sh or change the string", key, string(r), r)
+						}
+					}
+				}
+			}
+		}
+	}
 	css, _ := os.ReadFile(filepath.Join(o.Root, "assets", "css", "site.css"))
 	fb, err := os.ReadFile(filepath.Join(o.Root, "assets", "fonts", "web", "fallback.css"))
 	if err != nil {
@@ -352,7 +431,7 @@ Weight 600 is not shipped and `font-synthesis:none` forbids faking it, so remove
 		}
 	}
 ```
-and a new file `internal/site/fonts.go`:
+(`check.go` imports gain `"unicode"` and `"golang.org/x/image/font/sfnt"`.) And a new file `internal/site/fonts.go`:
 ```go
 package site
 
@@ -461,7 +540,7 @@ func (b *build) fonts() (map[string]string, error) {
 ```
 `pages.go` `base()`: add `PreloadFont: b.preload` to the `PageData` literal. `scorecard.go`'s `Scorecard()`: `render.New(…, nil)` (the fragment carries no CSS).
 
-- [ ] **Step 4: `checkdist.go`** — fonts and preload invariants (row 14, row 21 static half):
+- [ ] **Step 4: `checkdist.go`** — fonts, preload and the row 14 estimate (requests ≤ 6, first view ≤ 150 KB), so the bench never discovers them. This block runs **before** the HTML walk (the walk uses `fontBytes` and `faviconBytes`):
 
 ```go
 	// Fonts: ≤ 100 KB shipped, every page preloads exactly one (the body regular), every preload and CSS url() target exists.
@@ -477,9 +556,45 @@ func (b *build) fonts() (map[string]string, error) {
 	if fontBytes == 0 || fontBytes > 100*1024 {
 		probs.Add("fonts", 0, "shipped fonts total %d bytes; want 1..102400 (row 14)", fontBytes)
 	}
+	var faviconBytes int64
+	if info, err := os.Stat(filepath.Join(dist, "favicon.svg")); err == nil {
+		faviconBytes = info.Size()
+	}
 ```
-and inside the per-HTML walk:
+and inside the per-HTML walk, after the gzip measurement:
 ```go
+		// Row 14 estimate: document + favicon + fonts (italic only when the page uses it) + images that are not lazy.
+		fonts := 2 // body regular + display
+		if reItalic.MatchString(s) {
+			fonts++
+		}
+		var eagerBytes int64
+		eager := 0
+		for _, m := range reEagerPicture.FindAllStringSubmatch(s, -1) { // <picture> with WebP candidates: the browser picks at most the largest
+			eager++
+			cands := strings.Split(m[1], ",")
+			last := strings.Fields(strings.TrimSpace(cands[len(cands)-1]))[0]
+			if info, err := os.Stat(filepath.Join(dist, filepath.FromSlash(last))); err == nil {
+				eagerBytes += info.Size()
+			}
+		}
+		for _, tag := range reImg.FindAllString(rePictureBlock.ReplaceAllString(s, ""), -1) { // plain <img> outside any <picture>
+			if strings.Contains(tag, `loading="lazy"`) {
+				continue
+			}
+			eager++
+			if m := reSrc.FindStringSubmatch(tag); m != nil { // the fallback file: an upper bound, WebP browsers never fetch it
+				if info, err := os.Stat(filepath.Join(dist, filepath.FromSlash(m[1]))); err == nil {
+					eagerBytes += info.Size()
+				}
+			}
+		}
+		if n := 2 + fonts + eager; n > 6 {
+			probs.Add(rel, 0, "estimated first-view requests %d > 6 (row 14): document, favicon, %d fonts, %d eager images", n, fonts, eager)
+		}
+		if total := int64(gz.Len()) + faviconBytes + fontBytes + eagerBytes; total > 150*1024 {
+			probs.Add(rel, 0, "estimated first-view transfer %d bytes > 153600 (row 14): html %d, favicon %d, fonts %d, images %d", total, gz.Len(), faviconBytes, fontBytes, eagerBytes)
+		}
 		if n := strings.Count(s, `rel="preload"`); n != 1 {
 			probs.Add(rel, 0, "%d preloads; exactly one (the body regular) is allowed", n)
 		}
@@ -494,7 +609,17 @@ and inside the per-HTML walk:
 			}
 		}
 ```
-with `rePreload = regexp.MustCompile(`<link rel="preload" href="([^"]+)" as="font"`)` and `reFontURL = regexp.MustCompile(`url\((/fonts/[^)]+)\)`)`.
+with
+```go
+	rePreload      = regexp.MustCompile(`<link rel="preload" href="([^"]+)" as="font"`)
+	reFontURL      = regexp.MustCompile(`url\((/fonts/[^)]+)\)`)
+	reItalic       = regexp.MustCompile(`<em\b|<i\b|<blockquote\b|<cite\b|class="c1?"|class="cm"|class="cs"`)
+	reEagerPicture = regexp.MustCompile(`<picture><source type="image/webp" srcset="([^"]+)"[^>]*><img [^>]*fetchpriority="high"`)
+	rePictureBlock = regexp.MustCompile(`(?s)<picture>.*?</picture>`)
+	reImg          = regexp.MustCompile(`<img\b[^>]*>`)
+	reSrc          = regexp.MustCompile(`src="([^"]+)"`)
+```
+(Go's `regexp` has no lookahead, hence the two-pass shape: pictures first, then plain images with the picture blocks cut out.)
 
 - [ ] **Step 5: Regenerate goldens, run everything, look**
 
@@ -511,12 +636,13 @@ In a browser on a piece page: DevTools → Network shows the document, `favicon.
 ### Task 3: The edge function — analytics, KV colophon, tests, bindings
 
 **Files:**
-- Modify: `worker/index.js`, `wrangler.toml`
+- Modify: `worker/index.js`, `wrangler.toml`, `.githooks/pre-commit`
 - Create: `worker/index.test.mjs`, `worker/package.json` (`{"type":"module","private":true}` — so `node --test` treats `.js` as ESM; no dependencies)
 
 **Interfaces:**
 - Bindings: `env.ASSETS` (existing), `env.VIEWS` (Analytics Engine dataset `herinean_views`), `env.SCORECARD` (KV; keys `scorecard` = validated HTML fragment `<table data-scorecard>…</table>`, `scorecard.json` = the CI results), `env.PROD_HOST` (var; `herinean.com`, overridable for `wrangler dev`).
-- Datapoint: `blobs: [path, lang, referrerHost, ref, country]`, `doubles: [1]`, `indexes: [path]` — blob1…blob5 in `scripts/analytics.sh`.
+- Datapoint: `blobs: [path, lang, referrerHost, ref, country]`, `doubles: [1]`, `indexes: [path]` — blob1…blob5 in `scripts/analytics.sh`. A view = GET, page path (`/` or `.html`), status 200 **or 304**.
+- KV keys: `scorecard` (fragment), `scorecard.json`, `scorecard.etag` (8 hex chars of the fragment's sha256; the Worker composes `W/"<asset>-<tag>"`).
 
 - [ ] **Step 1: Failing tests** — `worker/index.test.mjs` (Node's built-in runner; `Request`/`Response`/`Headers` are globals in Node 24; HTMLRewriter is not, so the KV path is verified with `wrangler dev` in step 4):
 
@@ -571,6 +697,26 @@ test("nothing is counted for bots, previews, non-HTML, errors or HEAD", async ()
   assert.deepEqual(h.points, []);
 });
 
+test("a 304 revalidation is a view too — returning readers", async () => {
+  const h = harness({ assets: () => new Response(null, { status: 304, headers: { etag: '"abc"' } }) });
+  await worker.fetch(req("https://herinean.com/writing/x/", { headers: { "if-none-match": '"abc"', "user-agent": "Mozilla/5.0" } }), h.env, h.ctx);
+  await h.settle();
+  assert.equal(h.points.length, 1);
+  assert.equal(h.points[0].blobs[0], "/writing/x/");
+});
+
+test("colophon: composite ETag from the asset and the KV fragment; a matching If-None-Match → 304 before HTMLRewriter", async () => {
+  const kv = { get: async (k) => ({ scorecard: "<table data-scorecard></table>", "scorecard.etag": "feed1234" })[k] ?? null };
+  let sawConditional = null;
+  const h = harness({ kv, assets: (r) => { sawConditional = r.headers.has("if-none-match"); return new Response("<html><table data-scorecard></table></html>", { status: 200, headers: { "content-type": "text/html; charset=utf-8", etag: '"abc"' } }); } });
+  const res = await worker.fetch(req("https://herinean.com/colophon/", { headers: { "if-none-match": 'W/"abc-feed1234"', "user-agent": "Mozilla/5.0" } }), h.env, h.ctx);
+  assert.equal(res.status, 304);
+  assert.equal(res.headers.get("etag"), 'W/"abc-feed1234"');
+  assert.equal(sawConditional, false, "the asset layer must never see the colophon's conditional header");
+  await h.settle();
+  assert.equal(h.points.length, 1, "the 304 is a view");
+});
+
 test("preview hosts: noindex on every response and a disallow-all robots.txt", async () => {
   const h = harness();
   const page = await worker.fetch(req("https://abc-herinean-com.example.workers.dev/"), h.env, h.ctx);
@@ -615,7 +761,8 @@ Run: `cd worker && node --test` → fails on the missing behaviour.
 
 const MTA_STS_HOST = "mta-sts.herinean.com";
 const REFS = new Set(["li", "x", "nl", "md"]);
-const BOT_UA = /bot|crawl|spider|slurp|preview|fetch|lighthouse|headless|monitor|curl|wget|python-requests|facebookexternalhit|linkedinbot|twitterbot/i;
+const BOT_UA = /bot|crawl|spider|slurp|preview|fetch|lighthouse|headless|monitor|curl|wget|python-requests|facebookexternalhit|linkedinbot|twitterbot|whatsapp|telegram|discord|slack|skype/i;
+const isPage = (p) => p.endsWith("/") || p.endsWith(".html");
 
 export default {
   async fetch(request, env, ctx) {
@@ -634,7 +781,7 @@ export default {
           headers: { "content-type": "text/plain; charset=utf-8", "x-robots-tag": "noindex, nofollow" },
         });
       }
-      const res = await withScorecard(url, await env.ASSETS.fetch(request), env);
+      const res = await withScorecard(request, url, await env.ASSETS.fetch(assetRequest(request, url)), env);
       const headers = new Headers(res.headers);
       headers.set("x-robots-tag", "noindex, nofollow");
       return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
@@ -642,13 +789,22 @@ export default {
 
     if (url.pathname === "/colophon/scorecard.json") return scorecardJSON(env);
 
-    const res = await withScorecard(url, await env.ASSETS.fetch(request), env);
-    if (request.method === "GET" && res.ok && (res.headers.get("content-type") || "").startsWith("text/html")) {
+    const res = await withScorecard(request, url, await env.ASSETS.fetch(assetRequest(request, url)), env);
+    // A view is a GET for a page path answered 200 or 304: revalidations are the returning readers, and a 304 carries no content-type.
+    if (request.method === "GET" && (res.status === 200 || res.status === 304) && isPage(url.pathname)) {
       ctx.waitUntil(Promise.resolve().then(() => count(request, url, env)).catch(() => {}));
     }
     return res;
   },
 };
+
+// The colophon's validator is composed below, so the asset layer must not answer its conditional requests itself.
+function assetRequest(request, url) {
+  if (url.pathname !== "/colophon/" || !request.headers.has("if-none-match")) return request;
+  const headers = new Headers(request.headers);
+  headers.delete("if-none-match");
+  return new Request(request, { headers });
+}
 
 // count writes: path, lang, referrer host, ref, country, 1. Never IP, user agent or the full referrer (spec §6.3; the privacy page says exactly this).
 function count(request, url, env) {
@@ -670,15 +826,18 @@ function count(request, url, env) {
 }
 
 // withScorecard replaces <table data-scorecard> on the colophon with the KV fragment (rendered and validated by CI, spec §7).
+// The ETag becomes asset etag + fragment hash (written by scripts/scorecard-publish.sh), so conditional requests still get 304s (row 17).
 // No KV value, or any failure: the built-in table (the same rows as of the last build) stays.
-async function withScorecard(url, res, env) {
-  if (url.pathname !== "/colophon/" || !res.ok || !env.SCORECARD) return res;
+async function withScorecard(request, url, res, env) {
+  if (url.pathname !== "/colophon/" || res.status !== 200 || !env.SCORECARD) return res;
   try {
-    const html = await env.SCORECARD.get("scorecard");
+    const [html, tag] = await Promise.all([env.SCORECARD.get("scorecard"), env.SCORECARD.get("scorecard.etag")]);
     if (!html) return res;
     const headers = new Headers(res.headers);
-    headers.delete("etag"); // the body changes; the asset's validator would lie
     headers.delete("content-length");
+    const etag = `W/"${(res.headers.get("etag") || "").replace(/^W\/|"/g, "")}-${tag || "kv"}"`;
+    headers.set("etag", etag);
+    if (request.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers });
     return new HTMLRewriter()
       .on("table[data-scorecard]", { element(el) { el.replace(html, { html: true }); } })
       .transform(new Response(res.body, { status: res.status, headers }));
@@ -690,10 +849,10 @@ async function withScorecard(url, res, env) {
 async function scorecardJSON(env) {
   const body = env.SCORECARD ? await env.SCORECARD.get("scorecard.json").catch(() => null) : null;
   if (!body) return new Response("Not found\n", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
-  return new Response(body, { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=300", "access-control-allow-origin": "*" } });
+  return new Response(body, { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=300", "access-control-allow-origin": "*", "x-content-type-options": "nosniff" } });
 }
 ```
-About 90 lines. `writeDataPoint` is synchronous, but it runs inside `waitUntil` so a thrown error can never touch the response (the last test proves it).
+About 110 lines. `writeDataPoint` is synchronous, but it runs inside `waitUntil` so a thrown error can never touch the response (the tests prove it). HTMLRewriter never sees a conditional request that matches: the 304 returns first.
 
 - [ ] **Step 3: `wrangler.toml`** — bindings and the host variable. Create the KV namespace first (spec §6.4: wrangler owns the Worker's bindings):
 
@@ -717,6 +876,13 @@ id = "<the id printed above>"
 ```
 `worker/package.json`: `{ "name": "herinean-com-worker", "private": true, "type": "module" }` — no dependencies, ever; the file exists only so `node --test` parses `index.js` as a module.
 
+`.githooks/pre-commit` gains, after the Go block:
+```bash
+if git diff --cached --name-only | grep -q '^worker/'; then
+  (cd worker && node --test)
+fi
+```
+
 - [ ] **Step 4: Run the tests, then the Worker locally against a real build**
 
 ```bash
@@ -728,12 +894,14 @@ curl -sSI http://127.0.0.1:8787/ | grep -ci 'content-security-policy\|strict-tra
 curl -sSI http://127.0.0.1:8787/ | grep -ci 'x-robots-tag'                              # 0: production path
 curl -sS http://127.0.0.1:8787/colophon/ | grep -c 'data-scorecard'                      # 1: built-in table (KV empty)
 curl -sS -o /dev/null -w 'scorecard.json %{http_code}\n' http://127.0.0.1:8787/colophon/scorecard.json   # 404
-go run ./cmd/site scorecard --out .cache/scorecard.html && npx --yes wrangler@4 kv key put --binding SCORECARD scorecard --path .cache/scorecard.html --local
+go run ./cmd/site scorecard --out .cache/scorecard.html && npx --yes wrangler@4 kv key put --binding SCORECARD scorecard --path .cache/scorecard.html --local && npx --yes wrangler@4 kv key put --binding SCORECARD scorecard.etag cafe0001 --local
 curl -sS http://127.0.0.1:8787/colophon/ | grep -c '(stale)\|not yet run'                 # ≥1: the KV fragment replaced the table
+et=$(curl -sSI http://127.0.0.1:8787/colophon/ | awk 'tolower($1)=="etag:"{print $2}' | tr -d '\r'); echo "etag $et"   # W/"…-cafe0001"
+curl -sS -o /dev/null -w 'colophon revalidation %{http_code}\n' -H "If-None-Match: $et" http://127.0.0.1:8787/colophon/   # 304
 curl -sS -o /dev/null -w 'writing (no slash) %{http_code} → %{redirect_url}\n' http://127.0.0.1:8787/writing
 kill %1
 ```
-Expected: `200`, `2`, `0`, `1`, `404`, `≥1`, `301 → …/writing/`. (`wrangler dev` builds the request URL from the Host header, so `--var PROD_HOST:127.0.0.1:8787` is what makes the production branch run locally.)
+Expected: `200`, `2`, `0`, `1`, `404`, `≥1`, an ETag ending in `-cafe0001"`, `304`, `301 → …/writing/`. (`wrangler dev` builds the request URL from the Host header, so `--var PROD_HOST:127.0.0.1:8787` is what makes the production branch run locally.)
 
 - [ ] **Step 5: Commit** — `M1b: edge function — analytics without a tracker, colophon scorecard from KV, preview marking; node tests; bindings` with trailers; push.
 
@@ -743,7 +911,7 @@ Expected: `200`, `2`, `0`, `1`, `404`, `≥1`, `301 → …/writing/`. (`wrangle
 
 **Files:**
 - Create: `scripts/preview.sh`, `scripts/deploy.sh`, `scripts/verify-preview.sh`, `scripts/scorecard-publish.sh`, `scripts/analytics.sh`
-- Modify: `scripts/deploy-placeholder.sh` (comment: rollback tool until launch)
+- Modify: `scripts/deploy-placeholder.sh` (comment: rollback tool until launch), `scripts/verify-edge.sh` (drop the two placeholder-only apex assertions)
 
 - [ ] **Step 1: `scripts/preview.sh`**
 
@@ -754,6 +922,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.local/bin:$PATH"
 . scripts/env.sh
+mkdir -p .cache
 go run ./cmd/site build && go run ./cmd/site check --dist
 out=$(npx --yes wrangler@4 versions upload 2>&1 | tee /dev/stderr)
 url=$(printf '%s\n' "$out" | grep -Eo 'https://[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev' | head -1)
@@ -773,8 +942,15 @@ export PATH="$HOME/.local/bin:$PATH"
 . scripts/env.sh
 go run ./cmd/site check && go run ./cmd/site build && go run ./cmd/site check --dist
 npx --yes wrangler@4 deploy
-scripts/verify-edge.sh
+scripts/verify-edge.sh && scripts/verify-preview.sh https://herinean.com --prod
 ```
+`scripts/verify-edge.sh` stays edge-only. Its apex section carries two placeholder-era assertions that the real site fails by construction (`x-robots-tag: ^noindex$`; body free of `<script`, which JSON-LD is). Delete these two lines:
+```
+expect_header "$U/" x-robots-tag '^noindex$'                     # placeholder only; M1 removes it on production
+expect_no_body "$U/" '<script|cdn-cgi|style='
+```
+and put in their place `# body, robots and script expectations differ between the placeholder and the site: scripts/verify-preview.sh [--prod] owns them`. Run `bash -n scripts/verify-edge.sh && scripts/verify-edge.sh | tail -1` → `121 passed, 0 failed` (two fewer than M0's 123).
+
 `scripts/deploy-placeholder.sh`: change its header comment to `# Rollback to the M0 placeholder (one noindex line with the full header set). Production deploys are scripts/deploy.sh.`
 
 - [ ] **Step 3: `scripts/verify-preview.sh URL`** — the same helper style as `verify-edge.sh`, against any base URL (preview or `http://127.0.0.1:8787`):
@@ -806,7 +982,7 @@ expect_header / cache-control '^public, max-age=0, must-revalidate$'
 expect_header / permissions-policy 'camera=\(\)'
 expect_header / content-type '^text/html; charset=utf-8$'
 printf '\n== fonts, images, feeds\n'
-font=$(curl -sS --max-time 20 "$BASE/" | grep -Eo '/fonts/[A-Za-z0-9.-]+\.woff2' | head -1)
+font=$(curl -sS --max-time 20 "$BASE/" | grep -Eo '<link rel="preload" href="[^"]+"' | grep -Eo '/fonts/[^"]+' | head -1)
 [ -n "$font" ] && ok "preload found: $font" || bad "no font preload on /"
 expect_header "$font" content-type '^font/woff2$'
 expect_header "$font" cache-control '^public, max-age=31536000, immutable$'
@@ -847,6 +1023,7 @@ IN=${1:-scorecard.json}
 go run ./cmd/site scorecard --in "$IN" --manual data/scorecard-manual.yaml --out .cache/scorecard.html
 grep -q '<table data-scorecard>' .cache/scorecard.html
 npx --yes wrangler@4 kv key put --binding SCORECARD --remote scorecard --path .cache/scorecard.html
+npx --yes wrangler@4 kv key put --binding SCORECARD --remote scorecard.etag "$(sha256sum .cache/scorecard.html | cut -c1-8)"   # the Worker's ETag suffix
 [ -f "$IN" ] && npx --yes wrangler@4 kv key put --binding SCORECARD --remote scorecard.json --path "$IN"
 echo "published: $(wc -c < .cache/scorecard.html) bytes"
 ```
@@ -944,7 +1121,7 @@ A system font stack costs nothing and can never shift layout, but the design (Cl
 Three static instances (Source Serif 4 Regular and Italic; Newsreader Medium at optical size 36), subset to Latin, Latin Extended-A, U+0218–021B and the site's punctuation, WOFF2, ≤ 100 KB together, served content-hashed and immutable from the same origin, body regular preloaded, `font-display: swap`. Each family has a fallback face — Times New Roman / Liberation Serif — with `size-adjust` and vertical overrides computed from the two font files by `scripts/fontface` (not typed in), so the swap moves nothing measurable. No weight the files lack is used; `font-synthesis: none` enforces it. `site check` verifies the glyphs and that the CSS embeds the generated rules; `site check --dist` verifies size, preload and presence; the M2 bench measures the swap in Chromium.
 
 ## Consequences
-Three requests per page for type (two on pages without italics). Android has neither Times nor Liberation: readers there see a plain serif for the swap window and a small shift — accepted. Changing a typeface is `scripts/fonts.sh` plus one paste and a golden refresh.
+Three requests per page for type (two on pages without italics). Android has neither Times nor Liberation, and Safari before 17.4 ignores the override descriptors: those readers see a plain serif for the swap window and a small shift — accepted, and measured nowhere. Changing a typeface is `scripts/fonts.sh` plus one paste and a golden refresh.
 ```
 
 - [ ] **Step 3: README status** — under the status line: `M1b: edge function, fonts, preview — done; production stays on the placeholder until launch (spec §11).`
@@ -984,4 +1161,6 @@ BODY
 
 **Type consistency.** `render.New(templatesDir, cssPath, fontURLs)` — Task 2 defines it; `build.go` and `scorecard.go` call it (three args); `render_test.go` passes `testFonts`. `site.WebFonts` — declared in Task 1 (`internal/site/fonts.go`), used by `check.go` (Task 1) and `build.go` (Task 2). `images.Hash8`, `images.CheckGlyphs` — M1a. `PageData.PreloadFont` — Task 2 struct field, template and `base()`. Worker `env.PROD_HOST`, `env.VIEWS`, `env.SCORECARD` — `wrangler.toml` bindings match `index.js` and the test harness; blob order `path, lang, referrer host, ref, country` matches `analytics.sh`'s `blob1…blob5`. Scripts read `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` from `scripts/env.sh` as M0 does.
 
-**Known limits stated, not hidden.** `x/image/font/sfnt` reads hhea metrics; browsers on Windows may use OS/2 metrics for the web font, so the override can be off by a percent there — row 21 is measured on Linux. `BOT_UA` is a heuristic; the colophon already says views include some bots. HTMLRewriter cannot run under `node --test`; the KV fill is verified with `wrangler dev` and on the preview.
+**Adversarial review 2026-09-18, folded in.** `deploy.sh` verifies with both suites and `verify-edge.sh` loses its two placeholder-only assertions; `SOURCE_DATE_EPOCH` in `fonts.sh`; views counted on 200 and 304 by page path; `--layout-features+=` keeps pyftsubset's defaults; `fontface` reads OS/2 (typo when USE_TYPO_METRICS, warns on disagreement); `check --dist` estimates row 14 (requests and first-view bytes) and the M1a portrait drops to 320/480; colophon keeps a composite ETag and answers 304 itself; fonttools version read from Python; the feed Content-Type contingency names the `run_worker_first` change; link-preview fetchers in `BOT_UA`; UI-string runes checked against the body font; nosniff on the JSON; hook runs the Worker tests; `mkdir -p .cache`; SQL-permission check reads 400 correctly; token state recorded; preload grep targets the `<link>`; Safari < 17.4 stated in ADR-0010.
+
+**Known limits stated, not hidden.** `fontface` follows USE_TYPO_METRICS; a font that leaves the bit unset and disagrees between hhea and usWin renders differently on Windows than the override assumes — the tool prints the three sets so the executor can see whether that applies (Source Serif 4 and Newsreader are expected to agree). `BOT_UA` is a heuristic; the colophon already says views include some bots. HTMLRewriter cannot run under `node --test`; the KV fill is verified with `wrangler dev` and on the preview.

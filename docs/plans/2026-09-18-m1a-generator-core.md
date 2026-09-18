@@ -3825,7 +3825,7 @@ func Headers(cssHash string) []byte {
 
 - [ ] **Step 3: Run, pass, commit** — `M1a: edge — _headers with the CSS hash, per-path CORP and caching` with trailers; push.
 
-To verify at the first M1b deploy (add to `scripts/verify-edge.sh` then): `/img/<any>` returns exactly one `cache-control` (`immutable`) and `cross-origin-resource-policy: cross-origin`; `/feed.xml` returns `content-type: application/rss+xml; charset=utf-8`. If Cloudflare ignores a `Content-Type` override from `_headers`, the Worker sets it for `/feed.*` — a five-line change there, not here.
+To verify at the first M1b deploy (add to `scripts/verify-edge.sh` then): `/img/<any>` returns exactly one `cache-control` (`immutable`) and `cross-origin-resource-policy: cross-origin`; `/feed.xml` returns `content-type: application/rss+xml; charset=utf-8`. If Cloudflare ignores a `Content-Type` override from `_headers`, feeds must be routed through the Worker to fix it: remove `"!/feed.*"` from `run_worker_first` in `wrangler.toml` and set the header there for `/feed.*` paths (M1b's Worker; feeds otherwise never reach it).
 
 ---
 
@@ -4022,8 +4022,9 @@ func (b *build) images() error {
 	}
 	portrait := filepath.Join(b.o.Root, "assets", "portrait.jpg")
 	b.portraitRaw, _ = os.ReadFile(portrait)
-	// Displayed at ≤ 10rem: 320 for 1× and 640 for 2× screens. The default 720/1440 would ship a photo for a thumbnail.
-	info, err := images.Process(portrait, "home", "portrait.jpg", images.Options{Widths: []int{320, 640}, Cache: b.cache})
+	// Displayed at ≤ 10rem (160 CSS px): 320 is 2×, 480 covers 3× phones. The default 720/1440 would ship a photo for a thumbnail
+	// and blow row 14's 150 KB first view on the home page.
+	info, err := images.Process(portrait, "home", "portrait.jpg", images.Options{Widths: []int{320, 480}, Cache: b.cache})
 	if err != nil {
 		probs.Add("assets/portrait.jpg", 0, "%v (the home page needs a portrait)", err)
 	} else {
@@ -5204,6 +5205,6 @@ BODY
 
 **Placeholder scan.** ⟨⟩ markers appear only where the spec (§14) names author inputs; the build refuses them with exit 3 (warning in the hook, failure in CI).
 
-**Adversarial review 2026-09-18, folded in.** Branch base `infra/m0` (main has five files); exit-3 hook so fonts/templates/content commit before author inputs; per-kind template clones (one `ParseGlob` set would render the last `content` everywhere); `webp.Encode(w, img, opts)`; tables: no align/style, wrapped in a focusable region; portrait at 320/640 in `<picture>`; srcset widths deduplicated; code colours from the palette (no generated chroma CSS clashing with `pre`); `! Header` detach in `_headers`; `interest-cohort` dropped; fenced code needs a language + `<pre tabindex` asserted in `check --dist`; home `h1` in the masthead and tagline inside `header`; content-hash cache for variants and OG cards; home OG carries the portrait; static OG fonts at the right optical size and weight; page bodies in the link check; fixture dates pinned before the build epoch; rune-safe ellipsis; byline role via i18n; `data-scorecard` hook; badge `lang` scoped to the code; sitemap `lastmod` from the file's last commit; placeholder `mta-sts.txt` copied, not moved; cruft removed; staticcheck fallback; SVG width/height in any order; srcset-aware `Absolutize` with page-rooted fragments; `clip-path` for `.vh`; page `summary` for meta descriptions.
+**Adversarial review 2026-09-18, folded in.** Branch base `infra/m0` (main has five files); exit-3 hook so fonts/templates/content commit before author inputs; per-kind template clones (one `ParseGlob` set would render the last `content` everywhere); `webp.Encode(w, img, opts)`; tables: no align/style, wrapped in a focusable region; portrait at 320/480 in `<picture>`; srcset widths deduplicated; code colours from the palette (no generated chroma CSS clashing with `pre`); `! Header` detach in `_headers`; `interest-cohort` dropped; fenced code needs a language + `<pre tabindex` asserted in `check --dist`; home `h1` in the masthead and tagline inside `header`; content-hash cache for variants and OG cards; home OG carries the portrait; static OG fonts at the right optical size and weight; page bodies in the link check; fixture dates pinned before the build epoch; rune-safe ellipsis; byline role via i18n; `data-scorecard` hook; badge `lang` scoped to the code; sitemap `lastmod` from the file's last commit; placeholder `mta-sts.txt` copied, not moved; cruft removed; staticcheck fallback; SVG width/height in any order; srcset-aware `Absolutize` with page-rooted fragments; `clip-path` for `.vh`; page `summary` for meta descriptions.
 
 **Type consistency.** `config.Config` methods `HomeURL/IndexURL/PieceURL/PrivacyURL/ColophonURL/FeedURL/Abs` used identically in Tasks 6, 7, 8, 10; `content.ImageInfo{Src, Srcset, Width, Height, IsSVG}` produced in Task 10 from `images.Info` and consumed by Task 2's renderer; `render.PageData` fields set in Task 10 match Task 6's struct; `render.ScorecardRow` is shared by Task 6 (template), Task 11 (rows) and the fragment; `images.Process(src, key, name, images.Options{…})`, `images.Cache`, `RenderOG(og, fonts, cache)`, `LoadFonts`, `OGFontFiles`, `CheckGlyphs` match between Tasks 4/5/10/12; `content.RenderBody(p, lookup, tableLabel)` between Tasks 2/3; `config.ErrPlaceholder` → `site.ErrAuthorInputs` → exit 3 between Tasks 0/10; `content.Site.T/Latest/AllImageRefs/Render/ByLang/Pages` as declared in Task 3.
