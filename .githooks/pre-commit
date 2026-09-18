@@ -17,7 +17,7 @@ if git diff --cached --name-only | grep -qE '^(content|i18n|assets|templates|sit
   bin=$(mktemp)
   trap 'rm -f "$bin"' EXIT
   go build -o "$bin" ./cmd/site
-  set +e; "$bin" check; rc=$?; set -e
+  set +e; SOURCE_DATE_EPOCH="$(date +%s)" "$bin" check; rc=$?; set -e
   if [ "$rc" -eq 3 ]; then
     echo "pre-commit: author inputs still missing (site check exit 3) — allowed before launch; CI will not allow it" >&2
   elif [ "$rc" -ne 0 ]; then

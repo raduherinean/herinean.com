@@ -30,6 +30,19 @@ All four domains: Workspace MX, SPF `include:_spf.google.com -all`, DMARC with s
 - Custom domains are declared in `wrangler.toml`; wrangler creates their DNS records. `run_worker_first` limits the Worker to page routes.
 - `_headers` apply to asset responses only, not to responses the Worker builds itself.
 
+## Generator
+- `go run ./cmd/site build` — reads `site.yaml`, `content/`, `i18n/`, `assets/`, `templates/` and writes `dist/`.
+- `go run ./cmd/site check [--dist]` — validates the sources without writing; `--dist` additionally checks a built `dist/`.
+- `go run ./cmd/site serve [--host 0.0.0.0] [--port 8080]` — rebuilds on each request and serves `dist/` for local/LAN preview.
+- `go run ./cmd/site new <en|ro> <slug>` — creates a new piece from `content/_template.md` under `content/<lang>/`.
+- `go run ./cmd/site scorecard` — prints the public build scorecard (also rendered on the colophon page).
+
+Exit codes: `0` everything checks out; `1` a real problem (bad front matter, missing i18n, cedilla, missing image, broken link, …); `3` only author inputs are missing (⟨placeholder⟩ text and/or `assets/portrait.jpg`) — the pre-commit hook warns and allows this, CI fails on it.
+
+Reproducibility: the build's notion of "now" is `SOURCE_DATE_EPOCH` if set, else the last commit's timestamp — wall-clock time never enters the output, so two builds of the same commit are byte-identical. `.cache/` is the image-processing cache (OG cards, resized images); it is safe to delete and will be rebuilt.
+
+If `site build` stops with `webp: a host libwebp was loaded…`, build with `-tags nodynamic` (or `CGO_ENABLED=0`) — the generator refuses host-dependent image bytes.
+
 ## TLS
 Minimum TLS 1.3 (see ADR-0011 for the evidence). Restricting the TLS 1.2 cipher list needs Advanced Certificate Manager ($10/month), which is why 1.2 is off rather than "on with modern ciphers".
 
