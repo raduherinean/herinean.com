@@ -65,6 +65,9 @@ func TestPieceGolden(t *testing.T) {
 			Description: p.Summary, Path: cfg.PieceURL(p.Lang, p.Slug), Canonical: cfg.Abs(cfg.PieceURL(p.Lang, p.Slug)),
 			OGImage: cfg.Abs("/og/" + p.Lang + "-" + p.Slug + ".deadbeef.png"), OGType: "article", OGLocale: map[string]string{"en": "en_US", "ro": "ro_RO"}[p.Lang],
 			Body: p.Body, DateISO: p.Date.Format("2006-01-02"), DateText: DateText(s, p.Lang, p.Date), PillarText: s.T(p.Lang, "pillar."+p.Pillar)}
+		if p.Updated != nil {
+			d.UpdatedISO, d.UpdatedText = p.Updated.Format("2006-01-02"), DateText(s, p.Lang, *p.Updated)
+		}
 		en, ro := "", ""
 		if p.Lang == "en" {
 			en = d.Path
