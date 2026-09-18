@@ -128,7 +128,9 @@ func Serve(o Options, host string, port int) error {
 		fp := filepath.Join(dist, filepath.FromSlash(p))
 		if st, err := os.Stat(fp); err == nil && st.IsDir() {
 			if !strings.HasSuffix(raw, "/") {
-				http.Redirect(w, r, raw+"/", http.StatusMovedPermanently)
+				// Location is built from the cleaned path: a raw "//writing" would otherwise redirect to the
+				// scheme-relative "//writing/", i.e. to another host.
+				http.Redirect(w, r, p+"/", http.StatusMovedPermanently)
 				return
 			}
 			fp = filepath.Join(fp, "index.html")

@@ -102,7 +102,7 @@ func TestHomeIndexGolden(t *testing.T) {
 			entries = append(entries, EntryFor(cfg, s, lang, p))
 		}
 		home := s.Pages["home."+lang]
-		d := &PageData{Cfg: cfg, Site: s, Lang: lang, Kind: "home", Page: home, Title: cfg.Name, HeadTitle: cfg.Name, Description: cfg.Tagline[lang],
+		d := &PageData{Cfg: cfg, Site: s, Lang: lang, Kind: "home", Page: home, Title: cfg.Name, HeadTitle: cfg.Name, Description: home.Summary,
 			Path: cfg.HomeURL(lang), Canonical: cfg.Abs(cfg.HomeURL(lang)), OGImage: cfg.Abs("/og/home-" + lang + ".deadbeef.png"), OGType: "website",
 			OGLocale: map[string]string{"en": "en_US", "ro": "ro_RO"}[lang], Body: home.Body, Tagline: cfg.Tagline[lang], Entries: entries,
 			Alternates: AlternatesFor(cfg, cfg.HomeURL("en"), cfg.HomeURL("ro")), JSONLD: WebSiteLD(cfg, lang, cfg.Tagline[lang])}

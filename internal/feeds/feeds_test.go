@@ -107,3 +107,19 @@ func TestJSONFeed(t *testing.T) {
 		t.Errorf("item: %+v", it)
 	}
 }
+
+// JSON Feed 1.1 requires "items" to be an array: a site with no pieces must emit [] and never null.
+func TestJSONFeedEmptySiteHasItemsArray(t *testing.T) {
+	cfg, full, now := fixture(t)
+	empty := &content.Site{ByLang: map[string][]*content.Piece{}, Pages: map[string]*content.Page{}, Strings: full.Strings}
+	b, err := JSON(cfg, empty, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"items": []`) {
+		t.Errorf("empty site must emit \"items\": [], got:\n%s", b)
+	}
+	if strings.Contains(string(b), "null") {
+		t.Errorf("no field may be null in the feed:\n%s", b)
+	}
+}

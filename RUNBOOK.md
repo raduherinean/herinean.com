@@ -31,6 +31,7 @@ All four domains: Workspace MX, SPF `include:_spf.google.com -all`, DMARC with s
 - `_headers` apply to asset responses only, not to responses the Worker builds itself.
 
 ## Generator
+- Build the binary with `go build -tags nodynamic -o site ./cmd/site` — the `nodynamic` tag is what keeps the WebP encoder pure Go (see below); `ci.yml` (M2) must pass the same tag. The `go run` forms below take the same `-tags nodynamic`; without it the build refuses to run on a machine that has libwebp installed.
 - `go run ./cmd/site build` — reads `site.yaml`, `content/`, `i18n/`, `assets/`, `templates/` and writes `dist/`.
 - `go run ./cmd/site check [--dist]` — validates the sources without writing; `--dist` additionally checks a built `dist/`.
 - `go run ./cmd/site serve [--host 0.0.0.0] [--port 8080]` — rebuilds on each request and serves `dist/` for local/LAN preview.
@@ -39,9 +40,14 @@ All four domains: Workspace MX, SPF `include:_spf.google.com -all`, DMARC with s
 
 Exit codes: `0` everything checks out; `1` a real problem (bad front matter, missing i18n, cedilla, missing image, broken link, …); `3` only author inputs are missing (⟨placeholder⟩ text and/or `assets/portrait.jpg`) — the pre-commit hook warns and allows this, CI fails on it.
 
-Reproducibility: the build's notion of "now" is `SOURCE_DATE_EPOCH` if set, else the last commit's timestamp — wall-clock time never enters the output, so two builds of the same commit are byte-identical. `.cache/` is the image-processing cache (OG cards, resized images); it is safe to delete and will be rebuilt.
+Reproducibility: the build's notion of "now" is `SOURCE_DATE_EPOCH` if set, else the last commit's timestamp — wall-clock time never enters the output, so two builds of the same commit are byte-identical. `.cache/` is the image-processing cache (OG cards, resized images), keyed by the Go version and the encoder module versions; it is safe to delete and will be rebuilt.
+- CI must clone with `fetch-depth: 0`: sitemap `lastmod` comes from each page's last commit, and a shallow clone makes every page carry HEAD's time.
+- CI pins `GOTOOLCHAIN=go1.27.1`: the colophon prints the Go version, so a different toolchain changes the output.
+- M2 verifies once that a CI (amd64) `dist/` hashes equal a local (arm64) one before claiming cross-machine byte identity — float rounding in the resizer may differ between architectures.
 
-If `site build` stops with `webp: a host libwebp was loaded…`, build with `-tags nodynamic` (or `CGO_ENABLED=0`) — the generator refuses host-dependent image bytes.
+If `site build` stops with `webp: a host libwebp was loaded…`, build with `-tags nodynamic` — the generator refuses host-dependent image bytes. `CGO_ENABLED=0` is not a remedy: purego loads the host library through its own fakecgo runtime on Linux, so only the build tag compiles the loader out.
+
+Portrait: export a square, pre-rotated JPEG ≥ 800 px to `assets/portrait.jpg` — the resizer ignores EXIF orientation.
 
 ## TLS
 Minimum TLS 1.3 (see ADR-0011 for the evidence). Restricting the TLS 1.2 cipher list needs Advanced Certificate Manager ($10/month), which is why 1.2 is off rather than "on with modern ciphers".

@@ -55,10 +55,11 @@ func tmpJPEG(t *testing.T, w, h int) string {
 // TestWebPEncoderIsPureGo documents the assumption the reproducibility guard in Process relies
 // on: gen2brain/webp must not have dlopen'd a host libwebp on this machine, or encoded bytes
 // would depend on the host's libwebp version. This fails loudly the day that assumption breaks
-// (e.g. a dynamically linked test binary on a machine with libwebp installed).
+// (e.g. a test binary on a machine with libwebp installed; CGO_ENABLED=0 does not help, purego
+// loads through fakecgo). The only remedy is -tags nodynamic.
 func TestWebPEncoderIsPureGo(t *testing.T) {
 	if webp.Dynamic() == nil {
-		t.Fatal("a host libwebp was loaded; webp output on this machine would not be reproducible (build with -tags nodynamic or CGO_ENABLED=0)")
+		t.Fatal("a host libwebp was loaded; webp output on this machine would not be reproducible (build and test with -tags nodynamic)")
 	}
 }
 
@@ -110,6 +111,16 @@ func TestProcessCustomWidthsAndCache(t *testing.T) {
 	})
 	if n != 3 {
 		t.Errorf("cache holds %d files, want 3 (two WebP, one PNG)", n)
+	}
+	// entries live under a root that names the encoder: a different Go or module version must never hit them
+	if !strings.HasPrefix(cacheVersion, "v1-") || len(cacheVersion) != len("v1-")+8 {
+		t.Errorf("cacheVersion %q must be v1- plus an 8-hex encoder hash", cacheVersion)
+	}
+	if _, err := os.Stat(filepath.Join(c.Dir, cacheVersion)); err != nil {
+		t.Errorf("cache root %s/%s missing: %v", c.Dir, cacheVersion, err)
+	}
+	if _, err := os.Stat(filepath.Join(c.Dir, "v1")); err == nil {
+		t.Errorf("entries were written under the unversioned v1/ root")
 	}
 	b, err := Process(src, "home", "portrait.png", Options{Widths: []int{320, 640}, Cache: c})
 	if err != nil {

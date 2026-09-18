@@ -105,3 +105,25 @@ func TestServeConcurrentRequestsBothSucceed(t *testing.T) {
 		}
 	}
 }
+
+// The directory redirect's Location must come from the cleaned path: a raw "//writing" is still a directory after
+// path.Clean, but raw+"/" would be the scheme-relative "//writing/", an open redirect to host "writing".
+func TestServeDirectoryRedirectUsesCleanPath(t *testing.T) {
+	root := fixtureRoot(t)
+	addr := startServe(t, Options{Root: root, Out: "dist"})
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	for raw, want := range map[string]string{"//writing": "/writing/", "/writing": "/writing/", "/ro//articole": "/ro/articole/"} {
+		req := &http.Request{Method: "GET", URL: &url.URL{Scheme: "http", Host: addr, Path: raw}, Host: addr, Header: make(http.Header)}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusMovedPermanently {
+			t.Errorf("%s: status = %d, want 301", raw, resp.StatusCode)
+		}
+		if got := resp.Header.Get("Location"); got != want {
+			t.Errorf("%s: Location = %q, want %q", raw, got, want)
+		}
+	}
+}

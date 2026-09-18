@@ -119,3 +119,33 @@ func TestFootnotesAndTables(t *testing.T) {
 		t.Errorf("%s", s)
 	}
 }
+
+// The title is the page's h1; a body may start at ## or ### and must then descend one level at a time.
+func TestBodyHeadingRules(t *testing.T) {
+	for _, tc := range []struct {
+		body string
+		want int
+		msg  string
+	}{
+		{"# Top\n\nText.\n", 1, "level-1"},
+		{"## A\n\n#### B\n", 1, "jumps"},
+		{"## A\n\n### B\n\n## C\n", 0, ""},
+		{"### A\n\n#### B\n", 0, ""}, // the first heading may be ###
+		{"## A\n\n### B\n\n## C\n\n#### D\n", 1, "jumps from h2 to h4"},
+	} {
+		p := piece("en", "")
+		probs := ParseBody(p, []byte(tc.body))
+		if len(probs) != tc.want {
+			t.Errorf("%q: %d problems, want %d: %+v", tc.body, len(probs), tc.want, probs)
+			continue
+		}
+		if tc.want == 1 && !strings.Contains(probs[0].Msg, tc.msg) {
+			t.Errorf("%q: problem %q does not mention %q", tc.body, probs[0].Msg, tc.msg)
+		}
+	}
+	// the finding points at the heading's own line (body starts at bodyLine 5 in this fixture)
+	probs := ParseBody(piece("en", ""), []byte("Intro.\n\n## A\n\n#### B\n"))
+	if len(probs) != 1 || probs[0].Line != 9 {
+		t.Errorf("want the jump reported at line 9, got %+v", probs)
+	}
+}

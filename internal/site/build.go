@@ -231,6 +231,9 @@ func goVersion() string { return runtime.Version() }
 
 // write puts every file into <out>.tmp (sorted, mtimes = build time), then swaps it into place.
 func (b *build) write() error {
+	if b.o.Out == "" || b.o.Out == "." {
+		return fmt.Errorf("site: refusing to write into the root (Out=%q)", b.o.Out)
+	}
 	out := filepath.Join(b.o.Root, b.o.Out)
 	tmp := out + ".tmp"
 	_ = os.RemoveAll(tmp)

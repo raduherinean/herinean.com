@@ -81,14 +81,15 @@ func Process(srcPath, key, name string, opt Options) (*Info, error) {
 	if format != "png" && format != "jpeg" {
 		return nil, fmt.Errorf("%s: only PNG, JPEG and SVG are supported (got %s)", srcPath, format)
 	}
-	// gen2brain/webp is transpiled WASM->Go, but at init() it dlopens a host libwebp via purego
-	// whenever the running binary is dynamically linked (always on macOS/Windows; on Linux only
-	// when the binary is dynamic, which the site binary will be because it imports net/http). If
-	// that happened, webp.Encode uses the host library and its output depends on the host's
+	// gen2brain/webp is transpiled WASM->Go, but at init() it tries to dlopen a host libwebp via
+	// purego. CGO_ENABLED=0 does NOT prevent that: purego loads libraries through its own fakecgo
+	// runtime on Linux, so a cgo-free binary still picks up a host libwebp when one is installed.
+	// If that happened, webp.Encode uses the host library and its output depends on the host's
 	// libwebp version, breaking "same commit => byte-identical dist/". Fail loudly instead of
-	// silently drifting; build with -tags nodynamic (or CGO_ENABLED=0 on Linux) to force pure Go.
+	// silently drifting; the only remedy is to build with -tags nodynamic, which compiles the
+	// dynamic loader out entirely.
 	if webp.Dynamic() == nil {
-		return nil, fmt.Errorf("webp: a host libwebp was loaded, so output would depend on this machine; build with -tags nodynamic (or CGO_ENABLED=0 on Linux) for reproducible images")
+		return nil, fmt.Errorf("webp: a host libwebp was loaded, so output would depend on this machine; build with -tags nodynamic for reproducible images")
 	}
 	bounds := image.Rect(0, 0, cfg.Width, cfg.Height)
 	var decoded image.Image // decoded lazily: a full cache hit never decodes

@@ -9,6 +9,7 @@ import (
 
 	"github.com/raduherinean/herinean.com/internal/content"
 	"github.com/raduherinean/herinean.com/internal/images"
+	"github.com/raduherinean/herinean.com/internal/render"
 )
 
 // checkPlaceholders fails on author-input markers left anywhere in content/ or site.yaml.
@@ -38,6 +39,11 @@ func Check(o Options) error {
 	}
 	author := err
 	var probs content.Problems
+	// templates parse and the CSS reads: a broken template is a real problem the pre-commit hook must catch, not
+	// something only `site build` discovers later
+	if _, err := render.New(filepath.Join(o.Root, "templates"), filepath.Join(o.Root, "assets", "css", "site.css")); err != nil {
+		probs.Add("templates", 0, "%v", err)
+	}
 	// images exist and are processable
 	for key, refs := range b.site.AllImageRefs() {
 		for _, ref := range refs {

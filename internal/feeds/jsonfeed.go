@@ -38,7 +38,8 @@ type jsonItem struct {
 
 func JSON(cfg *config.Config, s *content.Site, now time.Time) ([]byte, error) {
 	f := jsonFeed{Version: "https://jsonfeed.org/version/1.1", Title: cfg.Name, HomePageURL: cfg.Abs("/"), FeedURL: cfg.Abs("/feed.json"),
-		Description: cfg.Tagline["en"], Language: "en", Authors: []jsonAuthor{{Name: cfg.Name, URL: cfg.Abs("/")}}}
+		Description: cfg.Tagline["en"], Language: "en", Authors: []jsonAuthor{{Name: cfg.Name, URL: cfg.Abs("/")}},
+		Items: []jsonItem{}} // JSON Feed 1.1 requires an array; a nil slice would marshal as null on an empty site
 	for _, p := range s.Pieces {
 		u := cfg.Abs(cfg.PieceURL(p.Lang, p.Slug))
 		it := jsonItem{ID: u, URL: u, Title: p.Title, ContentHTML: Absolutize(string(p.Body), cfg.BaseURL, u), Summary: p.Summary,

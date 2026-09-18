@@ -27,6 +27,7 @@ var (
 	reHandler  = regexp.MustCompile(`(?i)\son[a-z]+\s*=\s*["']`)
 	reJSURL    = regexp.MustCompile(`(?i)\s(href|src)\s*=\s*["']\s*javascript:`)
 	reStyleTag = regexp.MustCompile(`(?is)<style>(.*?)</style>`)
+	reID       = regexp.MustCompile(`\sid="([^"]+)"`)
 	reOGImage  = regexp.MustCompile(`property="og:image" content="([^"]+)"`)
 	reHash     = regexp.MustCompile(`style-src '(sha256-[^']+)'`)
 	rePre      = regexp.MustCompile(`<pre\b[^>]*>`)
@@ -98,6 +99,9 @@ func CheckDist(o Options) error {
 	if strings.Contains(strings.ToLower(string(headers)), "x-robots-tag") {
 		probs.Add("_headers", 0, "must not set X-Robots-Tag on production")
 	}
+	if strings.Contains(strings.ToLower(string(headers)), "set-cookie") {
+		probs.Add("_headers", 0, "must not set a cookie (the site sets none; the privacy page says so)")
+	}
 	hm := reHash.FindSubmatch(headers)
 	if hm == nil {
 		probs.Add("_headers", 0, "no style-src hash in the CSP")
@@ -130,6 +134,16 @@ func CheckDist(o Options) error {
 			if !strings.Contains(pre, `tabindex="0"`) {
 				probs.Add(rel, 0, "%s lacks tabindex=\"0\": a scrolling block must be keyboard-focusable", pre)
 			}
+		}
+		if n := strings.Count(s, "<style"); n != 1 {
+			probs.Add(rel, 0, "expected exactly one <style>, found %d", n)
+		}
+		seen := map[string]bool{}
+		for _, m := range reID.FindAllStringSubmatch(s, -1) {
+			if seen[m[1]] {
+				probs.Add(rel, 0, "duplicate id %q", m[1])
+			}
+			seen[m[1]] = true
 		}
 		for _, must := range []string{`rel="canonical"`, `property="og:title"`, `property="og:type"`, `property="og:url"`, `property="og:description"`, `property="og:image"`, `name="twitter:card"`, `application/ld+json`, `rel="alternate" type="application/rss+xml"`, `<html lang="`} {
 			if !strings.Contains(s, must) {

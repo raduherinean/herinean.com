@@ -78,6 +78,25 @@ name: R`)
 	}
 }
 
+// A template that does not parse is a real problem (exit 1), found by check rather than only by build.
+func TestCheckParsesTemplates(t *testing.T) {
+	root := fixtureRoot(t)
+	if err := os.WriteFile(filepath.Join(root, "templates", "piece.html"), []byte("{{define \"main\"}}{{.Unclosed{{end}}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := Check(Options{Root: root})
+	if err == nil {
+		t.Fatal("Check() = nil, want a template parse problem")
+	}
+	if errors.Is(err, ErrAuthorInputs) {
+		t.Fatalf("Check() error = %v, want an error that is NOT ErrAuthorInputs", err)
+	}
+	if !strings.Contains(err.Error(), "template") {
+		t.Fatalf("Check() error = %v, want the template named", err)
+	}
+}
+
 // The portrait is an author input (spec §14): without it, Check is exit 3, not exit 1 — and it stays exit 3 next to
 // a placeholder, with both named.
 func TestCheckMissingPortraitIsAuthorInput(t *testing.T) {

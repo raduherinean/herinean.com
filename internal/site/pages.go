@@ -30,7 +30,7 @@ func (b *build) pages() error {
 	for _, lang := range content.Langs {
 		// home
 		home := s.Pages["home."+lang]
-		d := b.base(lang, "home", cfg.HomeURL(lang), cfg.Name, cfg.Tagline[lang])
+		d := b.base(lang, "home", cfg.HomeURL(lang), cfg.Name, home.Summary) // the masthead carries the tagline; the meta description is the page's own summary
 		d.HeadTitle = cfg.Name
 		d.Page, d.Body, d.Tagline, d.Portrait = home, home.Body, cfg.Tagline[lang], b.portrait
 		for _, p := range s.Latest(5) {
