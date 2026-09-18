@@ -24,11 +24,23 @@ Drift: anything changed in the dashboard shows up in the next `tofu plan` as an 
 All four domains: Workspace MX, SPF `include:_spf.google.com -all`, DMARC with strict alignment reporting to the zone's Cloudflare DMARC Management address and to `dmarc@` on itself. Policies: `.ro` `.info` reject; `.com` `.net` per `dmarc_policy` in `infra/zones.auto.tfvars` (flip to reject only after a signed test message shows spf/dkim/dmarc pass). herinean.com additionally: DKIM selector `google` (2048), MTA-STS (`mode: testing` → `enforce`: edit `infra/placeholder/.well-known/mta-sts.txt` (M0) or the generator's `static/` (M1+), bump `mta_sts_id` in `zones.auto.tfvars`, apply, deploy), TLS-RPT to dmarc@. Change the MX set only via `var.mx`.
 
 ## Worker
-- M0 placeholder: `scripts/deploy-placeholder.sh`. M1+: CI deploys on merge to `main`.
-- Roll back: `npx wrangler@4 rollback` (previous version) — or `npx wrangler@4 deployments list` then `rollback <id>`.
-- Preview: `npx wrangler@4 versions upload` prints a `workers.dev` preview URL. Cloudflare stamps every preview response `x-robots-tag: noindex` itself (it overrides the Worker's own value); the Worker additionally serves a disallow-all robots.txt there.
-- Custom domains are declared in `wrangler.toml`; wrangler creates their DNS records. `run_worker_first` limits the Worker to page routes.
-- `_headers` apply to asset responses only, not to responses the Worker builds itself.
+- Preview (any branch): `scripts/preview.sh` → builds, runs `check --dist`, uploads a version, prints the `workers.dev` URL (noindex, no analytics). Verify: `scripts/verify-preview.sh <url>`.
+- Production: `scripts/deploy.sh --yes-production` — launch criteria in spec §11; after M2, CI deploys `main` and this is the manual fallback.
+- Rollback to the placeholder: `scripts/deploy-placeholder.sh`. Rollback to a previous version: `npx wrangler@4 rollback`.
+- Local: `go build -tags nodynamic -o site ./cmd/site && ./site build && npx wrangler@4 dev --port 8787` — wrangler dev presents requests with the first route's host, so the production path runs locally (local KV/AE); `--var PROD_HOST:other` simulates a preview host; tests `cd worker && node --test`.
+- Bindings live in `wrangler.toml`: `ASSETS` (dist/), `VIEWS` (Analytics Engine `herinean_views`), `SCORECARD` (KV). The KV namespace id is committed; recreate with `wrangler kv namespace create SCORECARD` and update the id if it is ever lost.
+- Scorecard: `scripts/scorecard-publish.sh [scorecard.json]` writes the fragment + JSON to KV; the colophon reflects it on the next request. Empty KV → the built-in table from the last build.
+- Fonts, images, OG cards, feeds and machine files never reach the Worker (`run_worker_first` in wrangler.toml); the Worker sees page routes only.
+- Two things the Worker corrects on the asset layer's responses: `/writing` comes back as a 307 to `/writing/` and leaves as a 301 for GET and HEAD (URLs are permanent, decision #14); bare `text/html` and `text/plain` gain `charset=utf-8` (llms.txt and the Romanian pages are UTF-8 and say so).
+
+## Fonts
+- Shipped: `assets/fonts/web/*.woff2` (three files, ≤ 100 KB total, `BUILD.txt` records the exact inputs and fonttools version). Regenerate only when changing fonts: `scripts/fonts.sh` (needs `~/.local/share/fonttools`, see `scripts/setup.sh`), then paste `assets/fonts/web/fallback.css` into `site.css` — `site check` fails on drift. `font-display: optional` — the swap was measured and it shifts (ADR-0010).
+- Both families are pinned from one google/fonts commit. Source Serif 4 is taken from there rather than from Adobe's release because Adobe's licence reserves the name "Source" and the OFL forbids a subset (a Modified Version) from carrying a Reserved Font Name; the Google Fonts distribution declares none. `assets/fonts/web/OFL-*.txt` are the licences that apply to the shipped files.
+- Fallbacks are Times New Roman / Liberation Serif with computed overrides; Android (no Times) gets a plain serif and a small shift — accepted, row 21 measures on Linux CI.
+
+## Analytics
+- `scripts/analytics.sh [--days 30|90] [--by path|ref|country|referrer]` — live Analytics Engine query (token needs Account Analytics: Read). Weekly snapshots to KV and the merge are M2.
+- What is stored, verbatim from the privacy page: path, language, referring host, `ref` tag, country, 1. Nothing that can tell two readers apart. Verification runs (curl, the verify scripts) match the bot filter and are never counted.
 
 ## Generator
 - Build the binary with `go build -tags nodynamic -o site ./cmd/site` (gitignored) — the `nodynamic` tag is what keeps the WebP encoder pure Go (see below); `ci.yml` (M2) must pass the same tag to `go build`, `go test ./...` and `go vet`/`staticcheck` alike, since the image tests encode too. Prefer the built binary over `go run`: `go run` exits 1 for any non-zero child status, so it turns exit 3 into a plain failure and hides which case you are in.
