@@ -7,6 +7,8 @@ export PATH="$HOME/.local/bin:$PATH"
 . scripts/env.sh
 mkdir -p .cache
 go build -tags nodynamic -o .cache/site ./cmd/site
-.cache/site check && .cache/site build && .cache/site check --dist
+.cache/site check
+.cache/site build
+.cache/site check --dist
 npx --yes wrangler@4 deploy
 scripts/verify-edge.sh && scripts/verify-preview.sh https://herinean.com --prod

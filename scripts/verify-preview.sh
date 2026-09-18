@@ -16,7 +16,7 @@ printf '\n== pages\n'
 for p in / /ro/ /writing/ /ro/articole/ /colophon/ /privacy/ /ro/confidentialitate/; do expect_status "$p" 200; done
 expect_status /nope/ 404; expect_body /nope/ 'Pagina nu există'
 expect_status /writing 301; expect_header /writing location '/writing/$'
-printf '\n== headers (asset layer applies _headers; Worker leaves them alone)\n'
+printf '\n== headers (asset layer applies _headers; the Worker adds only the charset)\n'
 expect_header / content-security-policy "^default-src 'none'; style-src 'sha256-[A-Za-z0-9+/=]+'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'$"
 expect_header / strict-transport-security 'max-age=63072000; includeSubDomains; preload'
 expect_header / cross-origin-resource-policy '^same-origin$'
@@ -29,6 +29,7 @@ font=$(curl -sS --max-time 20 "$BASE/" | grep -Eo '<link rel="preload" href="[^"
 expect_header "$font" content-type '^font/woff2$'
 expect_header "$font" cache-control '^public, max-age=31536000, immutable$'
 og=$(curl -sS --max-time 20 "$BASE/" | grep -Eo '/og/[A-Za-z0-9.-]+\.png' | head -1)
+[ -n "$og" ] && ok "og image found: $og" || bad "no og:image on /"
 expect_header "$og" cross-origin-resource-policy '^cross-origin$'
 expect_header "$og" cache-control 'immutable'
 expect_header /feed.xml content-type '^application/rss\+xml; charset=utf-8$'
