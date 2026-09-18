@@ -16,6 +16,7 @@ func writeSiteYAML(t *testing.T, dir, content string) {
 
 func TestCheckPlaceholderReturnsErrAuthorInputs(t *testing.T) {
 	dir := t.TempDir()
+	t.Setenv("SOURCE_DATE_EPOCH", "1790000000") // load() needs a clock before it reads site.yaml; the temp dir is outside git
 	writeSiteYAML(t, dir, `base_url: https://h.com
 name: R
 tagline: {en: "⟨fill me⟩", ro: "x"}
@@ -30,6 +31,7 @@ ai_disclosure: {en: "e", ro: "f"}`)
 
 func TestCheckMissingFieldIsNotErrAuthorInputs(t *testing.T) {
 	dir := t.TempDir()
+	t.Setenv("SOURCE_DATE_EPOCH", "1790000000")
 	writeSiteYAML(t, dir, `base_url: https://h.com
 name: R`)
 
