@@ -11,3 +11,6 @@
 
 # wrangler local state
 /.wrangler/
+
+# built binary (go build -o site ./cmd/site)
+/site
