@@ -15,6 +15,8 @@ func TestHeaders(t *testing.T) {
 		"/og/*\n  ! Cross-Origin-Resource-Policy\n  ! Cache-Control\n  Cross-Origin-Resource-Policy: cross-origin",
 		"/feed.xml\n  ! Cache-Control\n  Content-Type: application/rss+xml; charset=utf-8\n  Cache-Control: public, max-age=300",
 		"/feed.json\n  Content-Type: application/feed+json; charset=utf-8",
+		"/llms.txt\n  Content-Type: text/plain; charset=utf-8",
+		"/robots.txt\n  Content-Type: text/plain; charset=utf-8",
 		"/.well-known/security.txt\n  Content-Type: text/plain; charset=utf-8",
 	} {
 		if !strings.Contains(h, want) {

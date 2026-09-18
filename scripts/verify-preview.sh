@@ -43,6 +43,9 @@ for p in / /colophon/; do
   expect_no_body "$p" '/cdn-cgi/'
   c=$(hdr "$p" set-cookie); [ -z "$c" ] && ok "$p no Set-Cookie" || bad "$p sets a cookie: $c"
 done
+printf '\n== colophon from KV\n'
+expect_body /colophon/ '<table data-scorecard>'
+expect_header /colophon/ etag '^W/"[0-9a-f]+-[0-9a-f]{8}"$'
 printf '\n== preview marking (skip with --prod)\n'
 if [ "${2:-}" != "--prod" ]; then
   expect_header / x-robots-tag 'noindex'

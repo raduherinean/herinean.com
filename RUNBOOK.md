@@ -29,7 +29,7 @@ All four domains: Workspace MX, SPF `include:_spf.google.com -all`, DMARC with s
 - Rollback to the placeholder: `scripts/deploy-placeholder.sh`. Rollback to a previous version: `npx wrangler@4 rollback`.
 - Local: `go build -tags nodynamic -o site ./cmd/site && ./site build && npx wrangler@4 dev --port 8787` — wrangler dev presents requests with the first route's host, so the production path runs locally (local KV/AE); `--var PROD_HOST:other` simulates a preview host; tests `cd worker && node --test`.
 - Bindings live in `wrangler.toml`: `ASSETS` (dist/), `VIEWS` (Analytics Engine `herinean_views`), `SCORECARD` (KV). The KV namespace id is committed; recreate with `wrangler kv namespace create SCORECARD` and update the id if it is ever lost.
-- Scorecard: `scripts/scorecard-publish.sh [scorecard.json]` writes the fragment + JSON to KV; the colophon reflects it on the next request. Empty KV → the built-in table from the last build.
+- Scorecard: `scripts/scorecard-publish.sh [scorecard.json]` writes two KV keys — `scorecard` (the HTML fragment, with the Worker's ETag suffix as its `etag` metadata) and `scorecard.json`; the colophon reflects it on the next request. Empty KV → the built-in table from the last build.
 - Fonts, images, OG cards, feeds and machine files never reach the Worker (`run_worker_first` in wrangler.toml); the Worker handles everything else — pages, `robots.txt`/`llms.txt`/`security.txt`, and the colophon's `scorecard.json`.
 - Two things the Worker corrects on the asset layer's responses: `/writing` comes back as a 307 to `/writing/` and leaves as a 301 for GET and HEAD (URLs are permanent, decision #14); bare `text/html` and `text/plain` gain `charset=utf-8` (llms.txt and the Romanian pages are UTF-8 and say so).
 
@@ -40,7 +40,7 @@ All four domains: Workspace MX, SPF `include:_spf.google.com -all`, DMARC with s
 
 ## Analytics
 - `scripts/analytics.sh [--days 30|90] [--by path|ref|country|referrer]` — live Analytics Engine query (token needs Account Analytics: Read). Weekly snapshots to KV and the merge are M2.
-- What is stored, verbatim from the privacy page: path, language, referring host, `ref` tag, country, 1. Nothing that can tell two readers apart. Verification runs (curl, the verify scripts) match the bot filter and are never counted.
+- What is stored, verbatim from the privacy page: path, language, referring host, `ref` tag, country, 1. Nothing that identifies a reader or links two visits to the same person. Verification runs (curl, the verify scripts) match the bot filter and are never counted.
 
 ## Generator
 - Build the binary with `go build -tags nodynamic -o site ./cmd/site` (gitignored) — the `nodynamic` tag is what keeps the WebP encoder pure Go (see below); `ci.yml` (M2) must pass the same tag to `go build`, `go test ./...` and `go vet`/`staticcheck` alike, since the image tests encode too. Prefer the built binary over `go run`: `go run` exits 1 for any non-zero child status, so it turns exit 3 into a plain failure and hides which case you are in.

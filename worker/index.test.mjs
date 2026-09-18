@@ -57,7 +57,7 @@ test("a 304 revalidation is a view too — returning readers", async () => {
 });
 
 test("colophon: composite ETag from the asset and the KV fragment; a matching If-None-Match → 304 before HTMLRewriter", async () => {
-  const kv = { get: async (k) => ({ scorecard: "<table data-scorecard></table>", "scorecard.etag": "feed1234" })[k] ?? null };
+  const kv = { getWithMetadata: async (k) => (k === "scorecard" ? { value: "<table data-scorecard></table>", metadata: { etag: "feed1234" } } : { value: null, metadata: null }) };
   let sawConditional = null;
   const h = harness({ kv, assets: (r) => { sawConditional = r.headers.has("if-none-match"); return new Response("<html><table data-scorecard></table></html>", { status: 200, headers: { "content-type": "text/html; charset=utf-8", etag: '"abc"' } }); } });
   const res = await worker.fetch(req("https://herinean.com/colophon/", { headers: { "if-none-match": 'W/"abc-feed1234"', "user-agent": "Mozilla/5.0" } }), h.env, h.ctx);
@@ -69,7 +69,7 @@ test("colophon: composite ETag from the asset and the KV fragment; a matching If
 });
 
 test("colophon with empty KV: the asset's own ETag still gets a 304", async () => {
-  const kv = { get: async () => null };
+  const kv = { getWithMetadata: async () => ({ value: null, metadata: null }) };
   const h = harness({ kv, assets: () => new Response("<html><table data-scorecard></table></html>", { status: 200, headers: { "content-type": "text/html; charset=utf-8", etag: '"abc"' } }) });
   const res = await worker.fetch(req("https://herinean.com/colophon/", { headers: { "if-none-match": '"abc"', "user-agent": "Mozilla/5.0" } }), h.env, h.ctx);
   assert.equal(res.status, 304);
@@ -108,6 +108,39 @@ test("a Worker error falls through to the plain asset", async () => {
   const res = await worker.fetch(req("https://herinean.com/"), h.env, h.ctx);
   assert.equal(res.status, 200);
   await assert.doesNotReject(h.settle());
+});
+
+test("any Worker error falls through to the plain asset", async () => {
+  const boom = () => { throw new Error("boom"); };
+  const h = harness({ kv: { getWithMetadata: boom, get: boom }, assets: () => new Response("<html><table data-scorecard></table></html>", HTML) });
+  assert.equal((await worker.fetch(req("https://herinean.com/colophon/"), h.env, h.ctx)).status, 200, "a KV read that throws keeps the built-in table");
+  assert.equal((await worker.fetch(req("https://herinean.com/colophon/scorecard.json"), h.env, h.ctx)).status, 200, "a throwing KV on the JSON path falls through to the asset");
+  Object.defineProperty(h.env, "PROD_HOST", { get() { throw new Error("boom"); } });
+  const res = await worker.fetch(req("https://herinean.com/writing/x/"), h.env, h.ctx);
+  assert.equal(res.status, 200, "an error before any branch is taken still answers with the asset");
+  assert.equal(await res.text(), "<html><table data-scorecard></table></html>");
+});
+
+test("bots and empty user agents are not counted", async () => {
+  const h = harness();
+  for (const ua of ["Mozilla/5.0 (compatible; Mastodon/4.2; +https://x)", "Bluesky Cardyb/1.1", "Go-http-client/2.0"]) {
+    await worker.fetch(req("https://herinean.com/writing/x/", { headers: { "user-agent": ua } }), h.env, h.ctx);
+  }
+  await worker.fetch(new Request("https://herinean.com/writing/x/"), h.env, h.ctx); // no User-Agent header at all
+  await h.settle();
+  assert.deepEqual(h.points, []);
+});
+
+test("weak and list validators match the composite ETag", async () => {
+  const kv = { getWithMetadata: async () => ({ value: "<table data-scorecard></table>", metadata: { etag: "feed1234" } }) };
+  const h = harness({ kv, assets: () => new Response("<html><table data-scorecard></table></html>", { status: 200, headers: { "content-type": "text/html; charset=utf-8", etag: '"abc"' } }) });
+  const list = await worker.fetch(req("https://herinean.com/colophon/", { headers: { "if-none-match": '"abc-feed1234", W/"other"', "user-agent": "Mozilla/5.0" } }), h.env, h.ctx);
+  assert.equal(list.status, 304);
+  const weak = await worker.fetch(req("https://herinean.com/colophon/", { headers: { "if-none-match": 'W/"abc-feed1234"', "user-agent": "Mozilla/5.0" } }), h.env, h.ctx);
+  assert.equal(weak.status, 304);
+  assert.equal(weak.headers.get("etag"), 'W/"abc-feed1234"');
+  const miss = await worker.fetch(req("https://herinean.com/colophon/", { headers: { "if-none-match": 'W/"zzz-feed1234", "abc-zzz"', "user-agent": "Mozilla/5.0" } }), h.env, h.ctx);
+  assert.equal(miss.status, 200, "a list with no matching tag is not a match");
 });
 
 test("charset: bare text/html and text/plain gain utf-8; an already-charset type and a binary type are untouched", async () => {
