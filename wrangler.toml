@@ -14,5 +14,18 @@ directory = "./dist"
 binding = "ASSETS"
 html_handling = "force-trailing-slash"
 not_found_handling = "404-page"
-# The Worker runs only for page routes. Images, OG cards, feeds and machine files come straight from the asset layer.
-run_worker_first = ["/*", "!/img/*", "!/og/*", "!/feed.*", "!/sitemap.xml", "!/favicon*", "!/apple-touch-icon*"]
+# The Worker runs only for page routes. Fonts, images, OG cards, feeds and machine files come straight from the asset layer.
+run_worker_first = ["/*", "!/img/*", "!/og/*", "!/feed.*", "!/sitemap.xml", "!/favicon*", "!/apple-touch-icon*", "!/fonts/*"]
+
+[vars]
+PROD_HOST = "herinean.com"   # wrangler dev: --var PROD_HOST:127.0.0.1:8787 exercises the production path locally
+
+# One datapoint per HTML view: path, lang, referrer host, ref, country, 1 — nothing else (spec §6.3).
+[[analytics_engine_datasets]]
+binding = "VIEWS"
+dataset = "herinean_views"
+
+# The colophon scorecard: an HTML fragment and its JSON, written by CI after each green post-deploy check (spec §7).
+[[kv_namespaces]]
+binding = "SCORECARD"
+id = "62348f3926714d6085de6fbcd775481a"
