@@ -25,7 +25,7 @@ export default {
           headers: { "content-type": "text/plain; charset=utf-8", "x-robots-tag": "noindex, nofollow" },
         });
       }
-      const res = await withScorecard(request, url, await env.ASSETS.fetch(assetRequest(request, url)), env);
+      const res = await withScorecard(request, url, permanent(request, await env.ASSETS.fetch(assetRequest(request, url))), env);
       const headers = new Headers(res.headers);
       headers.set("x-robots-tag", "noindex, nofollow");
       return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
@@ -33,7 +33,7 @@ export default {
 
     if (url.pathname === "/colophon/scorecard.json") return scorecardJSON(env);
 
-    const res = await withScorecard(request, url, await env.ASSETS.fetch(assetRequest(request, url)), env);
+    const res = await withScorecard(request, url, permanent(request, await env.ASSETS.fetch(assetRequest(request, url))), env);
     // A view is a GET for a page path answered 200 or 304: revalidations are the returning readers, and a 304 carries no content-type.
     if (request.method === "GET" && (res.status === 200 || res.status === 304) && isPage(url.pathname)) {
       ctx.waitUntil(Promise.resolve().then(() => count(request, url, env)).catch(() => {}));
@@ -48,6 +48,12 @@ function assetRequest(request, url) {
   const headers = new Headers(request.headers);
   headers.delete("if-none-match");
   return new Request(request, { headers });
+}
+
+// The asset layer canonicalises paths with 307s (html_handling); the site's URLs are permanent, so readers and crawlers get a 301.
+function permanent(request, res) {
+  if (res.status !== 307 || !res.headers.has("location") || (request.method !== "GET" && request.method !== "HEAD")) return res;
+  return new Response(null, { status: 301, headers: res.headers });
 }
 
 // count writes: path, lang, referrer host, ref, country, 1. Never IP, user agent or the full referrer (spec §6.3; the privacy page says exactly this).

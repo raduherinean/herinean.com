@@ -99,3 +99,14 @@ test("a Worker error falls through to the plain asset", async () => {
   assert.equal(res.status, 200);
   await assert.doesNotReject(h.settle());
 });
+
+test("the asset layer's 307 canonicalisation redirect becomes a 301 with the same location; POST is left alone", async () => {
+  const h = harness({ assets: () => new Response(null, { status: 307, headers: { location: "https://herinean.com/writing/" } }) });
+  const res = await worker.fetch(req("https://herinean.com/writing"), h.env, h.ctx);
+  assert.equal(res.status, 301);
+  assert.equal(res.headers.get("location"), "https://herinean.com/writing/");
+  const post = await worker.fetch(req("https://herinean.com/writing", { method: "POST" }), h.env, h.ctx);
+  assert.equal(post.status, 307);
+  await h.settle();
+  assert.deepEqual(h.points, [], "a redirect is not a view");
+});
