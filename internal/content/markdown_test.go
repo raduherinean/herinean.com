@@ -120,7 +120,7 @@ func TestFootnotesAndTables(t *testing.T) {
 	}
 }
 
-// The title is the page's h1; a body may start at ## or ### and must then descend one level at a time.
+// The title is the page's h1, so a body starts at ## and then descends one level at a time.
 func TestBodyHeadingRules(t *testing.T) {
 	for _, tc := range []struct {
 		body string
@@ -130,7 +130,7 @@ func TestBodyHeadingRules(t *testing.T) {
 		{"# Top\n\nText.\n", 1, "level-1"},
 		{"## A\n\n#### B\n", 1, "jumps"},
 		{"## A\n\n### B\n\n## C\n", 0, ""},
-		{"### A\n\n#### B\n", 0, ""}, // the first heading may be ###
+		{"### A\n\n#### B\n", 1, "jumps from h1 to h3"}, // the title is the h1; ### first skips h2
 		{"## A\n\n### B\n\n## C\n\n#### D\n", 1, "jumps from h2 to h4"},
 	} {
 		p := piece("en", "")

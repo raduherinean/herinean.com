@@ -2,6 +2,7 @@ package images
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -89,6 +90,38 @@ func TestProcessRaster(t *testing.T) {
 	again, _ := Process(src, "media", "fig.png", Options{})
 	if again.Src != info.Src {
 		t.Error("hash must be stable across runs")
+	}
+}
+
+// The cache root also names the in-repo encoding parameters — WebP/JPEG quality, the resize kernel, the OG card
+// layout — so a change to any of them starts a fresh cache instead of a warm .cache/ serving bytes the current code
+// no longer produces (which would make dist/ depend on what was cached, not on the commit).
+func TestCacheVersionCoversEncodeParameters(t *testing.T) {
+	if cacheVersionFor("a") == cacheVersionFor("b") {
+		t.Fatal("cache version ignores the parameter string")
+	}
+	if cacheVersion != cacheVersionFor(encodeParams()) {
+		t.Errorf("cacheVersion %q is not derived from encodeParams() %q", cacheVersion, encodeParams())
+	}
+	for _, want := range []string{fmt.Sprintf("webp=%d", webpQuality), fmt.Sprintf("jpeg=%d", jpegQuality), fmt.Sprintf("og=%d", ogLayout)} {
+		if !strings.Contains(encodeParams(), want) {
+			t.Errorf("encodeParams() %q lacks %q", encodeParams(), want)
+		}
+	}
+	// and the constant the key names is the one the encoder uses
+	src := tmpPNG(t, 1000, 1000)
+	got, err := Process(src, "k", "x.png", Options{Widths: []int{320}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(src)
+	img, _, _ := image.Decode(bytes.NewReader(raw))
+	var want bytes.Buffer
+	if err := webp.Encode(&want, resize(img, 320), webp.Options{Quality: webpQuality}); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got.Files["img/k/x."+Hash8(raw)+".320.webp"], want.Bytes()) {
+		t.Error("Process does not encode WebP at webpQuality")
 	}
 }
 

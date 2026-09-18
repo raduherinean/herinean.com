@@ -10,4 +10,4 @@ author:
   email: security@herinean.com
 ai_disclosure:
   en: "⟨The platform was designed and built with Claude; the writing is mine, edited with AI where noted.⟩"
-  ro: "⟨Platforma a fost proiectată și construită cu Claude; textele sunt ale mele, editate cu AI acolo unde e menționat.⟩"
+  # ro: optional — nothing renders it yet (the colophon is EN-only); add it when a Romanian page carries the disclosure

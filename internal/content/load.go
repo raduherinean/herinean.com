@@ -41,7 +41,19 @@ var pageFiles = map[string][]string{ // kind -> languages that must have it
 
 // Load parses and validates everything under root. Bodies are parsed, not yet rendered.
 func Load(root string, now time.Time) (*Site, Problems) {
-	var probs Problems
+	s, _, probs := load(root, now, false)
+	return s, probs
+}
+
+// LoadDraft is Load for `site serve`: a piece still missing what `site new` leaves blank (title, date, pillar,
+// summary) is loaded with visible defaults, and those gaps come back as warnings rather than problems, so the
+// author can write on the preview (spec §8). Every other rule still produces a problem.
+func LoadDraft(root string, now time.Time) (s *Site, warnings, probs Problems) {
+	return load(root, now, true)
+}
+
+func load(root string, now time.Time, draft bool) (*Site, Problems, Problems) {
+	var warnings, probs Problems
 	s := &Site{ByLang: map[string][]*Piece{}, Pages: map[string]*Page{}}
 	s.Strings, probs = loadStrings(filepath.Join(root, "i18n"))
 
@@ -72,7 +84,8 @@ func Load(root string, now time.Time) (*Site, Problems) {
 				}
 				continue
 			}
-			p, body, _, ps := ParseFrontMatter(file, src, lang, now)
+			p, body, _, ws, ps := parseFrontMatter(file, src, lang, now, draft)
+			warnings = append(warnings, ws...)
 			probs = append(probs, ps...)
 			if p == nil {
 				continue
@@ -94,7 +107,7 @@ func Load(root string, now time.Time) (*Site, Problems) {
 	for _, lang := range Langs {
 		sortPieces(s.ByLang[lang])
 	}
-	return s, probs
+	return s, warnings, probs
 }
 
 func parsePage(file string, src []byte, lang, kind string) (*Page, Problems) {

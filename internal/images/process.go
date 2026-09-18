@@ -23,6 +23,13 @@ var Widths = []int{720, 1440}
 
 const URLPrefix = "/img/"
 
+// Encoder settings. They are part of the cache identity (cacheVersion): change one and every cached variant is
+// stale, so the cache root moves with them instead of trusting anyone to remember to delete .cache/.
+const (
+	webpQuality = 82
+	jpegQuality = 85 // the original-format fallback
+)
+
 type Options struct {
 	Widths []int  // defaults to Widths; the largest is never exceeded by upscaling
 	Cache  *Cache // optional
@@ -130,7 +137,7 @@ func Process(srcPath, key, name string, opt Options) (*Info, error) {
 				return nil, fmt.Errorf("%s: %w", srcPath, err)
 			}
 			var buf bytes.Buffer
-			if err := webp.Encode(&buf, resize(src, w), webp.Options{Quality: 82}); err != nil {
+			if err := webp.Encode(&buf, resize(src, w), webp.Options{Quality: webpQuality}); err != nil {
 				return nil, fmt.Errorf("%s: webp: %w", srcPath, err)
 			}
 			wb = buf.Bytes()
@@ -150,7 +157,7 @@ func Process(srcPath, key, name string, opt Options) (*Info, error) {
 				if format == "png" {
 					err = png.Encode(&buf, resize(src, w))
 				} else {
-					err = jpeg.Encode(&buf, resize(src, w), &jpeg.Options{Quality: 85})
+					err = jpeg.Encode(&buf, resize(src, w), &jpeg.Options{Quality: jpegQuality})
 				}
 				if err != nil {
 					return nil, err

@@ -86,6 +86,30 @@ ai_disclosure: {en: "e", ro: "f"}`))
 	}
 }
 
+// The Romanian AI-disclosure sentence has no consumer yet (the colophon is EN-only, spec §4.1), so it is not an
+// author input the build can demand; a placeholder in it is still refused when it is present.
+func TestROAIDisclosureOptional(t *testing.T) {
+	c, err := Load(write(t, `base_url: https://h.com
+name: R
+tagline: {en: "a", ro: "x"}
+author: {linkedin: "a", x: "b", github: "c", email: "d"}
+ai_disclosure: {en: "e"}`))
+	if err != nil {
+		t.Fatalf("error = %v, want none without ai_disclosure.ro", err)
+	}
+	if c.AIDisclosure["ro"] != "" {
+		t.Fatalf("ai_disclosure.ro = %q, want empty", c.AIDisclosure["ro"])
+	}
+	_, err = Load(write(t, `base_url: https://h.com
+name: R
+tagline: {en: "a", ro: "x"}
+author: {linkedin: "a", x: "b", github: "c", email: "d"}
+ai_disclosure: {en: "e", ro: "⟨ro⟩"}`))
+	if !errors.Is(err, ErrPlaceholder) || !strings.Contains(err.Error(), "ai_disclosure.ro still contain") {
+		t.Fatalf("error = %v, want the ro placeholder refused when present", err)
+	}
+}
+
 // Every placeholder is listed, in struct order, and the parsed config still comes back.
 func TestPlaceholdersListedInOrder(t *testing.T) {
 	c, err := Load(write(t, `base_url: https://h.com

@@ -31,16 +31,16 @@ All four domains: Workspace MX, SPF `include:_spf.google.com -all`, DMARC with s
 - `_headers` apply to asset responses only, not to responses the Worker builds itself.
 
 ## Generator
-- Build the binary with `go build -tags nodynamic -o site ./cmd/site` — the `nodynamic` tag is what keeps the WebP encoder pure Go (see below); `ci.yml` (M2) must pass the same tag. The `go run` forms below take the same `-tags nodynamic`; without it the build refuses to run on a machine that has libwebp installed.
-- `go run ./cmd/site build` — reads `site.yaml`, `content/`, `i18n/`, `assets/`, `templates/` and writes `dist/`.
-- `go run ./cmd/site check [--dist]` — validates the sources without writing; `--dist` additionally checks a built `dist/`.
-- `go run ./cmd/site serve [--host 0.0.0.0] [--port 8080]` — rebuilds on each request and serves `dist/` for local/LAN preview.
-- `go run ./cmd/site new <en|ro> <slug>` — creates a new piece from `content/_template.md` under `content/<lang>/`.
-- `go run ./cmd/site scorecard` — prints the public build scorecard (also rendered on the colophon page).
+- Build the binary with `go build -tags nodynamic -o site ./cmd/site` (gitignored) — the `nodynamic` tag is what keeps the WebP encoder pure Go (see below); `ci.yml` (M2) must pass the same tag to `go build`, `go test ./...` and `go vet`/`staticcheck` alike, since the image tests encode too. Prefer the built binary over `go run`: `go run` exits 1 for any non-zero child status, so it turns exit 3 into a plain failure and hides which case you are in.
+- `./site build` — reads `site.yaml`, `content/`, `i18n/`, `assets/`, `templates/` and writes `dist/`.
+- `./site check [--dist]` — validates the sources without writing; `--dist` additionally checks a built `dist/`.
+- `./site serve [--host 0.0.0.0] [--port 8080]` — rebuilds on each request and serves `dist/` for local/LAN preview. It is where a piece gets written: the fields `site new` leaves blank (title, date, pillar, summary) render with visible draft defaults and are listed on stderr at each rebuild; `build` and `check` still refuse them. Everything else (cedilla, missing alt, broken link, …) fails the preview with the same `file:line` message.
+- `./site new <en|ro> <slug>` — creates a new piece from `content/_template.md` under `content/<lang>/`.
+- `./site scorecard` — prints the public build scorecard (also rendered on the colophon page).
 
 Exit codes: `0` everything checks out; `1` a real problem (bad front matter, missing i18n, cedilla, missing image, broken link, …); `3` only author inputs are missing (⟨placeholder⟩ text and/or `assets/portrait.jpg`) — the pre-commit hook warns and allows this, CI fails on it.
 
-Reproducibility: the build's notion of "now" is `SOURCE_DATE_EPOCH` if set, else the last commit's timestamp — wall-clock time never enters the output, so two builds of the same commit are byte-identical. `.cache/` is the image-processing cache (OG cards, resized images), keyed by the Go version and the encoder module versions; it is safe to delete and will be rebuilt.
+Reproducibility: the build's notion of "now" is `SOURCE_DATE_EPOCH` if set, else the last commit's timestamp — wall-clock time never enters the output, so two builds of the same commit are byte-identical. `.cache/` is the image-processing cache (OG cards, resized images), keyed by the Go version, the encoder module versions and the in-repo encoding settings (quality, resize kernel, `ogLayout` — bump that constant when the OG card's drawing changes); it is safe to delete and will be rebuilt.
 - CI must clone with `fetch-depth: 0`: sitemap `lastmod` comes from each page's last commit, and a shallow clone makes every page carry HEAD's time.
 - CI pins `GOTOOLCHAIN=go1.27.1`: the colophon prints the Go version, so a different toolchain changes the output.
 - M2 verifies once that a CI (amd64) `dist/` hashes equal a local (arm64) one before claiming cross-machine byte identity — float rounding in the resizer may differ between architectures.

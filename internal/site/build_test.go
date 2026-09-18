@@ -70,6 +70,32 @@ func TestBuildIsDeterministicAndPassesDistChecks(t *testing.T) {
 	}
 }
 
+// The home page changes when a piece is published and when the About copy is edited: its sitemap lastmod is the
+// later of the two. Outside git fileTime falls back to the build time, which the fixture pins after every piece date.
+func TestHomeLastModFollowsAboutEdits(t *testing.T) {
+	root := fixtureRoot(t)
+	b, err := load(Options{Root: root, Out: "dist"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	newest := b.site.Pieces[0].Date
+	if !b.now.After(newest) {
+		t.Fatalf("fixture: build time %s must be after the newest piece %s", b.now, newest)
+	}
+	for _, e := range b.sitemapEntries() {
+		switch e.Loc {
+		case b.cfg.Abs(b.cfg.HomeURL("en")), b.cfg.Abs(b.cfg.HomeURL("ro")):
+			if !e.LastMod.Equal(b.now) {
+				t.Errorf("%s lastmod = %s, want the _home.md time %s (later than the newest piece %s)", e.Loc, e.LastMod.Format("2006-01-02"), b.now.Format("2006-01-02"), newest.Format("2006-01-02"))
+			}
+		case b.cfg.Abs(b.cfg.IndexURL("en")), b.cfg.Abs(b.cfg.IndexURL("ro")):
+			if !e.LastMod.Equal(newest) {
+				t.Errorf("%s lastmod = %s, want the newest piece %s", e.Loc, e.LastMod.Format("2006-01-02"), newest.Format("2006-01-02"))
+			}
+		}
+	}
+}
+
 func snapshot(t *testing.T, dir string) map[string]string {
 	t.Helper()
 	out := map[string]string{}
@@ -110,6 +136,9 @@ func TestCheckDistCatchesHeaderGapsAndAttributes(t *testing.T) {
 		}
 		kept = append(kept, b)
 	}
+	// the HTML class (/*) is a path class too: drop HSTS and X-Frame-Options from it
+	kept[0] = strings.ReplaceAll(kept[0], "  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload\n", "")
+	kept[0] = strings.ReplaceAll(kept[0], "  X-Frame-Options: DENY\n", "")
 	kept[0] += "\n  Set-Cookie: x=1" // the site sets no cookie, in any block
 	if err := os.WriteFile(filepath.Join(dist, "_headers"), []byte(strings.Join(kept, "\n\n")), 0o644); err != nil {
 		t.Fatal(err)
@@ -127,12 +156,28 @@ func TestCheckDistCatchesHeaderGapsAndAttributes(t *testing.T) {
 	if err := os.WriteFile(page, p, 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// a second page carries the same attributes only inside code: goldmark escapes < > & " but leaves ' alone, so a
+	// single-quoted sample in a code span or block is text the rules must skip (one finding per page, so it needs
+	// its own page to be visible)
+	codePage := filepath.Join(dist, "ro", "confidentialitate", "index.html")
+	cp, err := os.ReadFile(codePage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	codeOnly := `<code>&lt;a onclick='x' style='y' href='javascript:z'&gt;</code>` +
+		`<pre tabindex="0"><code>&lt;p onclick='x' style='y'&gt;</code></pre>`
+	cp = []byte(strings.Replace(string(cp), "</main>", codeOnly+"</main>", 1))
+	if err := os.WriteFile(codePage, cp, 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	err = CheckDist(o)
 	if err == nil {
 		t.Fatal("CheckDist() = nil, want header and attribute findings")
 	}
 	for _, want := range []string{
+		"no rule for /* with Strict-Transport-Security: max-age=63072000; includeSubDomains; preload",
+		"no rule for /* with X-Frame-Options: DENY",
 		"no rule for /og/* with Cross-Origin-Resource-Policy: cross-origin",
 		"no rule for /og/* with max-age=31536000, immutable",
 		"no rule for /feed.ro.xml with Content-Type: application/rss+xml",
@@ -147,8 +192,13 @@ func TestCheckDistCatchesHeaderGapsAndAttributes(t *testing.T) {
 			t.Errorf("CheckDist() error lacks %q:\n%v", want, err)
 		}
 	}
-	if n := strings.Count(err.Error(), "event handler attribute found"); n != 1 {
-		t.Errorf("event handler reported %d times, want 1 (escaped code must not count)", n)
+	for _, rule := range []string{"event handler attribute found", "style= attribute found", "javascript: URL found"} {
+		if n := strings.Count(err.Error(), rule); n != 1 {
+			t.Errorf("%q reported %d times, want 1 (only the page with live attributes; code is text)", rule, n)
+		}
+		if strings.Contains(err.Error(), "ro/confidentialitate/index.html: "+rule) {
+			t.Errorf("%q reported for the page whose only match is inside <code>", rule)
+		}
 	}
 	if n := strings.Count(err.Error(), "duplicate id"); n != 2 {
 		t.Errorf("duplicate id reported %d times, want 2 (one per repeat of the page's own id=\"main\", none for unique ids)", n)

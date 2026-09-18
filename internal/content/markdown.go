@@ -90,18 +90,19 @@ func ParseBody(p *Piece, body []byte) Problems {
 	p.doc = md.Parser().Parse(text.NewReader(body))
 	p.Images, p.Links = nil, nil
 	words := 0
-	prevLevel := 0 // of the last heading seen in this body; 0 before the first
+	prevLevel := 1 // of the last heading seen; the template's h1 (title or masthead) precedes every body
 	_ = ast.Walk(p.doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
 		}
 		switch v := n.(type) {
 		case *ast.Heading:
-			// The title is the page's only h1 (spec §5.2); the first body heading may be ## or ###, and after that the
-			// outline may only descend one level at a time, so assistive tech and the outline algorithm see no gaps.
+			// The title is the page's only h1 (spec §5.2), so the first body heading is ## and the outline may only
+			// descend one level at a time after it (html-validate strict heading-level, row 2): no gaps for assistive
+			// tech or the outline algorithm.
 			if v.Level == 1 {
 				probs.Add(p.File, lineOf(body, v, p.bodyLine), "level-1 heading in body; the title is the page's h1 — use ## and below")
-			} else if prevLevel > 0 && v.Level > prevLevel+1 {
+			} else if v.Level > prevLevel+1 {
 				probs.Add(p.File, lineOf(body, v, p.bodyLine), "heading level jumps from h%d to h%d", prevLevel, v.Level)
 			}
 			prevLevel = v.Level

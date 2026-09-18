@@ -51,14 +51,16 @@ func Load(path string) (*Config, error) {
 
 // validate reports fields in struct order, and real errors before placeholders: a missing field (or a malformed
 // base_url) is exit 1 even if placeholders remain elsewhere; placeholders alone are reported together, so the
-// "what is still missing" report lists every one at once.
+// "what is still missing" report lists every one at once. Optional fields are only refused when they hold a
+// placeholder: ai_disclosure.ro has no consumer yet (the colophon is EN-only), so the build cannot demand it.
 func (c *Config) validate() error {
 	req := []struct{ key, val string }{
 		{"base_url", c.BaseURL}, {"name", c.Name},
 		{"tagline.en", c.Tagline["en"]}, {"tagline.ro", c.Tagline["ro"]},
 		{"author.linkedin", c.Author.LinkedIn}, {"author.x", c.Author.X}, {"author.github", c.Author.GitHub}, {"author.email", c.Author.Email},
-		{"ai_disclosure.en", c.AIDisclosure["en"]}, {"ai_disclosure.ro", c.AIDisclosure["ro"]},
+		{"ai_disclosure.en", c.AIDisclosure["en"]},
 	}
+	opt := []struct{ key, val string }{{"ai_disclosure.ro", c.AIDisclosure["ro"]}}
 	for _, r := range req {
 		if strings.TrimSpace(r.val) == "" {
 			return fmt.Errorf("missing %s", r.key)
@@ -69,7 +71,7 @@ func (c *Config) validate() error {
 		return fmt.Errorf("base_url must start with https:// and have no trailing slash")
 	}
 	var ph []string
-	for _, r := range req {
+	for _, r := range append(req, opt...) {
 		if isPlaceholder(r.val) {
 			ph = append(ph, r.key)
 		}

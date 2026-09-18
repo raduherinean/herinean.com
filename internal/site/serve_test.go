@@ -5,6 +5,8 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -102,6 +104,34 @@ func TestServeConcurrentRequestsBothSucceed(t *testing.T) {
 		}
 		if codes[i] != 200 {
 			t.Errorf("request %d: status = %d, want 200", i, codes[i])
+		}
+	}
+}
+
+// Spec §8: `site new` (blank title/date/pillar/summary) → "write on site serve". The preview therefore renders a
+// draft with visible defaults instead of answering 500 on every page, while build/check keep refusing it.
+func TestServeRendersDraftPiece(t *testing.T) {
+	root := fixtureRoot(t)
+	draft := "---\ntitle: \"\"\ndate:\nkey: draft-piece\npillar:\nsummary: \"\"\n---\n\n## Situation\n\nStill writing.\n"
+	if err := os.WriteFile(filepath.Join(root, "content", "en", "draft-piece.md"), []byte(draft), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Build(Options{Root: root, Out: "dist"}); err == nil || !strings.Contains(err.Error(), "date is empty") {
+		t.Fatalf("Build: want the draft refused, got %v", err)
+	}
+	addr := startServe(t, Options{Root: root, Out: "dist"})
+	resp, err := http.Get("http://" + addr + "/writing/draft-piece/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("draft page: status %d, want 200: %s", resp.StatusCode, body)
+	}
+	for _, want := range []string{"(draft) draft-piece", "Draft", "Still writing."} {
+		if !strings.Contains(string(body), want) {
+			t.Errorf("draft page lacks %q", want)
 		}
 	}
 }

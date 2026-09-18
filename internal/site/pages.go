@@ -135,7 +135,12 @@ func (b *build) sitemapEntries() []seo.URLEntry {
 	}
 	var es []seo.URLEntry
 	for _, lang := range content.Langs {
-		es = append(es, seo.URLEntry{Loc: cfg.Abs(cfg.HomeURL(lang)), LastMod: latest, Alternates: alts(cfg.HomeURL("en"), cfg.HomeURL("ro"))})
+		// home = About + latest: it moves with the newest piece or with an edit to _home.md, whichever is later
+		home := latest
+		if about := fileTime(b.o.Root, "content/"+lang+"/_home.md", b.now); about.After(home) {
+			home = about
+		}
+		es = append(es, seo.URLEntry{Loc: cfg.Abs(cfg.HomeURL(lang)), LastMod: home, Alternates: alts(cfg.HomeURL("en"), cfg.HomeURL("ro"))})
 		es = append(es, seo.URLEntry{Loc: cfg.Abs(cfg.IndexURL(lang)), LastMod: latest, Alternates: alts(cfg.IndexURL("en"), cfg.IndexURL("ro"))})
 		es = append(es, seo.URLEntry{Loc: cfg.Abs(cfg.PrivacyURL(lang)), LastMod: fileTime(b.o.Root, "content/"+lang+"/_privacy.md", b.now), Alternates: alts(cfg.PrivacyURL("en"), cfg.PrivacyURL("ro"))})
 	}

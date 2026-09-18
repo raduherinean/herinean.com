@@ -77,6 +77,7 @@ func hasDotDot(p string) bool {
 }
 
 func Serve(o Options, host string, port int) error {
+	o.Draft = true // the preview is where a piece gets written (spec §8): blanks render with defaults, not as a 500
 	dist := filepath.Join(o.Root, o.Out)
 	var mu sync.Mutex
 	var built time.Time

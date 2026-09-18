@@ -32,6 +32,9 @@ const (
 	ogW, ogH   = 1200, 630
 	ogMargin   = 80
 	ogTitleMax = 3
+	// ogLayout is the card's drawing version, folded into the cache root (cacheVersion): RenderOG's key covers every
+	// input but not this code, so bump it whenever the drawing changes, or a warm .cache/ keeps serving the old card.
+	ogLayout = 1
 )
 
 func face(f *opentype.Font, size float64) (font.Face, error) {

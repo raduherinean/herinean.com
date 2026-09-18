@@ -1,6 +1,8 @@
 package content
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -68,6 +70,50 @@ func TestI18nCompleteness(t *testing.T) {
 	_, probs := loadStrings("../../testdata/i18n-broken") // ro.yaml lacks footer.promise
 	if err := probs.Err(); err == nil || !strings.Contains(err.Error(), "footer.promise") {
 		t.Errorf("want missing-key error, got %v", err)
+	}
+}
+
+// What `site new` writes: every author field blank, key = slug.
+const draftPiece = "---\ntitle: \"\"\ndate:\nkey: draft-piece\npillar:\nsummary: \"\"\n---\n\n## Situation\n\nStill writing.\n"
+
+// `site serve` must show a piece the author is still writing (spec §8: "write on site serve"), so LoadDraft renders
+// the blanks `site new` leaves with visible defaults and reports them as warnings; Load keeps refusing them.
+func TestLoadDraftRendersBlankFrontMatter(t *testing.T) {
+	root := t.TempDir()
+	if err := os.CopyFS(root, os.DirFS("../../testdata/site")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "content", "en", "draft-piece.md"), []byte(draftPiece), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, probs := Load(root, fixtureNow)
+	if err := probs.Err(); err == nil || !strings.Contains(err.Error(), "date is empty") {
+		t.Fatalf("Load: want the empty date refused, got %v", err)
+	}
+	s, warnings, probs := LoadDraft(root, fixtureNow)
+	if err := probs.Err(); err != nil {
+		t.Fatalf("LoadDraft: problems %v, want none", err)
+	}
+	if len(warnings) != 4 {
+		t.Fatalf("LoadDraft: %d warnings, want 4 (title, date, pillar, summary): %+v", len(warnings), warnings)
+	}
+	var d *Piece
+	for _, p := range s.Pieces {
+		if p.Slug == "draft-piece" {
+			d = p
+		}
+	}
+	if d == nil {
+		t.Fatal("draft piece not loaded")
+	}
+	if d.Title != "(draft) draft-piece" || !d.Date.Equal(fixtureNow) || d.Pillar != "draft" || d.Summary == "" {
+		t.Errorf("draft defaults: title %q date %s pillar %q summary %q", d.Title, d.Date, d.Pillar, d.Summary)
+	}
+	if s.Pieces[0] != d {
+		t.Error("a draft dated at build time must sort first")
+	}
+	if s.T("en", "pillar.draft") == "" {
+		t.Error("pillar.draft label missing")
 	}
 }
 

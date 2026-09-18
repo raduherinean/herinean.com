@@ -193,7 +193,7 @@ Consequences enforced by `check --dist`: no `style=` attributes anywhere; chroma
 
 ### 6.3 Analytics
 
-One Analytics Engine dataset. Per HTML view: `path, lang, referrer host, ref, country, 1`. Not stored: IP, user agent, full referrer URL, or anything that counts *readers* rather than *reads*. Views include some bots; numbers compare pieces, they don't measure reach. The weekly job snapshots per-piece totals (by `ref`, by country) into a KV key so history survives platform retention. `scripts/analytics.sh` merges live + snapshot: views per piece, by `ref`, by country, 30/90 days. The statement above appears verbatim on the colophon and the privacy page.
+One Analytics Engine dataset. Per HTML view: `path, lang, referrer host, ref, country, 1`. Not stored: IP, user agent, full referrer URL, or anything that counts *readers* rather than *reads*. Views include some bots; numbers compare pieces, they don't measure reach. The weekly job snapshots per-piece totals (by `ref`, by country) into a KV key so history survives platform retention. `scripts/analytics.sh` merges live + snapshot: views per piece, by `ref`, by country, 30/90 days. The statement above appears, in substance, on the colophon and the privacy page (each in its own words: the colophon speaks to the peer, the privacy page to the reader, in both languages).
 
 ### 6.4 Infrastructure as code
 

@@ -17,6 +17,7 @@ pillar.build-log: Build log
 pillar.opportunity: Opportunity
 pillar.governance: AI + governance
 pillar.analysis: Analysis
+pillar.draft: Draft
 lang.en: English
 lang.ro: Romanian
 lang.badge.ro: RO

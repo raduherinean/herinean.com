@@ -33,7 +33,8 @@ type build struct {
 	og          map[string]string                        // "lang-slug" or "home-lang" → /og/… path
 	files       map[string][]byte                        // dist-relative path → bytes
 	portrait    *content.ImageInfo
-	portraitRaw []byte // source bytes, for the home OG card
+	portraitRaw []byte           // source bytes, for the home OG card
+	warnings    content.Problems // draft mode only: the blanks the preview filled in
 }
 
 // load reads everything a build or a check needs. Placeholders (site.yaml or content/) are collected into an
@@ -56,7 +57,13 @@ func load(o Options) (*build, error) {
 	if pp := checkPlaceholders(o.Root); len(pp) > 0 {
 		author = joinAuthor(author, fmt.Errorf("%w:\n%v", ErrAuthorInputs, pp.Err()))
 	}
-	s, probs := content.Load(o.Root, now)
+	var s *content.Site
+	var warnings, probs content.Problems
+	if o.Draft {
+		s, warnings, probs = content.LoadDraft(o.Root, now)
+	} else {
+		s, probs = content.Load(o.Root, now)
+	}
 	if err := probs.Err(); err != nil {
 		if author != nil {
 			return nil, fmt.Errorf("%v\n%v", err, author) // %v, not %w: a content problem is exit 1 even with placeholders around
@@ -64,13 +71,16 @@ func load(o Options) (*build, error) {
 		return nil, err
 	}
 	return &build{o: o, cfg: cfg, site: s, now: now, commit: Commit(o.Root), cache: &images.Cache{Dir: filepath.Join(o.Root, ".cache")},
-		files: map[string][]byte{}, imgs: map[string]map[string]*content.ImageInfo{}, og: map[string]string{}}, author
+		files: map[string][]byte{}, imgs: map[string]map[string]*content.ImageInfo{}, og: map[string]string{}, warnings: warnings}, author
 }
 
 func Build(o Options) error {
 	b, err := load(o)
 	if err != nil {
 		return err
+	}
+	for _, w := range b.warnings {
+		fmt.Fprintln(os.Stderr, "site: draft:", w.Error())
 	}
 	if err := b.images(); err != nil {
 		return err

@@ -1,6 +1,7 @@
 package images
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -12,10 +13,20 @@ import (
 type Cache struct{ Dir string }
 
 // cacheVersion folds the encoder identity into the cache root: a cached WebP/PNG/JPEG/OG byte stream is only valid for
-// the toolchain and the exact module versions that produced it. Bumping Go, gen2brain/webp or golang.org/x/image
-// therefore starts a fresh cache instead of serving bytes an older encoder produced, which would make dist/ depend on
-// what happened to be cached rather than on the commit. "v1-" is the layout version of the entries themselves.
-var cacheVersion = "v1-" + Hash8([]byte(runtime.Version()+" "+encoderVersions()))
+// the toolchain, the exact module versions and the in-repo settings (quality, resize kernel, OG layout) that produced
+// it. Changing any of them therefore starts a fresh cache instead of serving bytes an older encoder produced, which
+// would make dist/ depend on what happened to be cached rather than on the commit. "v1-" is the layout version of the
+// entries themselves.
+var cacheVersion = cacheVersionFor(encodeParams())
+
+func cacheVersionFor(params string) string {
+	return "v1-" + Hash8([]byte(runtime.Version()+" "+encoderVersions()+" "+params))
+}
+
+// encodeParams names every in-repo setting whose change alters encoded bytes.
+func encodeParams() string {
+	return fmt.Sprintf("webp=%d jpeg=%d resize=catmullrom og=%d", webpQuality, jpegQuality, ogLayout)
+}
 
 // encoderVersions returns the linked versions of the modules whose output the cache stores, or "unknown" when the
 // binary carries no build info (e.g. some test harnesses).
