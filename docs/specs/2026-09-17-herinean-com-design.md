@@ -226,7 +226,7 @@ Local requirements: Go, git, `gh`, Claude Code. Remotes: `gitea` (private; every
 
 1. `site new en <slug>` → one file (empty `date`, blank `pillar`). Branch `piece/<slug>`, tracking `gitea`.
 2. Write on `site serve` (`--host 0.0.0.0` to read on a phone over LAN).
-3. `/review-piece` — editorial template, tier check by judgement (no denylist of client names in a public repo), summary length, diacritics, embeds/charts constraints, and a **native LinkedIn post** (complete, not a teaser; link goes in the first comment). `/translate-piece` — either direction, shared `key`.
+3. `/review-piece` — editorial template, tier check by judgement (no denylist of client names in a public repo), summary length, diacritics, embeds/charts constraints, a **fact-check pass** (an agent with repository access checks each technical claim against the code, the commits and the logs and marks it confirmed, wrong or unverifiable — the colophon describes this process, so it must exist before launch; M2), and a **native LinkedIn post** (complete, not a teaser; link goes in the first comment). `/translate-piece` — either direction, shared `key`.
 4. `/publish-piece` — stamps `date` (Europe/Bucharest), runs `check`, pushes to `origin`, opens the PR. CI audits and comments the preview (the only real-edge preview; the cost of private drafts).
 5. Squash-merge: `Publish: <title>`. Deployed in about a minute.
 6. Distribute: native LinkedIn post with `…?ref=li` in the first comment; X with `?ref=x`; Medium optional. `/link-piece` → `Link: <title> → LinkedIn` PR, auto-merge.
