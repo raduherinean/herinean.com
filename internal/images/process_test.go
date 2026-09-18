@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"image"
 	"image/color"
+	"image/jpeg"
 	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/gen2brain/webp"
 )
 
 func tmpPNG(t *testing.T, w, h int) string {
@@ -28,6 +31,35 @@ func tmpPNG(t *testing.T, w, h int) string {
 		t.Fatal(err)
 	}
 	return p
+}
+
+func tmpJPEG(t *testing.T, w, h int) string {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			img.Set(x, y, color.RGBA{uint8(x), uint8(y), 64, 255})
+		}
+	}
+	var b bytes.Buffer
+	if err := jpeg.Encode(&b, img, &jpeg.Options{Quality: 90}); err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(t.TempDir(), "photo.jpg")
+	if err := os.WriteFile(p, b.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// TestWebPEncoderIsPureGo documents the assumption the reproducibility guard in Process relies
+// on: gen2brain/webp must not have dlopen'd a host libwebp on this machine, or encoded bytes
+// would depend on the host's libwebp version. This fails loudly the day that assumption breaks
+// (e.g. a dynamically linked test binary on a machine with libwebp installed).
+func TestWebPEncoderIsPureGo(t *testing.T) {
+	if webp.Dynamic() == nil {
+		t.Fatal("a host libwebp was loaded; webp output on this machine would not be reproducible (build with -tags nodynamic or CGO_ENABLED=0)")
+	}
 }
 
 func TestProcessRaster(t *testing.T) {
@@ -120,5 +152,67 @@ func TestProcessRejectsStyleAttrInSVG(t *testing.T) {
 	_ = os.WriteFile(p, []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect style="fill:red"/></svg>`), 0o644)
 	if _, err := Process(p, "k", "bad.svg", Options{}); err == nil || !strings.Contains(err.Error(), "style=") {
 		t.Errorf("want style= error, got %v", err)
+	}
+}
+
+// assertFilesEqual fails if a and b don't hold exactly the same paths with byte-identical content.
+func assertFilesEqual(t *testing.T, a, b map[string][]byte) {
+	t.Helper()
+	if len(a) != len(b) {
+		t.Fatalf("file count differs: %d vs %d", len(a), len(b))
+	}
+	for p, ab := range a {
+		bb, ok := b[p]
+		if !ok {
+			t.Errorf("%s missing from second run", p)
+			continue
+		}
+		if !bytes.Equal(ab, bb) {
+			t.Errorf("%s differs between two runs on the same input", p)
+		}
+	}
+}
+
+func TestProcessIsByteReproducible(t *testing.T) {
+	src := tmpPNG(t, 1600, 1000)
+	a, err := Process(src, "media", "fig.png", Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := Process(src, "media", "fig.png", Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertFilesEqual(t, a.Files, b.Files) // covers both WebP variants and the PNG fallback
+}
+
+func TestProcessIsByteReproducibleJPEG(t *testing.T) {
+	src := tmpJPEG(t, 1600, 1000)
+	a, err := Process(src, "media", "photo.jpg", Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := Process(src, "media", "photo.jpg", Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertFilesEqual(t, a.Files, b.Files) // covers both WebP variants and the JPEG fallback
+}
+
+func TestProcessWidthsOrderIndependent(t *testing.T) {
+	src := tmpPNG(t, 1000, 1000)
+	asc, err := Process(src, "home", "portrait.png", Options{Widths: []int{320, 640}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	desc, err := Process(src, "home", "portrait.png", Options{Widths: []int{640, 320}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if asc.Srcset != desc.Srcset {
+		t.Errorf("width order changed Srcset: %q vs %q", asc.Srcset, desc.Srcset)
+	}
+	if asc.Width != desc.Width || asc.Height != desc.Height {
+		t.Errorf("width order changed dimensions: %+v vs %+v", asc, desc)
 	}
 }

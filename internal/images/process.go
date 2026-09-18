@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -80,6 +81,15 @@ func Process(srcPath, key, name string, opt Options) (*Info, error) {
 	if format != "png" && format != "jpeg" {
 		return nil, fmt.Errorf("%s: only PNG, JPEG and SVG are supported (got %s)", srcPath, format)
 	}
+	// gen2brain/webp is transpiled WASM->Go, but at init() it dlopens a host libwebp via purego
+	// whenever the running binary is dynamically linked (always on macOS/Windows; on Linux only
+	// when the binary is dynamic, which the site binary will be because it imports net/http). If
+	// that happened, webp.Encode uses the host library and its output depends on the host's
+	// libwebp version, breaking "same commit => byte-identical dist/". Fail loudly instead of
+	// silently drifting; build with -tags nodynamic (or CGO_ENABLED=0 on Linux) to force pure Go.
+	if webp.Dynamic() == nil {
+		return nil, fmt.Errorf("webp: a host libwebp was loaded, so output would depend on this machine; build with -tags nodynamic (or CGO_ENABLED=0 on Linux) for reproducible images")
+	}
 	bounds := image.Rect(0, 0, cfg.Width, cfg.Height)
 	var decoded image.Image // decoded lazily: a full cache hit never decodes
 	decode := func() (image.Image, error) {
@@ -93,6 +103,8 @@ func Process(srcPath, key, name string, opt Options) (*Info, error) {
 	if len(widths) == 0 {
 		widths = Widths
 	}
+	widths = slices.Clone(widths)
+	slices.Sort(widths) // callers may pass widths in any order; largest below must be genuinely the largest
 	largest := widths[len(widths)-1]
 	if cfg.Width < largest {
 		largest = cfg.Width // never upscale
