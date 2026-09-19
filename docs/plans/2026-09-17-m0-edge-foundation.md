@@ -10,6 +10,8 @@
 
 **Spec:** `docs/specs/2026-09-17-herinean-com-design.md` — §3 rows 9, 10, 13, 15, 16, 17; §6 (all); §11 M0.
 
+**Status (2026-09-19):** merged to `main` as PR #1 (merge commit `b3adeb0`). Still open below: Task 9 step 4 (HSTS preload, earliest 2026-09-25); the ruleset gate was probed on 2026-09-19 (Task 2 step 2). The DMARC `p=reject` flip on `.com` landed as `4217aea` after the signed test message.
+
 ## Global Constraints
 
 - Zones: `herinean.com` (content), `herinean.ro`, `herinean.net`, `herinean.info` (web: redirect-only). All four are Google Workspace domains of the same mailbox (`.net` is the Workspace primary, the others aliases) and **keep their MX**. All Free plan; **Workers Paid** on the account.
@@ -237,7 +239,7 @@ MSG
 git checkout infra/m0 && git rebase main
 ```
 
-- [ ] **Step 5: Wire the remotes and push `main`** (both repos already exist and are empty)
+- [x] **Step 5: Wire the remotes and push `main`** (both repos already exist and are empty) — done: `gitea` (private) and `origin` (public) both wired; `main` on both.
 
 ```bash
 . scripts/env.sh
@@ -257,7 +259,7 @@ Expected: `https://github.com/raduherinean/herinean.com` shows the README, spec,
 
 **Files:** none in the repo (GitHub configuration; recorded in `RUNBOOK.md` in Task 10).
 
-- [ ] **Step 1: Create the ruleset**
+- [x] **Step 1: Create the ruleset** — done: ruleset `main` (id 23683194, active, no bypass actors) with deletion, non-fast-forward, required signatures and pull request. Merge methods changed on 2026-09-19 to `merge` + `squash`: build milestones merge with a merge commit so their signed history stays on `main`; pieces still squash as `Publish: <title>` (spec §8).
 
 ```bash
 . scripts/env.sh
@@ -284,7 +286,7 @@ JSON
 ```
 (M2 adds `required_status_checks` once the CI job names exist.)
 
-- [ ] **Step 2: Verify the gate works**
+- [x] **Step 2: Verify the gate works** — done 2026-09-19: an unsigned empty commit pushed at `main` from a temporary ref was declined (`GH013`) naming both rules, pull request required and verified signatures; `main` unchanged.
 
 ```bash
 git checkout main && git commit --allow-empty -m "protection probe" && git push origin main; echo "exit=$?"
@@ -849,7 +851,7 @@ Expected: *mail DNS* section all `ok` (`.com` DMARC matches `p=none` for now).
 
 Edit `infra/zones.auto.tfvars`: add `dmarc_policy = "reject"`. Then `cd infra && tofu plan -out m0-dmarc.plan` (expected: 1 update in-place), `tofu apply m0-dmarc.plan && rm m0-dmarc.plan && ../scripts/infra-backup.sh && cd .. && scripts/verify-edge.sh`. Expected: `_dmarc.herinean.com` now `p=reject`.
 
-- [ ] **Step 9: Commit and push to gitea** — two commits: `M0: mail — strict SPF and DMARC on all four domains; MTA-STS and TLS-RPT on .com` (after step 6) and `M0: DMARC p=reject on .com after SPF/DKIM verified` (after step 8), both with the trailers.
+- [x] **Step 9: Commit and push to gitea** — two commits: `M0: mail — strict SPF and DMARC on all four domains; MTA-STS and TLS-RPT on .com` (after step 6) and `M0: DMARC p=reject on .com after SPF/DKIM verified` (after step 8), both with the trailers. Done: `da9e752` and `4217aea` (the `.com` reject flip followed a signed test message on 2026-09-18).
 
 ---
 
@@ -899,7 +901,7 @@ cd infra && tofu plan -out m0-dnssec.plan && tofu apply m0-dnssec.plan && rm m0-
 
 - [x] **Step 5: Verify** — `scripts/verify-edge.sh`; expected DS present and `AD` flag on all four. Cross-check one with `https://dnsviz.net/d/herinean.com/dnssec/` (all green).
 
-- [ ] **Step 6: Commit and push to gitea** — `M0: DNSSEC on all four zones` with the trailers.
+- [x] **Step 6: Commit and push to gitea** — `M0: DNSSEC on all four zones` with the trailers. Done: `c0a39b8`.
 
 ---
 
@@ -1145,7 +1147,7 @@ Minimum TLS <1.3 | 1.2>, because: <internet.nl result with 1.3-only: __%; with 1
 - Re-verified weekly by `verify.yml`; revisit if a real reader reports being blocked.
 ```
 
-- [ ] **Step 4: HSTS preload** — after the four zones have served the header for at least a week and `scripts/verify-edge.sh` is green: submit each domain at `https://hstspreload.org/` (status: pending → preloaded over the following weeks). Record the submission dates in the RUNBOOK. This is irreversible in practice; the spec accepts that.
+- [ ] **Step 4: HSTS preload** (open; the placeholder has served the header since 2026-09-17, so the earliest submission is 2026-09-25) — after the four zones have served the header for at least a week and `scripts/verify-edge.sh` is green: submit each domain at `https://hstspreload.org/` (status: pending → preloaded over the following weeks). Record the submission dates in the RUNBOOK. This is irreversible in practice; the spec accepts that.
 
 - [x] **Step 5: Commit and push to gitea** — `M0: ADR-0011 minimum TLS version with audit evidence` with the trailers.
 
@@ -1238,7 +1240,7 @@ Four zones, TLS settings, mail records, redirects and injector switches configur
 The entire edge is readable in the public repo. Zone ids, account id and the DKIM public key are committed (not secrets). Drift shows up in `tofu plan` and in the weekly verification.
 ```
 
-- [ ] **Step 3: Commit, push to both remotes, open the PR, merge**
+- [x] **Step 3: Commit, push to both remotes, open the PR, merge** — done: PR #1 merged 2026-09-19 as merge commit `b3adeb0`.
 
 ```bash
 git add RUNBOOK.md docs/adr/

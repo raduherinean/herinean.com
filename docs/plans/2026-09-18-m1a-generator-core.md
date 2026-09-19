@@ -10,6 +10,8 @@
 
 **Spec:** `docs/specs/2026-09-17-herinean-com-design.md` — §4 (content model, URLs, page anatomy), §5 (generator, validation, tests), §6.2 (headers), §9 (design constraints, provisional CSS), §3 rows 2–8, 14, 16, 21.
 
+**Status (2026-09-19):** executed 2026-09-18 on `m1a/generator` by subagent-driven development, each task reviewed and fixed before the next, and merged to `main` as PR #2 (merge commit `163673a`). The checkboxes below are the plan as written and were not ticked during execution; the branch history and the RUNBOOK are the record. Where the shipped code departs from the steps: the pre-commit hook builds a temporary binary because `go run` never propagates a child's exit code, so exit 3 was unobservable; `check` exits 3 only when placeholders or the missing portrait are the *only* problems, anything else is a real failure; `serve` renders a dateless draft with visible defaults and lists the blanks on stderr, while `build` and `check` still refuse it (`content.LoadDraft`, `site.Options.Draft`); WebP encoding refuses to run when a host `libwebp` was loaded, so every build uses `-tags nodynamic` (the dynamic path would make images depend on the machine); goldmark-highlighting drops chroma's `tabindex`, so the renderer wraps code in its own focusable `<pre>`; the colophon's dependency list comes from `debug.ReadBuildInfo`, not `go list`; `feed.json` carries the `items` array; the home meta description is `_home.md`'s summary; a body `<h1>`, a heading-level jump or a duplicate id fails `check`.
+
 ## Global Constraints
 
 - Zero client-side JavaScript in any page. The only `<script>` allowed is `type="application/ld+json"`. No `style=` attributes anywhere (hash CSP). SVG uses `currentColor`.
