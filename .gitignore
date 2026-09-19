@@ -1,6 +1,8 @@
 # build output and caches
 /dist/
 /.cache/
+/node_modules/
+/bench/.cache/
 
 # local-only
 /.env

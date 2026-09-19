@@ -9,9 +9,13 @@ if git diff --cached --name-only | grep -q '\.go$'; then
     [ -z "$unf" ] || { echo "gofmt needed: $unf" >&2; exit 1; }
   fi
   go vet -tags nodynamic ./...
+  go tool staticcheck -tags nodynamic ./...
 fi
 if git diff --cached --name-only | grep -q '^worker/'; then
   (cd worker && node --test)
+fi
+if git diff --cached --name-only | grep -q '^\.github/'; then
+  go tool actionlint
 fi
 if git diff --cached --name-only | grep -qE '^(content|i18n|assets|templates|site\.yaml)'; then
   # `go run` always exits 1 on a nonzero child status (it never propagates the
