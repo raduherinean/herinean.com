@@ -31,10 +31,11 @@ func main() {
 		}
 	case "serve":
 		fs := flag.NewFlagSet("serve", flag.ExitOnError)
+		static := fs.Bool("static", false, "serve dist/ as built: no rebuild, no draft mode (what CI audits)")
 		host := fs.String("host", "127.0.0.1", "bind address")
 		port := fs.Int("port", 8080, "port")
 		_ = fs.Parse(os.Args[2:])
-		err = site.Serve(site.Options{Root: ".", Out: "dist"}, *host, *port)
+		err = site.Serve(site.Options{Root: ".", Out: "dist", Static: *static}, *host, *port)
 	case "new":
 		if len(os.Args) != 4 {
 			fmt.Fprintln(os.Stderr, "usage: site new <en|ro> <slug>")
@@ -65,7 +66,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
   site build              content/ + assets/ + templates/ + i18n/ → dist/
   site check [--dist]     validate sources (or the built dist/)
-  site serve [--host H] [--port P]
+  site serve [--static] [--host H] [--port P]
   site new <en|ro> <slug>
   site scorecard --in scorecard.json --manual data/scorecard-manual.yaml --out scorecard.html`)
 }

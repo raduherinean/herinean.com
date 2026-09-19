@@ -1,13 +1,19 @@
 package site
 
 import (
+	"compress/gzip"
+	"context"
 	"fmt"
+	"mime"
 	"net/http"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -76,16 +82,51 @@ func hasDotDot(p string) bool {
 	return false
 }
 
+// contentTypes pins the types the audit asserts on (row 9): Go's builtin table lacks woff2 and the OS table
+// is not the same on every machine.
+var contentTypes = map[string]string{
+	".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".txt": "text/plain; charset=utf-8",
+	".xml": "application/xml; charset=utf-8", ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml",
+	".png": "image/png", ".webp": "image/webp", ".jpg": "image/jpeg", ".ico": "image/x-icon", ".woff2": "font/woff2",
+}
+
+// compressible lists the types the edge compresses; the audit's view of weight must be the edge's, not raw bytes.
+func compressible(ct string) bool {
+	for _, p := range []string{"text/", "application/json", "application/xml", "application/rss+xml", "application/feed+json", "image/svg+xml"} {
+		if strings.HasPrefix(ct, p) {
+			return true
+		}
+	}
+	return false
+}
+
+func writeBody(w http.ResponseWriter, r *http.Request, status int, b []byte) {
+	ct := w.Header().Get("Content-Type")
+	if compressible(ct) && strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Add("Vary", "Accept-Encoding")
+		w.WriteHeader(status)
+		gz := gzip.NewWriter(w)
+		_, _ = gz.Write(b)
+		_ = gz.Close()
+		return
+	}
+	w.Header().Set("Content-Length", strconv.Itoa(len(b)))
+	w.WriteHeader(status)
+	_, _ = w.Write(b)
+}
+
 func Serve(o Options, host string, port int) error {
-	o.Draft = true // the preview is where a piece gets written (spec §8): blanks render with defaults, not as a 500
+	if !o.Static {
+		o.Draft = true // the preview is where a piece gets written (spec §8): blanks render with defaults, not as a 500
+	}
 	dist := filepath.Join(o.Root, o.Out)
 	var mu sync.Mutex
 	var built time.Time
-	serve404 := func(w http.ResponseWriter) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(404)
+	serve404 := func(w http.ResponseWriter, r *http.Request) {
 		nf, _ := os.ReadFile(filepath.Join(dist, "404.html"))
-		_, _ = w.Write(nf)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		writeBody(w, r, 404, nf)
 	}
 	// rebuild assumes the caller already holds mu: every read of dist/ (headers, files, the 404 page) and every
 	// read of built must be serialized against write()'s remove-then-rename swap of the output directory, so the
@@ -93,6 +134,16 @@ func Serve(o Options, host string, port int) error {
 	// BEFORE Build runs, so an input saved mid-build (whose mtime could otherwise land before the watermark) is
 	// still picked up by the next request.
 	rebuild := func() error {
+		if o.Static {
+			if built.IsZero() {
+				st, err := os.Stat(filepath.Join(dist, "index.html"))
+				if err != nil {
+					return fmt.Errorf("--static: %s has no index.html (run site build first)", dist)
+				}
+				built = st.ModTime()
+			}
+			return nil
+		}
 		start := time.Now()
 		if built.IsZero() || newestInput(o.Root).After(built) {
 			if err := Build(o); err != nil {
@@ -108,6 +159,13 @@ func Serve(o Options, host string, port int) error {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "site serve: build failed:", err)
 	}
+	// Static mode never rewrites dist/, so _headers can be read and parsed once, up front, instead of on every
+	// request; dynamic mode still re-reads it per request because the file changes when sources change.
+	var staticRules []headerRule
+	if o.Static {
+		hb, _ := os.ReadFile(filepath.Join(dist, "_headers"))
+		staticRules = parseHeaders(hb)
+	}
 	h := func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		defer mu.Unlock()
@@ -117,16 +175,23 @@ func Serve(o Options, host string, port int) error {
 		}
 		raw := r.URL.Path
 		if hasDotDot(raw) {
-			serve404(w)
+			serve404(w, r)
 			return
 		}
 		// http.ListenAndServe is given a bare HandlerFunc, not a ServeMux, so nothing upstream cleans the path:
 		// do it here before it ever reaches filepath.Join. path.Clean drops a trailing slash, so the
 		// is-a-directory redirect below still keys its decision on raw's suffix, not p's.
 		p := path.Clean("/" + raw)
-		hb, _ := os.ReadFile(filepath.Join(dist, "_headers"))
-		rules := parseHeaders(hb)
 		fp := filepath.Join(dist, filepath.FromSlash(p))
+		if p == "/404.html" {
+			serve404(w, r)
+			return
+		}
+		rules := staticRules
+		if !o.Static {
+			hb, _ := os.ReadFile(filepath.Join(dist, "_headers"))
+			rules = parseHeaders(hb)
+		}
 		if st, err := os.Stat(fp); err == nil && st.IsDir() {
 			if !strings.HasSuffix(raw, "/") {
 				// Location is built from the cleaned path: a raw "//writing" would otherwise redirect to the
@@ -149,15 +214,30 @@ func Serve(o Options, host string, port int) error {
 		}
 		b, err := os.ReadFile(fp)
 		if err != nil {
-			serve404(w)
+			serve404(w, r)
 			return
 		}
-		if strings.HasSuffix(fp, ".html") {
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		ct := contentTypes[filepath.Ext(fp)]
+		if ct == "" {
+			ct = mime.TypeByExtension(filepath.Ext(fp))
 		}
-		http.ServeContent(w, r, fp, built, strings.NewReader(string(b)))
+		if ct != "" && w.Header().Get("Content-Type") == "" {
+			w.Header().Set("Content-Type", ct)
+		}
+		writeBody(w, r, 200, b)
 	}
 	addr := fmt.Sprintf("%s:%d", host, port)
-	fmt.Fprintf(os.Stderr, "site serve: http://%s/ (rebuilds when inputs change)\n", addr)
-	return http.ListenAndServe(addr, http.HandlerFunc(h))
+	srv := &http.Server{Addr: addr, Handler: http.HandlerFunc(h)}
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	go func() { <-ctx.Done(); _ = srv.Shutdown(context.Background()) }()
+	mode := "rebuilds when inputs change"
+	if o.Static {
+		mode = "static: serves " + dist + " as built"
+	}
+	fmt.Fprintf(os.Stderr, "site serve: http://%s/ (%s)\n", addr, mode)
+	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+		return err
+	}
+	return nil
 }
