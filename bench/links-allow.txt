@@ -1,0 +1,1 @@
+# external URLs known to refuse robots; one prefix per line

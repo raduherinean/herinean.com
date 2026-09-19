@@ -44,6 +44,10 @@ Modules implemented so far:
 | `wellknown.mjs` | Well-known files | `security.txt` (RFC 9116 fields, `Expires` valid and ≤ 1 year out), `robots.txt` with a `Sitemap:` line, `sitemap.xml` entries carry `lastmod` and `x-default`, `llms.txt`, favicons, and a real 404 status on an unknown path |
 | `feeds.mjs` | Feeds | RSS 2.0 (`/feed.xml`, `.en`, `.ro`) strict-parses, required channel elements, `atom:link rel=self`, items have full text and only absolute URLs; JSON Feed 1.1 required fields |
 | `jsonld.mjs` | Structured data | every `ld+json` block parses; each known `@type` (`WebSite`, `Person`, `BlogPosting`, `BreadcrumbList`) carries its required fields; `Person.sameAs` has LinkedIn, X and GitHub |
+| `headers.mjs` | Security headers | served headers per path class (`/`, a preloaded font, `og:image`, `/img/*`, feeds, `sitemap.xml`, `robots.txt`, `llms.txt`, `security.txt`) match spec §6.2; the CSP's style-src hash equals the sha256 of each page's own inline `<style>`; HSTS and no `Set-Cookie` everywhere. `modes = ["ci", "post"]` |
+| `privacy.mjs` | Privacy | a real Chromium load of every page: no `Set-Cookie`, no third-party request, no `/cdn-cgi/` in the HTML, no `<script>` besides `application/ld+json`. `modes = ["ci", "post"]` |
+| `weight.mjs` | Weight | HTML+CSS ≤ 30 KB brotli; fonts ≤ 100 KB total with exactly one preloaded; first view (Chromium, mobile viewport) ≤ 6 requests and ≤ 150 KB brotli-equivalent; 0 bytes of executable JS |
+| `links.mjs` | Links | every same-origin `href`/`src`/`srcset` across every page (incl. `/404.html`) resolves with 200, or the row fails; external links get a 10 s timeout and only warn, checked against `bench/links-allow.txt` |
 
 Later tasks add one module per remaining spec §5 row; `audit.mjs`'s `MODULES.checks` and
 `MODULES.lighthouse` lists grow to name each one as it lands.

@@ -16,7 +16,7 @@ if (!base || !a.out) { console.error("usage: audit.mjs BASE --out FILE [--mode c
 // Modules not yet written are kept out of this list until their task lands (see task-5's controller ruling);
 // lighthouse arrives in Task 9.
 const MODULES = {
-  checks: ["i18n", "social", "wellknown", "feeds", "jsonld"],
+  checks: ["i18n", "social", "wellknown", "feeds", "jsonld", "headers", "privacy", "weight", "links"],
   lighthouse: [],
 };
 const wanted = a.only ? MODULES[a.only] : [...MODULES.checks, ...MODULES.lighthouse];
