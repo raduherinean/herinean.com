@@ -48,9 +48,17 @@ Modules implemented so far:
 | `privacy.mjs` | Privacy | a real Chromium load of every page: no `Set-Cookie`, no third-party request, no `/cdn-cgi/` in the HTML, no `<script>` besides `application/ld+json`. `modes = ["ci", "post"]` |
 | `weight.mjs` | Weight | HTML+CSS ≤ 30 KB brotli; fonts ≤ 100 KB total with exactly one preloaded; first view (Chromium, mobile viewport) ≤ 6 requests and ≤ 150 KB brotli-equivalent; 0 bytes of executable JS |
 | `links.mjs` | Links | every same-origin `href`/`src`/`srcset` across every page (incl. `/404.html`) resolves with 200, or the row fails; external links get a 10 s timeout and only warn, checked against `bench/links-allow.txt` |
+| `html.mjs` | HTML validity | the [Nu Html Checker](https://validator.github.io/validator/) (`vnu-jar`) reports 0 errors and 0 warnings; `html-validate` (`bench/.htmlvalidate.json`: `recommended` + `a11y` + `document`) reports 0 errors — every page, `/404.html` included. `modes = ["ci", "post"]` |
+| `a11y.mjs` | Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) against WCAG 2.2 AA in a real Chromium, in both `light` and `dark` `prefers-color-scheme`; AAA contrast (`color-contrast-enhanced`) everywhere except the `--ink-2` secondary-text selectors (`bench/lib/a11y.mjs`'s `SECONDARY`, kept in step with `assets/css/site.css`); skip link is the first tab stop; every interactive element gets a visible `:focus-visible` outline; tab stops account for every interactive element; the language-switch link carries `lang`. `modes = ["ci", "post"]` |
 
 Later tasks add one module per remaining spec §5 row; `audit.mjs`'s `MODULES.checks` and
 `MODULES.lighthouse` lists grow to name each one as it lands.
+
+## Disabled rules
+
+- `html-validate` `doctype-style` (`bench/.htmlvalidate.json`): the site's `<!doctype html>` is
+  valid HTML5 (the doctype is case-insensitive) and every template agrees on lowercase; the rule
+  wants uppercase for style, not correctness, so it's off rather than the templates changed.
 
 ## CLI
 

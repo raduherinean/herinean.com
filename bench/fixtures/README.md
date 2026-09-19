@@ -1,7 +1,7 @@
 # `site-ok` fixture
 
 A minimal *built* site, used by `bench/test/*.test.mjs` so module tests never depend on the Go
-binary or a live server. Built from commit `cf595d7` (`go build -tags nodynamic -o .cache/site
+binary or a live server. Built from commit `c860ede` (`go build -tags nodynamic -o .cache/site
 ./cmd/site && .cache/site build`), copying real `dist/` output:
 
 - `index.html`, `ro/index.html`, `404.html`, `_headers`, `robots.txt`, `llms.txt`,
