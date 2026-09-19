@@ -5,7 +5,7 @@
 <td>{{.Check}}</td>
 <td data-label="Result"><span class="{{if .Pass}}pass{{else}}fail{{end}}">{{if .Pass}}Pass{{else}}Fail{{end}}</span></td>
 <td data-label="Value">{{.Value}}</td>
-<td data-label="Verified"><time datetime="{{.When}}">{{.When}}</time>{{if .Stale}} (stale){{end}}</td>
+<td data-label="Verified"><time datetime="{{.When}}">{{.When}}</time>{{if .Measured}}, {{.Measured}} deployment{{end}}{{if .Stale}} (stale){{end}}</td>
 <td data-label="Verify">{{if .Link}}<a href="{{.Link}}">{{.LinkText}}</a>{{end}}</td>
 </tr>
 {{end}}</tbody>

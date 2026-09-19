@@ -37,7 +37,7 @@ export ZONE_RO="<zone id>"
 export ZONE_NET="<zone id>"
 export ZONE_INFO="<zone id>"
 export GITHUB_OWNER="raduherinean"   # the organisation; repo exists and is empty
-export GITEA_REMOTE="<ssh url, e.g. git@gitea.example:radoo/herinean.com.git>"
+export GITEA_REMOTE="<ssh url, e.g. git@<host>:<user>/herinean.com.git>"
 export DKIM_TXT='"v=DKIM1; k=rsa; p=..."'   # exact API content of google._domainkey (quotes included)
 ```
 
@@ -1258,8 +1258,6 @@ Four zones configured as OpenTofu (`infra/`): TLS 1.3 minimum, HTTP/3, HSTS prel
 Spec: docs/specs/2026-09-17-herinean-com-design.md §6, §11.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 BODY
 )"
 gh pr merge --squash --delete-branch

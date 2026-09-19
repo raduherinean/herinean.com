@@ -2,20 +2,24 @@ rows:
   - check: "internet.nl website test"
     value: "100%"
     when: 2026-09-18
+    measured: placeholder
     link: https://internet.nl/site/herinean.com/
     link_text: internet.nl
   - check: "SSL Labs"
     value: "A (TLS 1.3 only; A+ is withheld from 1.3-only servers — ADR-0011)"
     when: 2026-09-17
+    measured: placeholder
     link: https://www.ssllabs.com/ssltest/analyze.html?d=herinean.com
     link_text: SSL Labs
   - check: "Mozilla HTTP Observatory"
     value: "A+ (145)"
     when: 2026-09-17
+    measured: placeholder
     link: https://developer.mozilla.org/en-US/observatory/analyze?host=herinean.com
     link_text: Observatory
   - check: "securityheaders.com"
     value: "A+"
     when: 2026-09-18
+    measured: placeholder
     link: https://securityheaders.com/?q=herinean.com&followRedirects=on
     link_text: securityheaders.com

@@ -24,6 +24,7 @@ type YearGroup struct {
 
 type ScorecardRow struct {
 	Check, Value, When, Link, LinkText string
+	Measured                           string // manual rows only: "placeholder" or "production"
 	Pass, Stale                        bool
 }
 
