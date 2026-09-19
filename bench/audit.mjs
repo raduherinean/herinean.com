@@ -13,11 +13,10 @@ const { values: a, positionals } = parseArgs({ allowPositionals: true, options: 
 const base = (positionals[0] || "").replace(/\/$/, "");
 if (!base || !a.out) { console.error("usage: audit.mjs BASE --out FILE [--mode ci|post] …"); process.exit(2); }
 
-// Modules not yet written are kept out of this list until their task lands (see task-5's controller ruling);
-// lighthouse arrives in Task 9.
+// Modules not yet written are kept out of this list until their task lands (see task-5's controller ruling).
 const MODULES = {
   checks: ["i18n", "social", "wellknown", "feeds", "jsonld", "headers", "privacy", "weight", "links", "html", "a11y"],
-  lighthouse: [],
+  lighthouse: ["lighthouse"],
 };
 const wanted = a.only ? MODULES[a.only] : [...MODULES.checks, ...MODULES.lighthouse];
 const ctx = { base, mode: a.mode, dist: a.dist, when: today(), link: a.link, linkText: a["link-text"], formFactor: a["form-factor"], shard: a.shard, browser: makeBrowser() };

@@ -39,6 +39,7 @@ Modules implemented so far:
 
 | Module | Row | What it checks |
 |---|---|---|
+| `lighthouse.mjs` | Lighthouse | the [`lighthouse`](https://www.npmjs.com/package/lighthouse) API against Playwright's Chromium, launched via `chrome-launcher`; mobile and desktop; 3 runs per page, median per category; every sitemap page (`/404.html` excluded) must score 100 on performance, accessibility, best-practices and seo. Sharded — see "Sharding Lighthouse" below. `modes = ["ci", "post"]` |
 | `i18n.mjs` | i18n | `<html lang>` matches the path; exactly one absolute canonical with a trailing slash; hreflang alternates are symmetric (the other page links back to me under my own language) plus `x-default` |
 | `social.mjs` | Social previews | every page has `og:*` + `twitter:card=summary_large_image`; `og:image` is a 1200×630 PNG under 200 KB at a content-hashed `/og/` URL |
 | `wellknown.mjs` | Well-known files | `security.txt` (RFC 9116 fields, `Expires` valid and ≤ 1 year out), `robots.txt` with a `Sitemap:` line, `sitemap.xml` entries carry `lastmod` and `x-default`, `llms.txt`, favicons, and a real 404 status on an unknown path |
@@ -51,8 +52,30 @@ Modules implemented so far:
 | `html.mjs` | HTML validity | the [Nu Html Checker](https://validator.github.io/validator/) (`vnu-jar`) reports 0 errors and 0 warnings; `html-validate` (`bench/.htmlvalidate.json`: `recommended` + `a11y` + `document`) reports 0 errors — every page, `/404.html` included. `modes = ["ci", "post"]` |
 | `a11y.mjs` | Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) against WCAG 2.2 AA in a real Chromium, in both `light` and `dark` `prefers-color-scheme`; AAA contrast (`color-contrast-enhanced`) everywhere except the `--ink-2` secondary-text selectors (`bench/lib/a11y.mjs`'s `SECONDARY`, kept in step with `assets/css/site.css`); skip link is the first tab stop; every interactive element gets a visible `:focus-visible` outline; tab stops account for every interactive element; the language-switch link carries `lang`. `modes = ["ci", "post"]` |
 
-Later tasks add one module per remaining spec §5 row; `audit.mjs`'s `MODULES.checks` and
-`MODULES.lighthouse` lists grow to name each one as it lands.
+Later tasks add one module per remaining spec §5 row (`transport`, `observatory`, `dns`,
+`caching`, `fonts` — all `post`-only); `audit.mjs`'s `MODULES.checks` list grows to name each one
+as it lands.
+
+## Sharding Lighthouse
+
+A full Lighthouse pass (every sitemap page × mobile + desktop × 3 runs) is the slowest thing in
+the bench, so `audit.mjs --only lighthouse` splits the work across several invocations instead of
+running it in one:
+
+- `--form-factor mobile|desktop` picks one form factor per invocation (omit it to run both in a
+  single call, e.g. for `scripts/bench.sh`'s unsharded local run).
+- `--shard i/n` slices the sitemap's page list (`/404.html` always excluded from this row): page
+  `k` (0-indexed, in sitemap order) runs in shard `i` when `k % n === i - 1`. CI fans this out
+  across `n` parallel jobs per form factor.
+
+Each invocation emits one row per form factor named `Lighthouse [<mobile|desktop> i/n]` (or
+`Lighthouse (production) [...]` in `post` mode), carrying two extra fields beyond the row
+contract: `pages` (how many pages this shard covered) and `worst` (the lowest per-category median
+score seen in this shard, out of 100). `merge.mjs` recognizes that naming pattern, folds every
+shard of every form factor back into a single `Lighthouse` row — failing (and naming the missing
+shard) if any expected `i/n` combination never reported in, or if any shard itself failed — and
+reports the pooled page count and the overall worst score. See `bench/test/merge.test.mjs` for the
+exact fold behavior.
 
 ## Disabled rules
 
