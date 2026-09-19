@@ -42,12 +42,12 @@ Every row is pass/fail. **CI** blocks deploy. **post** runs against production r
 | 2 | HTML validity | Nu checker 0 errors 0 warnings; `html-validate` strict | CI; post on `/colophon/` (edge-filled) |
 | 3 | Accessibility | axe-core 0 violations (WCAG 2.2 AA), run in **both** colour schemes; body-text contrast ≥ 7:1 (AAA), secondary ≥ 4.5:1; skip link; visible focus; keyboard-complete; `lang` on every foreign-language fragment | CI; post on `/colophon/` |
 | 4 | Links | 0 broken internal; external checked, failures warn (allowlist for known-flaky) | CI + weekly |
-| 5 | Feeds | RSS 2.0 (all, en, ro) + JSON Feed (all), **full text**, absolute URLs, `atom:link rel=self`, validate clean | CI |
+| 5 | Feeds | RSS 2.0 (all, en, ro) + JSON Feed (all), **full text**, absolute URLs, `atom:link rel=self`, validate clean | CI (structure, full text, self link, JSON Feed fields); W3C Feed Validator ext |
 | 6 | Structured data | JSON-LD `WebSite`, `Person` (sameAs LinkedIn/X/GitHub), `BlogPosting` (`inLanguage`, `image`, `author`, `datePublished`, `dateModified`), `BreadcrumbList`; required fields validated | CI; Google Rich Results ext |
 | 7 | Social previews | `og:*` + `twitter:card=summary_large_image` on every page; per-page 1200×630 image < 200 KB at a content-hashed URL | CI; LinkedIn Post Inspector + X validator ext (once per template) |
 | 8 | i18n | `<html lang>` correct; hreflang pairs symmetric + `x-default`; absolute canonical; one canonical URL per page (trailing slash) | CI |
-| 9 | Security headers | securityheaders.com A+; CSP `default-src 'none'` with hashed inline style; `base-uri 'none'`; `form-action 'none'` (one origin when the newsletter lands); `frame-ancestors 'none'`; HSTS 2 y + includeSubDomains + preload (submitted); COOP; CORP (`same-origin` HTML, `cross-origin` on `/img/*` `/og/*`); Referrer-Policy; Permissions-Policy; nosniff; X-Frame-Options | CI on local preview; post |
-| 10 | Transport | TLS 1.3 minimum (decided: ADR-0011); SSL Labs **A** with the 1.3-only explanation on the colophon (the rater withholds A+ from 1.3-only endpoints; A+ would cost internet.nl 100%); HTTP/3; IPv6; 0-RTT off | post (`curl --http3`, TLS version); SSL Labs ext |
+| 9 | Security headers | securityheaders.com A+; CSP `default-src 'none'` with hashed inline style; `connect-src 'self'` (Lighthouse's robots.txt audit fetches in page context; no script ships, so it is inert for readers); `base-uri 'none'`; `form-action 'none'` (one origin when the newsletter lands); `frame-ancestors 'none'`; HSTS 2 y + includeSubDomains + preload (submitted); COOP; CORP (`same-origin` HTML, `cross-origin` on `/img/*` `/og/*`); Referrer-Policy; Permissions-Policy; nosniff; X-Frame-Options | CI on local preview; post |
+| 10 | Transport | TLS 1.3 minimum (decided: ADR-0011); SSL Labs **A** with the 1.3-only explanation on the colophon (the rater withholds A+ from 1.3-only endpoints; A+ would cost internet.nl 100%); HTTP/3; IPv6; 0-RTT off | post (`openssl` TLS version, `curl --http3`; 0-RTT is configuration, `infra/settings.tf`, not measured); SSL Labs ext |
 | 11 | internet.nl website test | 100% | ext (the mail test is out of scope: Google Workspace has no DANE; the colophon says so) |
 | 12 | Mozilla HTTP Observatory | A+ | post (CLI) |
 | 13 | DNS, mail, domains | DNSSEC valid; CAA present; `.com`: Workspace MX, SPF `include:_spf.google.com -all`, DKIM 2048, DMARC `p=reject; adkim=s; aspf=s`, MTA-STS, TLS-RPT; `.ro` `.net` `.info` (Workspace alias domains of the same mailbox): MX kept, SPF `include:_spf.google.com -all`, DMARC `p=reject; adkim=s; aspf=s`; 301 to `.com` with path and query; `www` → apex; all four domains auto-renew, locked, expiry > 60 days (RDAP) | post + weekly |
@@ -175,7 +175,7 @@ Aliases: `security@` (for `security.txt`) and `dmarc@` (DMARC reports) on the ma
 
 ```
 /*
-  Content-Security-Policy: default-src 'none'; style-src 'sha256-<css>'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'none'; style-src 'sha256-<css>'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
@@ -207,14 +207,14 @@ $5/month (Workers Paid) beyond domains and Workspace.
 
 ## 7. CI, scorecard pipeline, colophon
 
-Audit tools live in `bench/` (Node/Rust/Python, pinned): Lighthouse CI, axe-core, html-validate, Nu checker, lychee, feed validator + JSON Feed schema, JSON-LD field check, Playwright (font-swap layout test, dark/light axe), Observatory CLI, globalping. The platform has ~10 dependencies; the bench that audits it has hundreds — the right way around.
+Audit tools live in `bench/` (Node/Rust/Python, pinned): Lighthouse CI, axe-core, html-validate, Nu checker, lychee (weekly job, M2b), feed validator + JSON Feed schema, JSON-LD field check, Playwright (font-swap layout test, dark/light axe), Observatory CLI, globalping. The platform has ~10 dependencies; the bench that audits it has hundreds — the right way around.
 
 **`ci.yml` — every PR and push to `main`:**
 1. **build** — pinned Go; `gofmt`, `go vet`, `staticcheck`, `go test ./...`, `site check`, `site build`, `site check --dist`; `dist/` artifact.
 2. **audit** — `site serve` hosts `dist/` with `_headers`; the bench runs against every sitemap URL (`/404.html` via Nu + axe only). Results → `scorecard.json`.
 3. **preview** (PRs) — `wrangler versions upload`; URL commented on the PR.
-4. **deploy** (`main`, audit green) — `wrangler deploy`.
-5. **post-deploy** (`main`) — against production: headers, HTTP/3, TLS version, redirects (`www` + three zones), `dig` DNSSEC/CAA/SPF/DKIM/DMARC/MX, Observatory, Lighthouse, Nu + axe on `/colophon/`, no executable script in served HTML. Merge → `site scorecard` renders the HTML fragment from the same templates → Nu-validated → written with the JSON to the KV `scorecard` key.
+4. **deploy** (`main`, audit green, once launched — ADR-0015) — `wrangler deploy`.
+5. **post-deploy** (`main`, two tiers — ADR-0015: deploy verification rolls back, rows only report) — against production: headers, HTTP/3, TLS version, redirects (`www` + three zones), `dig` DNSSEC/CAA/SPF/DKIM/DMARC/MX, Observatory, Lighthouse, Nu + axe on `/colophon/`, no executable script in served HTML. Merge → `site scorecard` renders the HTML fragment from the same templates → Nu-validated → written with the JSON to the KV `scorecard` key.
 
 **`verify.yml` — weekly:** step 5 again + external links + `security.txt` expiry + RDAP domain expiry + globalping latency + websitecarbon + analytics snapshot. Writes KV. Red stays red on the colophon until fixed.
 
@@ -226,9 +226,9 @@ Local requirements: Go, git, `gh`, Claude Code. Remotes: `gitea` (private; every
 
 1. `site new en <slug>` → one file (empty `date`, blank `pillar`). Branch `piece/<slug>`, tracking `gitea`.
 2. Write on `site serve` (`--host 0.0.0.0` to read on a phone over LAN).
-3. `/review-piece` — editorial template, tier check by judgement (no denylist of client names in a public repo), summary length, diacritics, embeds/charts constraints, an **editing pass** bound by one rule: the model may flag, question and suggest, and may propose a reformulation of a sentence, never a rewritten paragraph (the draft is the author's by construction, not by intention), a **fact-check pass** (an agent with access to the repositories the article is about — this one and any other it names — checks every claim that code or its history can settle and marks it confirmed, wrong or unverifiable, with the file, line or commit it rests on; claims no repository can settle the author checks by hand against their sources — the colophon describes this process, so it must exist before launch; M2), and a **native LinkedIn post** (complete, not a teaser; link goes in the first comment). `/translate-piece` — either direction, shared `key`.
+3. `/review-piece` — editorial template, tier check by judgement (no denylist of client names in a public repo), summary length, diacritics, embeds/charts constraints, an **editing pass** bound by one rule: the model may flag, question and suggest, and may propose a reformulation of a sentence, never a rewritten paragraph (the draft is the author's by construction, not by intention), a **fact-check pass** (an agent with access to the repositories the article is about — this one and any other it names — checks every claim that code or its history can settle and marks it confirmed, wrong or unverifiable, with the file, line or commit it rests on; claims no repository can settle the author checks by hand against their sources — the colophon describes this process, so it must exist before launch; M2b), and a **native LinkedIn post** (complete, not a teaser; link goes in the first comment). `/translate-piece` — either direction, shared `key`.
 4. `/publish-piece` — stamps `date` (Europe/Bucharest), runs `check`, pushes to `origin`, opens the PR. CI audits and comments the preview (the only real-edge preview; the cost of private drafts).
-5. Squash-merge: `Publish: <title>`, body written by the author. GitHub pre-fills it with the drafts’ messages and their trailers; a co-author line belongs on the commits that built the site, not on the one that introduces an article. Deployed in about a minute.
+5. Squash-merge: `Publish: <title>`, body written by the author. GitHub pre-fills it with the drafts’ messages and their trailers; a co-author line belongs on the commits that built the site, not on the one that introduces an article. Live a few minutes after the merge, once the audit is green (ADR-0015).
 6. Distribute: native LinkedIn post with `…?ref=li` in the first comment; X with `?ref=x`; Medium optional. `/link-piece` → `Link: <title> → LinkedIn` PR, auto-merge.
 7. `scripts/analytics.sh` decides what gets translated.
 8. Corrections set `updated:`; feeds don't re-notify. URLs never change; pieces are never deleted (a retraction is a note at the top).
@@ -269,7 +269,7 @@ Pixels come from the Claude Design pass (`docs/design/claude-design-brief.md`); 
 
 - **M0 — one evening.** Cloudflare: 2FA; add four zones (verify imported Workspace records on `.com` before switching nameservers); nameservers at registrars; DS records at registrars; Workers Paid + billing alert; API tokens (infra, short-lived; CI, scoped). Workspace: DKIM 2048, `security@`, `dmarc@` aliases. Registrars: auto-renew + lock. GitHub: public repo under the `raduherinean` organisation (owned by the 2010 `rlucian` account — account age is a credibility signal, and GitHub allows one free personal account), 2FA, SSH signing key; Gitea private repo. Then as code: zone settings, injectors off, DNS/mail records (MX kept on all four; SPF `-all` and DMARC reject everywhere), DNSSEC, CAA, redirects, and a **placeholder Worker on the apex** (one noindex line with the full header set) so TLS/HSTS/internet.nl can be verified on the real domain and preload submitted early. TLS 1.3 spike.
 - **M1 — weekend one.** Generator, templates, content model, `check`, `serve`, `_headers`, Worker; home/index/colophon skeleton/privacy/404 with real About copy and portrait; Claude Design export as reference; deploy to a `noindex` preview only.
-- **M2 — weekend two plus evenings.** Bench, scorecard pipeline, KV colophon, post-deploy + weekly verify, RUNBOOK, ADRs, four skills, uptime monitor. Manual ext audits once.
+- **M2 — weekend two plus evenings.** Bench, scorecard pipeline, KV colophon, post-deploy + weekly verify, RUNBOOK, ADRs, four skills, uptime monitor. Manual ext audits once. (split into M2a — CI, bench, scorecard pipeline — and M2b — weekly verify, uptime, skills, CodeQL; design: `docs/specs/2026-09-19-m2a-ci-bench-scorecard-design.md`)
 - **Launch =** scorecard green **and** real About + portrait **and ≥ 2 pieces** (written during the build weeks) **and** the AI disclosure matches `/review-piece` as it actually runs (the disclosure was written before the skill; re-read both on launch day and fix whichever is wrong). Then production cutover, HSTS preload submission, Search Console + Bing (DNS TXT), URL into LinkedIn contact info and website field. Cutover waits for green, not for a date.
 - **Then** pieces; "How this site was built" is written from the ADRs and this spec.
 
@@ -289,6 +289,7 @@ Pixels come from the Claude Design pass (`docs/design/claude-design-brief.md`); 
 12. Infrastructure as code (OpenTofu) for zones — reviewable, reproducible, drift-detectable; wrangler for the Worker.
 13. Full-text feeds; per-language advertised; combined for newsletter/Medium.
 14. URLs never change; pieces never deleted.
+15. CI is the deployer; the launch is a commit; post-deploy failures are two tiers (deploy verification rolls back, post rows only report) — ADR-0015.
 
 ## 13. Repository layout
 
@@ -305,7 +306,7 @@ herinean.com/
   infra/                    OpenTofu for the four zones
   bench/                    audit tools, pinned
   scripts/                  setup.sh, analytics.sh, audit helpers
-  .github/workflows/        ci.yml, verify.yml, codeql.yml, scorecard.yml
+  .github/workflows/        ci.yml, audit.yml (M2a); verify.yml, codeql.yml (M2b)
   .claude/                  CLAUDE.md, skills: review-piece, translate-piece, publish-piece, link-piece
   docs/specs/               this spec;  docs/adr/;  docs/design/;  docs/plans/
   data/scorecard-manual.yaml
