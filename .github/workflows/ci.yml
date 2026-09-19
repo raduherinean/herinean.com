@@ -41,8 +41,10 @@ jobs:
           echo "launched: $launched; $n pages → $k Lighthouse shards" >> "$GITHUB_STEP_SUMMARY"
       # dist/ is generated output, not secrets — v4's hidden-file skip (meant for stray .env
       # files) would otherwise drop dist/.well-known/security.txt and mta-sts.txt.
+      # overwrite: true on every upload in ci.yml and audit.yml: v4+ artifacts are immutable per
+      # run, so re-running a job would otherwise fail its upload with a 409 on the existing name.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with: { name: "dist-${{ github.sha }}", path: "dist/\nsite\ndist.sha256", if-no-files-found: error, include-hidden-files: true }
+        with: { name: "dist-${{ github.sha }}", path: "dist/\nsite\ndist.sha256", if-no-files-found: error, include-hidden-files: true, overwrite: true }
   audit:
     needs: build
     uses: ./.github/workflows/audit.yml
@@ -99,7 +101,9 @@ jobs:
     # Pre-launch: main has no deploy, so the colophon (once launched) would otherwise carry no CI
     # rows at all. This publishes the CI scorecard to KV on every green push to main, ahead of launch.
     needs: [build, audit]
-    if: github.event_name != 'pull_request' && needs.build.outputs.launched != 'true' && needs.audit.outputs.pass == 'true'
+    # github.ref == main as well as "not a pull request": a workflow_dispatch from any other branch
+    # must never write that branch's rows to production KV.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.build.outputs.launched != 'true' && needs.audit.outputs.pass == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: production
@@ -129,6 +133,8 @@ jobs:
     env: { CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}", CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" }
     outputs: { previous: "${{ steps.deploy.outputs.previous }}", current: "${{ steps.deploy.outputs.current }}" }
     steps:
+      # First, so a secret missing after launch is one clear line, not a curl auth error deep in kv.sh.
+      - run: '[ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set (RUNBOOK, CI)"; exit 1; }'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version-file: .node-version, cache: npm }
@@ -172,7 +178,9 @@ jobs:
           [ -s stash/scorecard.json ] && scripts/kv.sh put scorecard.json stash/scorecard.json || true
   post:
     needs: [build, audit, deploy]
-    if: always() && needs.build.outputs.launched == 'true' && (needs.deploy.result == 'success' || (github.event_name == 'workflow_dispatch' && needs.audit.outputs.pass == 'true'))
+    # The workflow_dispatch branch also requires main: a dispatch from any other ref must never
+    # verify, roll back or republish production.
+    if: always() && needs.build.outputs.launched == 'true' && (needs.deploy.result == 'success' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && needs.audit.outputs.pass == 'true'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: production
@@ -186,15 +194,21 @@ jobs:
       - id: tier1
         run: |
           if scripts/verify-preview.sh https://herinean.com --prod; then echo "verified=true" >> "$GITHUB_OUTPUT"; else echo "verified=false" >> "$GITHUB_OUTPUT"; exit 1; fi
-      - if: failure() && needs.deploy.result == 'success'
+      # Only when tier 1 itself failed — not when checkout, setup-node or npm ci did — and only for
+      # a deploy this run made. Each `if` keeps failure() in front: a step condition without a
+      # status function gets an implicit success() and would never run after a failed step.
+      - id: rollback
+        if: failure() && steps.tier1.outcome == 'failure' && needs.deploy.result == 'success'
         name: roll back
         run: |
           npx wrangler rollback "${{ needs.deploy.outputs.previous }}" --yes --message "post-deploy verification failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           echo "rolled back to ${{ needs.deploy.outputs.previous }}" >> "$GITHUB_STEP_SUMMARY"
-      - if: failure() && needs.deploy.result == 'success'
+      # Restore the old build's scorecard only after a rollback that happened: if Cloudflare refused
+      # the rollback, the new build is still live and its rows must stay with it.
+      - if: failure() && steps.rollback.outcome == 'success'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with: { name: "kv-stash-${{ github.sha }}", path: stash }
-      - if: failure() && needs.deploy.result == 'success'
+      - if: failure() && steps.rollback.outcome == 'success'
         run: |
           [ -s stash/scorecard.html ] && scripts/kv.sh put scorecard stash/scorecard.html --metadata "$(cat stash/scorecard.meta)" || true
           [ -s stash/scorecard.json ] && scripts/kv.sh put scorecard.json stash/scorecard.json || true
@@ -215,6 +229,7 @@ jobs:
     environment: production
     env: { CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}", CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" }
     steps:
+      - run: '[ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set (RUNBOOK, CI)"; exit 1; }'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version-file: .node-version, cache: npm }
