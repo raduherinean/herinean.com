@@ -1,0 +1,18 @@
+name = "herinean-com"
+main = "worker/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = false
+preview_urls = true
+
+routes = [
+  { pattern = "herinean.com", custom_domain = true },
+  { pattern = "mta-sts.herinean.com", custom_domain = true },
+]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+html_handling = "force-trailing-slash"
+not_found_handling = "404-page"
+# The Worker runs only for page routes. Images, OG cards, feeds and machine files come straight from the asset layer.
+run_worker_first = ["/*", "!/img/*", "!/og/*", "!/feed.*", "!/sitemap.xml", "!/favicon*", "!/apple-touch-icon*"]
