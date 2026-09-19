@@ -42,7 +42,12 @@ func scorecardRows(ciPath, manualPath string, now time.Time) ([]render.Scorecard
 			return nil, fmt.Errorf("%s: %w", ciPath, err)
 		}
 		for _, r := range ci {
-			rows = append(rows, render.ScorecardRow{Check: r.Check, Pass: r.Pass, Value: r.Value, When: r.When, Link: r.Link, LinkText: r.LinkText})
+			// A malformed when is not this function's problem to reject; scorecardFragment just won't mark it stale.
+			stale := false
+			if t, err := time.Parse("2006-01-02", r.When); err == nil {
+				stale = now.Sub(t) > staleAfter
+			}
+			rows = append(rows, render.ScorecardRow{Check: r.Check, Pass: r.Pass, Value: r.Value, When: r.When, Link: r.Link, LinkText: r.LinkText, Stale: stale})
 		}
 	} else {
 		rows = append(rows, render.ScorecardRow{Check: "CI audit (Lighthouse, HTML, a11y, links, feeds, headers)", Pass: false, Value: "not yet run on this build", When: now.Format("2006-01-02")})

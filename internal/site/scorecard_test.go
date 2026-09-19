@@ -21,6 +21,13 @@ func TestScorecardRows(t *testing.T) {
 	if len(rows) != 2 || !rows[0].Pass || rows[0].Check != "Lighthouse" || !rows[1].Stale || rows[1].Measured != "placeholder" {
 		t.Errorf("%+v", rows)
 	}
+	// a CI row measured more than 90 days ago is stale like a manual one; the colophon must say so
+	old := filepath.Join(dir, "old.json")
+	_ = os.WriteFile(old, []byte(`[{"check":"Lighthouse","pass":true,"value":"100","when":"2026-01-01"}]`), 0o644)
+	rows, err = scorecardRows(old, man, time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC))
+	if err != nil || !rows[0].Stale {
+		t.Errorf("old CI row must be stale: %v %+v", err, rows)
+	}
 	bad := filepath.Join(dir, "bad.yaml")
 	_ = os.WriteFile(bad, []byte("rows:\n  - check: SSL Labs\n    value: A\n    when: 2026-01-01\n    link: https://x\n    link_text: x\n"), 0o644)
 	if _, err := scorecardRows(ci, bad, time.Now()); err == nil || !strings.Contains(err.Error(), "measured") {

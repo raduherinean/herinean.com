@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -23,6 +24,7 @@ type Config struct {
 	Tagline      map[string]string `yaml:"tagline"`
 	Author       Author            `yaml:"author"`
 	AIDisclosure map[string]string `yaml:"ai_disclosure"`
+	Launched     string            `yaml:"launched"` // YYYY-MM-DD once production serves the site (spec §11); empty before launch. CI deploys only when set.
 }
 
 // Placeholder markers: anything the author still has to fill in. The build refuses to ship them.
@@ -64,6 +66,11 @@ func (c *Config) validate() error {
 	for _, r := range req {
 		if strings.TrimSpace(r.val) == "" {
 			return fmt.Errorf("missing %s", r.key)
+		}
+	}
+	if c.Launched != "" {
+		if _, err := time.Parse("2006-01-02", c.Launched); err != nil {
+			return fmt.Errorf("launched must be YYYY-MM-DD or empty, got %q", c.Launched)
 		}
 	}
 	isPlaceholder := func(v string) bool { return strings.Contains(v, openMark) || strings.Contains(v, closeMark) }
