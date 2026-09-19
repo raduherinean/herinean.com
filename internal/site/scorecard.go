@@ -11,7 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ciRow is what the bench writes into scorecard.json (M2).
+// ciRow is what the bench writes into scorecard.json.
 type ciRow struct {
 	Check    string `json:"check"`
 	Pass     bool   `json:"pass"`
@@ -77,17 +77,19 @@ func (b *build) scorecardFragment() ([]byte, error) {
 	return b.r.Fragment("scorecard", map[string]any{"Rows": rows})
 }
 
-// Scorecard renders the fragment for CI to validate and store in KV (M2).
+// Scorecard renders the fragment for CI to validate and store in KV.
+//
+// Two fragments, two clocks. The in-dist fallback (scorecardFragment) is part of a reproducible
+// build, so it judges "stale" against BuildTime, the commit time. This one is not in the build:
+// CI renders it whenever it publishes — after a deploy, on a workflow_dispatch, on a weekly
+// republish of a quiet repository — so it judges against the wall clock, or a manual row measured
+// months before the last commit would never be marked stale on the colophon.
 func Scorecard(o Options, in, manual, out string) error {
 	r, err := render.New(filepath.Join(o.Root, "templates"), filepath.Join(o.Root, "assets", "css", "site.css"), nil)
 	if err != nil {
 		return err
 	}
-	now, err := BuildTime(o.Root)
-	if err != nil {
-		return err
-	}
-	rows, err := scorecardRows(in, manual, now)
+	rows, err := scorecardRows(in, manual, time.Now())
 	if err != nil {
 		return err
 	}
