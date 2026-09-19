@@ -1,0 +1,227 @@
+name: ci
+on:
+  pull_request: { branches: [main] }
+  push: { branches: [main] }
+  workflow_dispatch:
+permissions: { contents: read }
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+env: { GOTOOLCHAIN: local, GOFLAGS: -tags=nodynamic }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      launched: ${{ steps.meta.outputs.launched }}
+      shards: ${{ steps.meta.outputs.shards }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version-file: go.mod, cache: true }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version }
+      - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - run: go vet ./...
+      - run: go tool staticcheck ./...
+      - run: go tool actionlint
+      - run: go test ./...
+      - run: cd worker && node --test
+      - run: go build -trimpath -o site ./cmd/site
+      - run: ./site check
+      - run: ./site build && scripts/dist-hash.sh > dist.sha256 && rm -rf dist && ./site build && scripts/dist-hash.sh | diff - dist.sha256
+      - run: ./site check --dist
+      - id: meta
+        run: |
+          launched=$(grep -E '^launched: *[0-9]{4}-[0-9]{2}-[0-9]{2}' site.yaml >/dev/null && echo true || echo false)
+          n=$(grep -c '<loc>' dist/sitemap.xml); k=$(( (n + 3) / 4 ))
+          shards=$(seq 1 "$k" | sed "s#^#\"#; s#\$#/$k\"#" | paste -sd, | sed 's/^/[/; s/$/]/')
+          echo "launched=$launched" >> "$GITHUB_OUTPUT"; echo "shards=$shards" >> "$GITHUB_OUTPUT"
+          echo "launched: $launched; $n pages → $k Lighthouse shards" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with: { name: "dist-${{ github.sha }}", path: "dist/\nsite\ndist.sha256", if-no-files-found: error }
+  audit:
+    needs: build
+    uses: ./.github/workflows/audit.yml
+    with:
+      base: http://127.0.0.1:8080
+      mode: ci
+      shards: ${{ needs.build.outputs.shards }}
+      artifact: dist-${{ github.sha }}
+      link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  preview:
+    needs: build
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: { contents: read, pull-requests: write }
+    env: { CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}", CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}", GH_TOKEN: "${{ github.token }}" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: npm }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: "dist-${{ github.sha }}", path: . }
+      - if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "preview skipped — CLOUDFLARE_API_TOKEN is not set (RUNBOOK, Accounts and secrets)" >> "$GITHUB_STEP_SUMMARY"
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        run: |
+          npm ci
+          out=$(npx wrangler versions upload 2>&1 | tee /dev/stderr)
+          url=$(printf '%s\n' "$out" | grep -Eo 'https://[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev' | head -1)
+          [ -n "$url" ] || { echo "no preview URL"; exit 1; }
+          echo "preview: $url" >> "$GITHUB_STEP_SUMMARY"
+          scripts/verify-preview.sh "$url"
+          printf '<!-- herinean-ci -->\n**Preview:** %s (noindex; readable by anyone with the link)\n\n_Scorecard follows when the audit finishes._\n' "$url" > comment.md
+          scripts/pr-comment.sh "${{ github.event.pull_request.number }}" comment.md
+  comment:
+    needs: [audit, preview]
+    if: always() && github.event_name == 'pull_request' && needs.preview.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: { contents: read, pull-requests: write }
+    env: { GH_TOKEN: "${{ github.token }}" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: scorecard-ci, path: . }
+        continue-on-error: true
+      - run: |
+          body=$(scripts/pr-comment.sh "${{ github.event.pull_request.number }}" --get | sed '/_Scorecard follows/,$d')
+          { printf '%s\n\n**Audit (%s):**\n\n' "$body" "${GITHUB_SHA::7}"; node bench/merge.mjs --no-gate --out /dev/null --summary /dev/stdout scorecard-ci.json 2>/dev/null || echo "audit did not produce a scorecard"; } > comment.md
+          scripts/pr-comment.sh "${{ github.event.pull_request.number }}" comment.md
+  publish-ci:
+    # Pre-launch: main has no deploy, so the colophon (once launched) would otherwise carry no CI
+    # rows at all. This publishes the CI scorecard to KV on every green push to main, ahead of launch.
+    needs: [build, audit]
+    if: github.event_name != 'pull_request' && needs.build.outputs.launched != 'true' && needs.audit.outputs.pass == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env: { CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}", CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: npm }
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with: { distribution: temurin, java-version: "21" }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: "dist-${{ github.sha }}", path: . }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: scorecard-ci, path: . }
+      - if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "publish-ci skipped — CLOUDFLARE_API_TOKEN is not set (RUNBOOK, Accounts and secrets)" >> "$GITHUB_STEP_SUMMARY"
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        run: |
+          npm ci && (cd bench && npm ci)
+          chmod +x site && scripts/scorecard-publish.sh scorecard-ci.json
+  deploy:
+    needs: [build, audit]
+    if: github.event_name == 'push' && needs.build.outputs.launched == 'true' && needs.audit.outputs.pass == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env: { CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}", CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" }
+    outputs: { previous: "${{ steps.deploy.outputs.previous }}", current: "${{ steps.deploy.outputs.current }}" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: npm }
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with: { distribution: temurin, java-version: "21" }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: "dist-${{ github.sha }}", path: . }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: scorecard-ci, path: . }
+      - run: scripts/dist-hash.sh | diff - dist.sha256
+      - run: npm ci && (cd bench && npm ci)
+      - name: stash the live scorecard
+        run: |
+          mkdir -p stash
+          scripts/kv.sh get scorecard > stash/scorecard.html || : > stash/scorecard.html
+          scripts/kv.sh get scorecard --metadata > stash/scorecard.meta || echo '{}' > stash/scorecard.meta
+          scripts/kv.sh get scorecard.json > stash/scorecard.json || echo '[]' > stash/scorecard.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with: { name: "kv-stash-${{ github.sha }}", path: stash/ }
+      - run: chmod +x site && cp scorecard-ci.json scorecard.json && scripts/scorecard-publish.sh scorecard.json
+      # wrangler 4.135.0, verified locally: `deployments list --json` is OLDEST-first, so its [0] is
+      # wrong for "previous"; `deployments status --json` instead returns ONE object for the live
+      # deployment — { id, source, strategy, author_email, annotations, versions: [{ version_id,
+      # percentage }], created_on } — whose versions[0].version_id is the version live before this
+      # deploy. `wrangler deploy` prints "Current Version ID: <uuid>" (the grep below matches the
+      # tail of that line) and `wrangler rollback [version-id] --yes --message "…"` exists.
+      - id: deploy
+        run: |
+          previous=$(npx wrangler deployments status --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{console.log(JSON.parse(s).versions[0].version_id)})')
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+          out=$(npx wrangler deploy 2>&1 | tee /dev/stderr)
+          current=$(printf '%s\n' "$out" | grep -Eo 'Version ID: [0-9a-f-]+' | head -1 | cut -d' ' -f3)
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "deployed $current (previous $previous)" >> "$GITHUB_STEP_SUMMARY"
+      - if: failure()
+        name: restore the scorecard the old build had
+        run: |
+          [ -s stash/scorecard.html ] && scripts/kv.sh put scorecard stash/scorecard.html --metadata "$(cat stash/scorecard.meta)" || true
+          [ -s stash/scorecard.json ] && scripts/kv.sh put scorecard.json stash/scorecard.json || true
+  post:
+    needs: [build, deploy]
+    if: always() && needs.build.outputs.launched == 'true' && (needs.deploy.result == 'success' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env: { CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}", CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" }
+    outputs: { verified: "${{ steps.tier1.outputs.verified }}" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: npm }
+      - run: npm ci
+      - id: tier1
+        run: |
+          if scripts/verify-preview.sh https://herinean.com --prod; then echo "verified=true" >> "$GITHUB_OUTPUT"; else echo "verified=false" >> "$GITHUB_OUTPUT"; exit 1; fi
+      - if: failure() && needs.deploy.result == 'success'
+        name: roll back
+        run: |
+          npx wrangler rollback "${{ needs.deploy.outputs.previous }}" --yes --message "post-deploy verification failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          echo "rolled back to ${{ needs.deploy.outputs.previous }}" >> "$GITHUB_STEP_SUMMARY"
+      - if: failure() && needs.deploy.result == 'success'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: "kv-stash-${{ github.sha }}", path: stash }
+      - if: failure() && needs.deploy.result == 'success'
+        run: |
+          [ -s stash/scorecard.html ] && scripts/kv.sh put scorecard stash/scorecard.html --metadata "$(cat stash/scorecard.meta)" || true
+          [ -s stash/scorecard.json ] && scripts/kv.sh put scorecard.json stash/scorecard.json || true
+  post-rows:
+    needs: [build, post]
+    if: always() && needs.post.outputs.verified == 'true'
+    uses: ./.github/workflows/audit.yml
+    with:
+      base: https://herinean.com
+      mode: post
+      shards: ${{ needs.build.outputs.shards }}
+      link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  publish:
+    needs: [post, post-rows]
+    if: always() && needs.post.outputs.verified == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    env: { CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}", CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: npm }
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with: { distribution: temurin, java-version: "21" }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: "dist-${{ github.sha }}", path: . }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { pattern: scorecard-*, path: sc, merge-multiple: true }
+      - run: npm ci && (cd bench && npm ci)
+      - run: |
+          chmod +x site
+          # a glob, not the two names literally: a dead post-rows merge job (no scorecard-post.json)
+          # must not fail publish — the CI rows still land.
+          node bench/merge.mjs --no-gate --out scorecard.json sc/scorecard-*.json
+          scripts/scorecard-publish.sh scorecard.json

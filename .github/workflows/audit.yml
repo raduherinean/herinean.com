@@ -1,0 +1,92 @@
+name: audit
+on:
+  workflow_call:
+    inputs:
+      base: { type: string, required: true }
+      mode: { type: string, required: true }        # ci | post
+      shards: { type: string, required: true }      # JSON array, e.g. ["1/2","2/2"]
+      artifact: { type: string, default: "" }       # dist artifact to serve (ci mode)
+      link: { type: string, required: true }        # the run URL, printed as "verify it yourself"
+    outputs:
+      pass: { value: "${{ jobs.merge.outputs.pass }}" }
+permissions: { contents: read }
+env: { NODE_OPTIONS: --max-old-space-size=4096 }
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix: { form-factor: [mobile, desktop], shard: "${{ fromJSON(inputs.shards) }}" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: npm, cache-dependency-path: bench/package-lock.json }
+      - run: cd bench && npm ci
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with: { path: ~/.cache/ms-playwright, key: "playwright-${{ runner.os }}-${{ hashFiles('bench/package-lock.json') }}" }
+      - run: cd bench && npx playwright install --with-deps chromium
+      - if: inputs.mode == 'ci'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: "${{ inputs.artifact }}", path: . }
+      - if: inputs.mode == 'ci'
+        run: |
+          chmod +x site && ./site serve --static --port 8080 &
+          for _ in $(seq 1 50); do curl -sf -o /dev/null http://127.0.0.1:8080/ && break; sleep 0.2; done
+      # Filenames carry form-factor and job-index: two shards' rows would otherwise share the
+      # name "rows-lighthouse.json" and one would overwrite the other under merge-multiple in `merge`.
+      - run: node bench/audit.mjs "${{ inputs.base }}" --mode ${{ inputs.mode }} --only lighthouse --form-factor ${{ matrix.form-factor }} --shard ${{ matrix.shard }} --link "${{ inputs.link }}" --out rows-lighthouse-${{ matrix.form-factor }}-${{ strategy.job-index }}.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with: { name: "rows-${{ inputs.mode }}-lighthouse-${{ matrix.form-factor }}-${{ strategy.job-index }}", path: rows-lighthouse-*.json* }
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: npm, cache-dependency-path: bench/package-lock.json }
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with: { distribution: temurin, java-version: "21" }
+      - run: cd bench && npm ci
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with: { path: ~/.cache/ms-playwright, key: "playwright-${{ runner.os }}-${{ hashFiles('bench/package-lock.json') }}" }
+      - run: cd bench && npx playwright install --with-deps chromium
+      # The Font correctness row measures the fallback against Liberation Serif; installed explicitly
+      # rather than assumed, since --with-deps may or may not pull it (bench/README.md, fonts row).
+      - run: sudo apt-get install -y --no-install-recommends fonts-liberation
+      - if: inputs.mode == 'ci'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: "${{ inputs.artifact }}", path: . }
+      - if: inputs.mode == 'ci'
+        run: |
+          chmod +x site && ./site serve --static --port 8080 &
+          for _ in $(seq 1 50); do curl -sf -o /dev/null http://127.0.0.1:8080/ && break; sleep 0.2; done
+      - run: node bench/audit.mjs "${{ inputs.base }}" --mode ${{ inputs.mode }} --only checks --dist dist --link "${{ inputs.link }}" --out rows-checks.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with: { name: "rows-${{ inputs.mode }}-checks", path: rows-checks.json* }
+  merge:
+    needs: [lighthouse, checks]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs: { pass: "${{ steps.gate.outputs.pass }}" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: npm, cache-dependency-path: bench/package-lock.json }
+      - run: cd bench && npm ci
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { pattern: "rows-${{ inputs.mode }}-*", path: rows, merge-multiple: true }
+      - id: gate
+        run: |
+          set +e
+          mapfile -t files < <(find rows -name 'rows-*.json' ! -name '*.detail.json' | sort)
+          if [ "${{ inputs.mode }}" = ci ]; then
+            node bench/merge.mjs --out scorecard-${{ inputs.mode }}.json --build "${GITHUB_SHA::7}" --build-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA" --summary "$GITHUB_STEP_SUMMARY" "${files[@]}"
+          else
+            node bench/merge.mjs --out scorecard-${{ inputs.mode }}.json --summary "$GITHUB_STEP_SUMMARY" "${files[@]}"
+          fi
+          rc=$?; echo "pass=$([ $rc -eq 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"; exit $rc
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with: { name: "scorecard-${{ inputs.mode }}", path: "scorecard-${{ inputs.mode }}.json" }
