@@ -52,10 +52,32 @@ Modules implemented so far:
 | `html.mjs` | HTML validity | the [Nu Html Checker](https://validator.github.io/validator/) (`vnu-jar`) reports 0 errors and 0 warnings; `html-validate` (`bench/.htmlvalidate.json`: `recommended` + `a11y` + `document`) reports 0 errors — every page, `/404.html` included. `modes = ["ci", "post"]` |
 | `a11y.mjs` | Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) against WCAG 2.2 AA in a real Chromium, in both `light` and `dark` `prefers-color-scheme`; AAA contrast (`color-contrast-enhanced`) everywhere except the `--ink-2` secondary-text selectors (`bench/lib/a11y.mjs`'s `SECONDARY`, kept in step with `assets/css/site.css`); skip link is the first tab stop; every interactive element gets a visible `:focus-visible` outline; tab stops account for every interactive element; the language-switch link carries `lang`. `modes = ["ci", "post"]` |
 | `fonts.mjs` | Font correctness | Playwright, two viewports (390/1280), three contexts per page: **fast** (no interception) is the real web-font render — proved by a width probe (a hidden span set in `"Herinean Serif", monospace` vs. plain `monospace`; a >5 px difference means the web face painted), not `document.fonts.check()`, which reports load state, not paint, and reads `true` even when `font-display: optional`'s ~100 ms block period has already elapsed and the page committed to the fallback; **delayed** (`/fonts/**` +600 ms) carries the CLS claim — a layout-shift observer must read 0, which is what `optional` actually guarantees even on a late-arriving font; **blocked** (`/fonts/**` aborted) is the metric-matched fallback render, compared against `fast`'s `document.documentElement.scrollHeight` (≤ 5 %) and each `main p`'s line count (±1). Glyph coverage (U+0218–021B, ă â î) is enforced separately by `site check` on the shipped subset faces. Needs a serif that matches the metrics Liberation Serif/Times New Roman was computed against — Ubuntu CI images carry `fonts-liberation`; install it if a runner lacks it, or the fallback measurement is meaningless. `modes = ["ci"]` |
+| `transport.mjs` | Transport (production) | TLS 1.2 refused (`openssl s_client … -tls1_2` must fail with a protocol-version/handshake alert) and TLS 1.3 negotiated; HTTP/3 actually negotiated — via an h3-capable curl (`--http3-only -w '%{http_version}'` must read `3`; `Alt-Svc` alone is not proof a client can complete an h3 handshake); an AAAA record exists (`dig … @1.1.1.1`). 0-RTT is reported as configured off (`infra/settings.tf`'s `"0rtt" = "off"`), not measured — a runner cannot provoke early data on demand. `modes = ["post"]` |
+| `observatory.mjs` | Mozilla HTTP Observatory (production) | runs the package's own CLI (`node node_modules/@mdn/mdn-http-observatory/bin/wrapper.js <host>`, i.e. `mdn-http-observatory-scan <host>`) and parses its JSON; pass iff grade `A+`. The row's `link` points at the Observatory's own report (`…/observatory/analyze?host=<host>`) instead of the CI run — the more useful "verify it yourself" here. `modes = ["post"]` |
+| `dns.mjs` | DNS, mail, domains (production) | wraps `scripts/verify-edge.sh --ci` (Task 4's M0 edge suite: DNSSEC, CAA, MX/SPF/DKIM/DMARC/MTA-STS/TLS-RPT ×4 zones, redirects, apex headers) rather than re-implementing any of it — one script stays the one truth for the edge. Domain-expiry checks via RDAP are the weekly job's (M2b), not this row's. `modes = ["post"]` |
+| `caching.mjs` | Caching (production) | `/` and `/colophon/` round-trip `If-None-Match` to a `304`; the preloaded font and `og:image` (found from `/`'s own HTML) are `max-age=31536000, immutable`; `/feed.xml` is `max-age=300`; `/.well-known/security.txt` is `text/plain`. `modes = ["post"]` |
 
-Later tasks add one module per remaining spec §5 row (`transport`, `observatory`, `dns`,
-`caching` — all `post`-only); `audit.mjs`'s `MODULES.checks` list grows to name each one as it
-lands.
+## Post-only rows
+
+`transport`, `observatory`, `dns` and `caching` are `modes = ["post"]` only: they measure things
+(TLS negotiation, DNS, an external grader, cache headers on the *served* build) that only exist
+once a real deploy is live, so CI never runs them against `site serve --static`. They run after a
+deploy, against production — the one environment they can say anything true about.
+
+None of the four depend on `ctx.pages`: in `post` mode against a build that has no
+`/sitemap.xml` yet (M0's placeholder, today), `bench/lib/pages.mjs`'s `loadPages` throws before
+`audit.mjs` reaches any module, sitemap or no. That's a real defect for the rows that *do* need
+`ctx.pages` (`html`, `a11y`, …) — a missing sitemap is itself something worth failing loudly on —
+but these four fetch what they need directly instead of waiting on the sitemap, so they can still
+run standalone against a host that has none.
+
+`transport.mjs` needs an HTTP/3-capable `curl`; most system curls (including this repo's own dev
+containers) don't have one, since it needs a build against ngtcp2/nghttp3. `curlH3()`
+(`bench/lib/tools.mjs`) returns the system `curl` when its own `--version` output already lists
+`HTTP3`, otherwise downloads, sha256-verifies and extracts the pinned static build named in
+`bench/tools.json` (currently `stunnel/static-curl` [8.22.0](https://github.com/stunnel/static-curl/releases/tag/8.22.0)) into `bench/.cache/bin/`
+(gitignored) — verified once, by hand, to report `HTTP3` in its own `--version` before being
+pinned. A checksum mismatch throws rather than running an unverified binary.
 
 ## Sharding Lighthouse
 

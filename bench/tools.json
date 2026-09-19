@@ -1,0 +1,15 @@
+{
+  "curl-h3": {
+    "version": "8.22.0",
+    "linux-x64": {
+      "url": "https://github.com/stunnel/static-curl/releases/download/8.22.0/curl-linux-x86_64-glibc-8.22.0.tar.xz",
+      "sha256": "d74460e43c0e6eaf40ec1fdda92c53dee94da8a6e6db066711541ada5aab0fa6",
+      "member": "curl"
+    },
+    "linux-arm64": {
+      "url": "https://github.com/stunnel/static-curl/releases/download/8.22.0/curl-linux-aarch64-glibc-8.22.0.tar.xz",
+      "sha256": "fa4de50f80fb2fbbf77a7bf8385891b6cb1a501a2e28b1ed18cf25e11fd66b66",
+      "member": "curl"
+    }
+  }
+}
