@@ -65,6 +65,8 @@ Portrait: export a pre-rotated JPEG at least 800 px wide to `assets/portrait.jpg
 ## TLS
 Minimum TLS 1.3 (see ADR-0011 for the evidence). Restricting the TLS 1.2 cipher list needs Advanced Certificate Manager ($10/month), which is why 1.2 is off rather than "on with modern ciphers".
 
+After production cutover, re-run all four external audits (internet.nl, SSL Labs, Mozilla Observatory, securityheaders.com) against the production site and replace the placeholder-era rows in `data/scorecard-manual.yaml` with rows marked `measured: production`; the colophon labels every manual row with the deployment it was measured on. Then publish the scorecard (`scripts/deploy.sh` does).
+
 HSTS preload: **not submitted yet.** All four zones have served `strict-transport-security: max-age=63072000; includeSubDomains; preload` since 2026-09-17 (`f41bd6b`); hstspreload.org wants the header live for a while before submission, so submit no earlier than 2026-09-25 and record the dates here, per domain.
 
 ## Verification

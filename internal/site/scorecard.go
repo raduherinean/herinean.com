@@ -26,6 +26,7 @@ type manualFile struct {
 		Check    string    `yaml:"check"`
 		Value    string    `yaml:"value"`
 		When     time.Time `yaml:"when"`
+		Measured string    `yaml:"measured"` // which deployment the service saw: "placeholder" or "production"
 		Link     string    `yaml:"link"`
 		LinkText string    `yaml:"link_text"`
 	} `yaml:"rows"`
@@ -51,8 +52,13 @@ func scorecardRows(ciPath, manualPath string, now time.Time) ([]render.Scorecard
 		if err := yaml.Unmarshal(b, &m); err != nil {
 			return nil, fmt.Errorf("%s: %w", manualPath, err)
 		}
-		for _, r := range m.Rows {
-			rows = append(rows, render.ScorecardRow{Check: r.Check, Pass: true, Value: r.Value, When: r.When.Format("2006-01-02"), Link: r.Link, LinkText: r.LinkText, Stale: now.Sub(r.When) > staleAfter})
+		for i, r := range m.Rows {
+			// A grade measured against the placeholder Worker is evidence about a different
+			// artifact than the site; the row must say which, so the colophon can show it.
+			if r.Measured != "placeholder" && r.Measured != "production" {
+				return nil, fmt.Errorf("%s: row %d (%s): measured must be \"placeholder\" or \"production\", got %q", manualPath, i+1, r.Check, r.Measured)
+			}
+			rows = append(rows, render.ScorecardRow{Check: r.Check, Pass: true, Value: r.Value, When: r.When.Format("2006-01-02"), Measured: r.Measured, Link: r.Link, LinkText: r.LinkText, Stale: now.Sub(r.When) > staleAfter})
 		}
 	}
 	return rows, nil
