@@ -17,6 +17,8 @@ const htmlValidateConfig = JSON.parse(readFileSync(configPath, "utf8"));
 export async function run(ctx) {
   const problems = [];
   const pages = ctx.mode === "post" ? ctx.pages.filter((p) => p.path === "/colophon/") : ctx.pages;
+  const check = ctx.mode === "post" ? `${name} (production)` : name;
+  if (pages.length === 0) return [row(check, false, ctx.mode === "post" ? "no /colophon/ page to audit" : "no pages to audit", ctx)];
   const dir = mkdtempSync(join(tmpdir(), "nu-"));
   try {
     const files = pages.map((p, i) => { const f = join(dir, `${i}.html`); writeFileSync(f, p.html); return [f, p.path]; });
@@ -37,6 +39,5 @@ export async function run(ctx) {
     const report = await hv.validateString(p.html, p.path);
     for (const r of report.results) for (const m of r.messages) if (m.severity === 2) problems.push(`html-validate ${p.path}:${m.line}: ${m.ruleId} ${m.message}`);
   }
-  const check = ctx.mode === "post" ? `${name} (production)` : name;
   return [row(check, problems.length === 0, summary(`${pages.length} pages: Nu 0 errors 0 warnings; html-validate 0 errors`, problems), ctx, problems)];
 }

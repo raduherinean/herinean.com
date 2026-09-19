@@ -82,6 +82,25 @@ test(
 );
 
 test(
+  "html and a11y both fail closed in post mode when /colophon/ is absent from the page set",
+  { timeout: 30000 },
+  async () => {
+    const s = await serveFixture(FIXTURE);
+    try {
+      const pages = await loadPages(s.base, { include404: true });
+      const [htmlRow] = await htmlRun(ctxFor(s.base, pages, { mode: "post", browser }));
+      assert.equal(htmlRow.pass, false);
+      assert.match(htmlRow.value, /\/colophon\//);
+      const [a11yRow] = await a11yRun(ctxFor(s.base, pages, { mode: "post", browser }));
+      assert.equal(a11yRow.pass, false);
+      assert.match(a11yRow.value, /\/colophon\//);
+    } finally {
+      await s.close();
+    }
+  },
+);
+
+test(
   "a11y passes on the fixture and fails when a page carries an <img> without alt",
   { timeout: 120000 },
   async () => {
