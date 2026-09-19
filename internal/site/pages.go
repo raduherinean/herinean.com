@@ -33,7 +33,11 @@ func (b *build) pages() error {
 		d := b.base(lang, "home", cfg.HomeURL(lang), cfg.Name, home.Summary) // the masthead carries the tagline; the meta description is the page's own summary
 		d.HeadTitle = cfg.Name
 		d.Page, d.Body, d.Tagline, d.Portrait = home, home.Body, cfg.Tagline[lang], b.portrait
-		for _, p := range s.Latest(5) {
+		listed := s.ForLang(lang) // one entry per key (spec §4.1 rows 71–72)
+		for i, p := range listed {
+			if i == 5 {
+				break
+			}
 			d.Entries = append(d.Entries, render.EntryFor(cfg, s, lang, p))
 		}
 		d.Alternates = render.AlternatesFor(cfg, cfg.HomeURL("en"), cfg.HomeURL("ro"))
@@ -43,7 +47,7 @@ func (b *build) pages() error {
 		}
 		// index
 		d = b.base(lang, "index", cfg.IndexURL(lang), s.T(lang, "index.title"), cfg.Tagline[lang])
-		d.Years = render.Years(cfg, s, lang, s.Pieces)
+		d.Years = render.Years(cfg, s, lang, listed)
 		d.Alternates = render.AlternatesFor(cfg, cfg.IndexURL("en"), cfg.IndexURL("ro"))
 		d.JSONLD = render.WebSiteLD(cfg, lang, cfg.Tagline[lang])
 		if err := b.render("index", d); err != nil {
