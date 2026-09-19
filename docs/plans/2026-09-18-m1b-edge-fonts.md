@@ -1144,8 +1144,6 @@ Edge function with analytics (path, lang, referrer host, ref, country — nothin
 Spec: §5.4, §6.3, §9, §3 rows 14/15/17/21. ADR-0004, ADR-0010.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 BODY
 )"
 ```

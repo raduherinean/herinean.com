@@ -5190,8 +5190,6 @@ Bespoke Go static generator: content model with validation (dates, slugs, Romani
 Spec: docs/specs/2026-09-17-herinean-com-design.md §4, §5, §9. Design: docs/design/export-review.md.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 BODY
 )"
 ```
