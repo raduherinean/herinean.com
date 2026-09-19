@@ -4,7 +4,7 @@ summary: "Radu Herinean, CTO at Cărturești. I write about the AI systems that 
 ---
 Most AI in business dies between the demo and the P&L. The part in between is my job — and so is the part before it: saying which projects will make it across, before anyone signs the budget.
 
-I'm CTO of Cărturești, a bookstore chain of around 60 stores, and advisory CTO at Enten, an agri-IoT company. At Cărturești I run the teams that keep the ERP, e-commerce and infrastructure alive, and I build on top of them: shopping assistants, internal knowledge assistants over company documentation, catalog enrichment pipelines, computer vision for growers. Production systems on real budgets with real data constraints, not pilots.
+I'm CTO of Cărturești, a bookstore chain of around 60 stores, and advisory CTO at Enten, an agri-IoT company. At Cărturești I run the teams that keep the ERP, e-commerce and infrastructure alive. On top of systems like those I build AI for retail and agri-IoT — shopping assistants, internal knowledge assistants over company documentation, catalog enrichment pipelines, computer vision for growers — built for production, on real budgets and real data constraints.
 
 I hold the CISSP, have qualified in systems audit, security management and risk (CISA, CISM, CRISC), and sit on the board of ISACA Romania, so every project gets the same two questions: what does it earn, and what does it expose. Shipping and signing off on the risk are usually two different people. That's why most of what I write here is about trade-offs rather than tools.
 

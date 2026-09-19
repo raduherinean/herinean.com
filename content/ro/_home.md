@@ -4,7 +4,7 @@ summary: "Radu Herinean, CTO la Cărturești. Scriu despre sistemele AI care au 
 ---
 Cele mai multe proiecte AI din companii mor între demo și bugetul de anul viitor. Partea dintre ele e treaba mea — și la fel e și partea de dinainte: să spun care proiecte trec de golul acela, înainte să semneze cineva bugetul.
 
-Sunt CTO la Cărturești, un lanț de librării cu ~60 de magazine, și advisory CTO la Enten, o companie de agri-IoT. La Cărturești conduc echipele care țin în viață ERP-ul, e-commerce-ul și infrastructura și construiesc peste ele: asistenți de cumpărături, asistenți interni peste documentația companiei, pipeline-uri de îmbogățire a catalogului, computer vision pentru agricultură. Sisteme în producție, cu bugete și date reale.
+Sunt CTO la Cărturești, un lanț de librării cu ~60 de magazine, și advisory CTO la Enten, o companie de agri-IoT. La Cărturești conduc echipele care țin în viață ERP-ul, e-commerce-ul și infrastructura. Peste sisteme ca acestea construiesc AI pentru retail și agri-IoT — asistenți de cumpărături, asistenți interni peste documentația companiei, pipeline-uri de îmbogățire a catalogului, computer vision pentru agricultură — gândite pentru producție, cu bugete și date reale.
 
 Sunt certificat CISSP, calificat în audit de sisteme, managementul securității și risc (CISA, CISM, CRISC), și fac parte din board-ul ISACA România. Fiecare proiect primește aceleași două întrebări: ce aduce și ce expune. De obicei, cel care construiește și cel care semnează riscul sunt doi oameni diferiți. De asta scriu mai mult despre ce alegi și ce pierzi, și mai puțin despre unelte.
 
