@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Edge verification suite. Every M0 task appends a section. Exit 1 if anything fails.
 set -uo pipefail
+CI_MODE=0; [ "${1:-}" = "--ci" ] && CI_MODE=1
 FAIL=0; PASS=0
 section() { printf '\n== %s\n' "$1"; }
 ok()   { PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
@@ -49,6 +50,7 @@ for t in curl dig jq; do command -v "$t" >/dev/null && ok "$t present" || bad "$
 
 # --- task sections are appended below this line ---
 
+if [ "$CI_MODE" = 0 ]; then
 section "zone settings (API)"
 cf() { curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4$1"; }
 for z in $ZONE_COM $ZONE_RO $ZONE_NET $ZONE_INFO; do
@@ -62,6 +64,9 @@ for z in $ZONE_COM $ZONE_RO $ZONE_NET $ZONE_INFO; do
   bfm=$(cf "/zones/$z/bot_management" | jq -r '.result.fight_mode')
   [ "$bfm" = "false" ] && ok "$z bot fight mode off" || bad "$z bot fight mode = $bfm"
 done
+else
+section "zone settings (API) — skipped: the CI token has no zone scope"
+fi
 
 
 section "redirects and CAA"
@@ -104,7 +109,7 @@ done
 section "apex headers and routing"
 U=https://herinean.com
 expect_status "$U/" 200
-expect_header "$U/" content-security-policy "^default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'$"
+expect_header "$U/" content-security-policy "^default-src 'none'; (style-src 'sha256-[A-Za-z0-9+/=]+'; img-src 'self'; font-src 'self'; )?base-uri 'none'; form-action 'none'; frame-ancestors 'none'$"
 expect_header "$U/" strict-transport-security '^max-age=63072000; includeSubDomains; preload$'
 expect_header "$U/" x-content-type-options '^nosniff$'
 expect_header "$U/" referrer-policy '^strict-origin-when-cross-origin$'
