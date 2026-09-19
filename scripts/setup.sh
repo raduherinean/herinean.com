@@ -6,7 +6,7 @@ git config core.hooksPath .githooks
 chmod +x .githooks/*
 export PATH="$HOME/.local/bin:$PATH"
 for t in go tofu jq dig curl node fonttools pyftsubset; do command -v "$t" >/dev/null || echo "missing: $t (see RUNBOOK.md)"; done
-for t in java; do command -v "$t" >/dev/null || echo "missing: $t (Nu checker needs a JRE ≥ 8: sudo apt install -y default-jre-headless)"; done
+for t in java; do command -v "$t" >/dev/null || echo "missing: $t (Nu checker needs a JRE ≥ 11: sudo apt install -y default-jre-headless)"; done
 [ -d node_modules/wrangler ] || npm ci --silent
 [ -d bench/node_modules ] || (cd bench && [ -f package.json ] && npm ci --silent) || true
 [ -f /usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf ] || echo "missing: fonts-liberation (sudo apt install -y fonts-liberation)"

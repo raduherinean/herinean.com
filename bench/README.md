@@ -106,6 +106,28 @@ exact fold behavior.
   valid HTML5 (the doctype is case-insensitive) and every template agrees on lowercase; the rule
   wants uppercase for style, not correctness, so it's off rather than the templates changed.
 
+## Running locally
+
+`scripts/bench.sh [BASE] [--post] [--only lighthouse|checks]` is the local escape hatch — the
+colophon only ever shows CI's numbers, so this is for reproducing and debugging a red row on your
+own machine.
+
+- No `BASE`: builds the site (`go build -tags nodynamic -o .cache/site ./cmd/site`, then `build`
+  and `check --dist`), serves it on `http://127.0.0.1:8089` with `.cache/site serve --static`, and
+  audits that. Give a `BASE` (e.g. a preview URL) to audit an already-running site instead.
+- No flag: mode `ci` (the checks modules, `modes = ["ci", "post"]` and `["ci"]`, then Lighthouse —
+  both form factors, unsharded, 3-run median per page, the slow part). `--post` runs mode `post`
+  instead, which additionally runs the production-only rows (`transport`, `observatory`, `dns`,
+  `caching`) — point `BASE` at a real deploy for those to mean anything.
+- `--only lighthouse` or `--only checks` runs just that half, passed straight through to
+  `bench/audit.mjs`.
+- Output: `.cache/bench/rows.json` (the row array) and `.cache/bench/rows.json.detail.json` (the
+  per-check debug payload), folded by `bench/merge.mjs --no-gate` into `.cache/bench/scorecard.json`
+  — `--no-gate` so a red row here doesn't fail your shell.
+- Needs a JRE ≥ 11 on `PATH` (the script prepends `$HOME/.local/bin`) for the Nu Html Checker half
+  of the `html` row; without one, that row prints "Nu did not run" rather than failing the script
+  — install with `sudo apt install -y default-jre-headless`.
+
 ## CLI
 
 ```
