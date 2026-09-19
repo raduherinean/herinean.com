@@ -1,0 +1,32 @@
+import { createServer } from "node:http";
+import { readFileSync, statSync, existsSync } from "node:fs";
+import { join } from "node:path";
+// Serves a fixture directory like site serve --static would: _headers applied, index.html for directories, 404.html with 404.
+export function serveFixture(dir, headersOverride) {
+  const rules = parseHeaders(existsSync(join(dir, "_headers")) ? readFileSync(join(dir, "_headers"), "utf8") : "");
+  const srv = createServer((req, res) => {
+    let p = decodeURIComponent(new URL(req.url, "http://x").pathname);
+    let fp = join(dir, p);
+    if (existsSync(fp) && statSync(fp).isDirectory()) fp = join(fp, "index.html");
+    for (const r of rules) if (r.match(p)) for (const [k, v] of r.headers) v === null ? res.removeHeader(k) : res.setHeader(k, v);
+    if (headersOverride) for (const [k, v] of Object.entries(headersOverride)) res.setHeader(k, v);
+    if (!existsSync(fp) || p === "/404.html") { res.statusCode = 404; res.setHeader("content-type", "text/html; charset=utf-8"); res.end(existsSync(join(dir, "404.html")) ? readFileSync(join(dir, "404.html")) : "nope"); return; }
+    const ext = fp.split(".").pop();
+    const types = { html: "text/html; charset=utf-8", xml: "application/xml; charset=utf-8", json: "application/json", txt: "text/plain; charset=utf-8", svg: "image/svg+xml", png: "image/png", ico: "image/x-icon", woff2: "font/woff2", webp: "image/webp", jpg: "image/jpeg", css: "text/css" };
+    if (!res.getHeader("content-type")) res.setHeader("content-type", types[ext] || "application/octet-stream");
+    res.end(readFileSync(fp));
+  });
+  return new Promise((resolve) => srv.listen(0, "127.0.0.1", () => resolve({ base: `http://127.0.0.1:${srv.address().port}`, close: () => new Promise((r) => srv.close(r)) })));
+}
+function parseHeaders(text) {
+  const rules = [];
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    if (!line.startsWith(" ")) { rules.push({ pattern: line.trim(), headers: [], match(p) { return this.pattern.endsWith("*") ? p.startsWith(this.pattern.slice(0, -1)) : this.pattern === p; } }); continue; }
+    const l = line.trim();
+    if (l.startsWith("! ")) { rules.at(-1).headers.push([l.slice(2), null]); continue; }
+    const i = l.indexOf(": "); if (i > 0) rules.at(-1).headers.push([l.slice(0, i), l.slice(i + 2)]);
+  }
+  return rules;
+}
+export const ctxFor = (base, pages, extra = {}) => ({ base, mode: "ci", pages, when: "2026-09-19", link: "https://example.test/run", linkText: "CI run", ...extra });

@@ -1,0 +1,4 @@
+Contact: mailto:security@herinean.com
+Expires: 2027-09-18T15:34:31.000Z
+Preferred-Languages: en, ro
+Canonical: https://herinean.com/.well-known/security.txt

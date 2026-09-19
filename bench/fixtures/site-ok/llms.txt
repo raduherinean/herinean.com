@@ -1,0 +1,10 @@
+# Radu Herinean
+
+> I build AI systems and then have to live with them.
+
+The platform was designed and built with Claude Code from a written spec. Every piece is drafted with AI, then edited and signed off by me; before the first piece is published, a second pass checks its technical claims against the code and the commits. The judgment and the mistakes are mine.
+
+## Optional
+
+- [Colophon](https://herinean.com/colophon/): how the site is built and audited
+- [RSS](https://herinean.com/feed.xml)

@@ -1,0 +1,19 @@
+{
+  "name": "herinean-com-bench",
+  "private": true,
+  "type": "module",
+  "description": "The audit bench: measures the scorecard rows against a served build. Runs in CI; scripts/bench.sh runs it locally.",
+  "engines": { "node": ">=24" },
+  "scripts": { "test": "node --test test/*.test.mjs" },
+  "dependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "cheerio": "1.2.0",
+    "chrome-launcher": "1.2.1",
+    "fast-xml-parser": "5.11.1",
+    "html-validate": "11.16.0",
+    "lighthouse": "13.5.0",
+    "playwright": "1.63.0",
+    "vnu-jar": "26.9.16",
+    "@mdn/mdn-http-observatory": "1.7.1"
+  }
+}
