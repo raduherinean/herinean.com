@@ -44,6 +44,7 @@ type PageData struct {
 	Robots      string
 	JSONLD      template.JS
 	CSS         template.CSS
+	PreloadFont string // absolute-path URL of the body regular; base emits one <link rel="preload"> when set
 	Body        template.HTML
 	Tagline     string
 

@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# Regenerates assets/fonts/web/ from pinned upstream masters. Outputs are committed; run this only when the fonts change.
+# Sources are pinned by commit and checksum; the fonttools version used is recorded in BUILD.txt. Same inputs → same bytes.
+# Both families come from one google/fonts commit. Source Serif 4's binaries reserve the name "Source" (OFL §3), so the subset ships as "Herinean Serif" — the copyright and licence strings inside the files are untouched.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+export PATH="$HOME/.local/bin:$PATH"
+export SOURCE_DATE_EPOCH=1789689600   # fonttools stamps head.modified from this (instancer and subsetter alike): same inputs → same bytes
+SRC=.cache/fonts/src; OUT=assets/fonts/web; LIB=/usr/share/fonts/truetype/liberation
+mkdir -p "$SRC" "$OUT"
+GF=a54f7446f84a1125ef6bf08baa46f3639e8905e0   # google/fonts main, 2026-09-18 (Newsreader + Source Serif 4 variable masters and OFL)
+
+fetch() { # file url sha256
+  [ -f "$SRC/$1" ] || curl -sSfL -o "$SRC/$1" "$2"
+  echo "$3  $SRC/$1" | sha256sum -c --quiet
+}
+fetch 'Newsreader[opsz,wght].ttf' "https://raw.githubusercontent.com/google/fonts/$GF/ofl/newsreader/Newsreader%5Bopsz%2Cwght%5D.ttf" 8a08d13f8a6c0d51be379a60af84f945f65369a67e509ee3c3bdcc421254d7c1
+fetch OFL-Newsreader.txt        "https://raw.githubusercontent.com/google/fonts/$GF/ofl/newsreader/OFL.txt"                          fdfad38143ec470553cae82a1e45320bdd1b9ec70415d37bd0171051d8a4ded8
+fetch 'SourceSerif4[opsz,wght].ttf'        "https://raw.githubusercontent.com/google/fonts/$GF/ofl/sourceserif4/SourceSerif4%5Bopsz%2Cwght%5D.ttf"        97b2d4da6e3cb494b5a1e66ae176914d852ccabef49e0c02c0df25f3e39aca0b
+fetch 'SourceSerif4-Italic[opsz,wght].ttf' "https://raw.githubusercontent.com/google/fonts/$GF/ofl/sourceserif4/SourceSerif4-Italic%5Bopsz%2Cwght%5D.ttf" 15fbc7e4679489a501998c3669272637a6646388ef7e4bd77eebb5bf967a1f42
+fetch OFL-SourceSerif4.txt                 "https://raw.githubusercontent.com/google/fonts/$GF/ofl/sourceserif4/OFL.txt"                                  5f94c3fd3a23131a417ab5a0c8452de57e70c3cfb9f604d88241f7065ebf9fd9
+cp "$SRC/OFL-Newsreader.txt" "$SRC/OFL-SourceSerif4.txt" "$OUT/"
+
+# Newsreader: one static cut for titles — weight 500, optical size 36 (masthead 44px, titles 44–55px, entry titles 28px sit around it).
+fonttools varLib.instancer "$SRC/Newsreader[opsz,wght].ttf" wght=500 opsz=36 -o "$SRC/Newsreader-Medium.ttf"
+
+# Source Serif 4: the text cut — wght 400 at the default optical size 20 (the family's "Regular"/"Italic" named instances).
+fonttools varLib.instancer "$SRC/SourceSerif4[opsz,wght].ttf"        wght=400 opsz=20 -o "$SRC/SourceSerif4-Regular.ttf"
+fonttools varLib.instancer "$SRC/SourceSerif4-Italic[opsz,wght].ttf" wght=400 opsz=20 -o "$SRC/SourceSerif4-It.ttf"
+# The binaries reserve "Source": name ID 0 reads "… with Reserved Font Name ‘Source’." (google/fonts' OFL.txt declares none). A subset
+# is a Modified Version and may not carry the reserved word as its name (OFL §3; FAQ 2.6–2.8, 5.3–5.4), so the family becomes
+# Herinean Serif in IDs 1, 3, 4, 6 (and 16/17 where present); IDs 0, 5, 13, 14 — copyright, version, licence — stay verbatim.
+# The file names stay: a file name is not a font name, and the provenance stays visible.
+~/.local/share/fonttools/bin/python - "$SRC/SourceSerif4-Regular.ttf" Regular "$SRC/SourceSerif4-It.ttf" Italic <<'PY'
+import sys
+from fontTools.ttLib import TTFont
+args = sys.argv[1:]
+for path, style in zip(args[::2], args[1::2]):
+    f = TTFont(path)
+    new = {1: "Herinean Serif", 3: f"4.004;HERI;HerineanSerif-{style}", 4: f"Herinean Serif {style}", 6: f"HerineanSerif-{style}", 16: "Herinean Serif", 17: style}
+    for rec in f["name"].names:
+        if rec.nameID in new:
+            rec.string = new[rec.nameID]
+    f.save(path)
+PY
+
+# Latin, Latin-1, Latin Extended-A, Romanian comma-below, and the punctuation the templates and typographer emit (– — ‘ ’ ‚ “ ” „ … ‹ › € → −).
+UNICODES='U+0020-007E,U+00A0-00FF,U+0100-017F,U+0218-021B,U+02C6,U+02DC,U+2013-2014,U+2018-201A,U+201C-201E,U+2026,U+2039-203A,U+20AC,U+2192,U+2212'
+# --layout-features+= APPENDS to pyftsubset's defaults (kern, liga, calt, locl, ccmp, mark, mkmk, rlig …); "=" would replace them and break combining marks.
+# tnum: .meta uses tabular-nums. No smcp: labels are letter-spaced uppercase, not small caps.
+subset() { # name source
+  for flavor in woff2 ttf; do
+    args=(--unicodes="$UNICODES" --layout-features+=tnum --name-IDs=0,1,2,3,4,5,6,13,14 --no-hinting --no-recalc-timestamp --output-file="$OUT/$1.$flavor")
+    [ "$flavor" = woff2 ] && args+=(--flavor=woff2)
+    pyftsubset "$2" "${args[@]}"
+  done
+}
+subset SourceSerif4-Regular "$SRC/SourceSerif4-Regular.ttf"
+subset SourceSerif4-It      "$SRC/SourceSerif4-It.ttf"
+subset Newsreader-Medium    "$SRC/Newsreader-Medium.ttf"
+
+# Metric-matched fallbacks (spec §9; row 21). Liberation Serif carries Times New Roman's metrics, so one rule serves Windows, macOS and Linux CI.
+{
+  go run ./scripts/fontface -web "$OUT/SourceSerif4-Regular.ttf" -fallback "$LIB/LiberationSerif-Regular.ttf" -family "Herinean Serif Fallback"
+  go run ./scripts/fontface -web "$OUT/SourceSerif4-It.ttf"      -fallback "$LIB/LiberationSerif-Italic.ttf"  -family "Herinean Serif Fallback" -style italic -local 'local("Times New Roman Italic"),local("Liberation Serif Italic")'
+  go run ./scripts/fontface -web "$OUT/Newsreader-Medium.ttf"    -fallback "$LIB/LiberationSerif-Regular.ttf" -family "Newsreader Fallback" -weight 500
+} > "$OUT/fallback.css"
+
+{
+  echo "generated by scripts/fonts.sh"
+  ~/.local/share/fonttools/bin/python -c 'import fontTools; print("fonttools", fontTools.version)'
+  echo "google/fonts $GF"
+  echo "SOURCE_DATE_EPOCH $SOURCE_DATE_EPOCH"
+  echo "newsreader instance: wght=500 opsz=36"; echo "source serif instances: wght=400 opsz=20"; echo "source serif renamed: Herinean Serif (OFL reserved font name)"; echo "unicodes: $UNICODES"; echo "features: defaults + tnum"
+  for f in "$OUT"/*.woff2; do printf '%s %s\n' "$(wc -c <"$f")" "$(basename "$f")"; done
+} > "$OUT/BUILD.txt"
+
+total=$(cat "$OUT"/*.woff2 | wc -c)
+echo "web fonts: $total bytes (budget 102400, row 14)"
+[ "$total" -le 102400 ] || { echo "over budget — see the plan's Task 1 step 3 fallback" >&2; exit 1; }
+cat "$OUT/fallback.css"

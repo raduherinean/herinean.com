@@ -12,3 +12,5 @@ for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID ZONE_COM ZONE_RO ZONE_NET ZO
   [ -n "${!v:-}" ] || { echo "$v is empty in $ENV_FILE" >&2; return 1 2>/dev/null || exit 1; }
 done
 export TF_VAR_account_id="$CLOUDFLARE_ACCOUNT_ID"
+# The deploy tool is pinned exactly: `npx --yes wrangler@4` would run whatever 4.x npm serves that day, with the account token in hand.
+export WRANGLER="wrangler@4.135.0"

@@ -59,6 +59,9 @@ func Headers(cssHash string) []byte {
 /llms.txt
   Content-Type: text/plain; charset=utf-8
 
+/robots.txt
+  Content-Type: text/plain; charset=utf-8
+
 /.well-known/security.txt
   Content-Type: text/plain; charset=utf-8
 

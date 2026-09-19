@@ -1,8 +1,10 @@
 package site
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -219,5 +221,136 @@ func TestBuildRefusesToWriteIntoRoot(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(root, "site.yaml")); err != nil {
 			t.Fatalf("Out=%q: the root was touched: %v", out, err)
 		}
+	}
+}
+
+// Every rune of the prose must be in the web-font subset, front matter included; code is set in the system mono stack
+// and is skipped, whether a span or a fenced block.
+func TestCheckContentGlyphsAgainstTheSubset(t *testing.T) {
+	root := fixtureRoot(t)
+	piece := filepath.Join(root, "content", "en", "glyphs.md")
+	front := func(title string) string {
+		return "---\ntitle: \"" + title + "\"\ndate: 2026-09-02\nkey: glyphs\npillar: analysis\nsummary: \"A short summary.\"\n---\n"
+	}
+	write := func(s string) {
+		t.Helper()
+		if err := os.WriteFile(piece, []byte(s), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	write(front("Glyphs") + "Prose with `x ≤ y` in a span,\n\n```text\na ≤ b\n```\n\nand ``a ` ≤ b`` in a longer one.\n")
+	if err := Check(Options{Root: root}); err != nil {
+		t.Fatalf("Check() = %v, want nil: ≤ appears only inside code", err)
+	}
+
+	write(front("Glyphs") + "Prose with x ≤ y in the open, ≤ twice.\n")
+	err := Check(Options{Root: root})
+	if err == nil {
+		t.Fatal("Check() = nil, want the ≤ finding")
+	}
+	want := `glyphs.md:8: "≤" (U+2264) is not in the web-font subset; add it to UNICODES in scripts/fonts.sh or change the text`
+	if !strings.Contains(err.Error(), want) {
+		t.Fatalf("Check() error lacks %q:\n%v", want, err)
+	}
+	if n := strings.Count(err.Error(), "U+2264"); n != 1 {
+		t.Errorf("≤ reported %d times for one line, want 1", n)
+	}
+
+	write(front("Glyphs ≤ titles") + "Plain prose.\n")
+	err = Check(Options{Root: root})
+	if err == nil || !strings.Contains(err.Error(), `glyphs.md:2: "≤" (U+2264)`) {
+		t.Fatalf("Check() error = %v, want the front-matter title's ≤ at line 2", err)
+	}
+}
+
+func TestWithoutMarkdownCode(t *testing.T) {
+	in := "a `≤` b\n```go\nx ≤ y\n```\nc ``d ` ≤`` e\n~~~\n≤\n~~~\nf ` unclosed ≤\n"
+	got := withoutMarkdownCode(in)
+	if strings.Count(got, "\n") != strings.Count(in, "\n") {
+		t.Fatalf("line count changed:\n%q", got)
+	}
+	lines := strings.Split(got, "\n")
+	for i, l := range lines[:8] {
+		if strings.Contains(l, "≤") {
+			t.Errorf("line %d still carries code: %q", i+1, l)
+		}
+	}
+	if !strings.Contains(lines[8], "≤") {
+		t.Errorf("an unclosed backtick is literal text; line 9 = %q", lines[8])
+	}
+}
+
+// CheckDist must fire on each row-14 gap: the font budget, the single preload and its target, the CSS font urls, the
+// request count and the /fonts/* cache rule.
+func TestCheckDistCatchesFontAndRequestGaps(t *testing.T) {
+	root := fixtureRoot(t)
+	if err := Build(Options{Root: root, Out: "dist"}); err != nil {
+		t.Fatal(err)
+	}
+	edit := func(t *testing.T, path string, f func(string) string) {
+		t.Helper()
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := f(string(b))
+		if out == string(b) {
+			t.Fatalf("%s: the edit changed nothing", path)
+		}
+		if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	page := filepath.Join("privacy", "index.html")
+	preloadTag := regexp.MustCompile(`<link rel="preload"[^>]*>`)
+	cases := []struct {
+		name    string
+		corrupt func(t *testing.T, dist string)
+		want    []string
+	}{
+		{"fonts total out of range", func(t *testing.T, dist string) {
+			if err := os.RemoveAll(filepath.Join(dist, "fonts")); err != nil {
+				t.Fatal(err)
+			}
+		}, []string{"fonts: shipped fonts total 0 bytes; want 1..102400 (row 14)"}},
+		{"two preloads", func(t *testing.T, dist string) {
+			edit(t, filepath.Join(dist, page), func(s string) string { tag := preloadTag.FindString(s); return strings.Replace(s, tag, tag+tag, 1) })
+		}, []string{"privacy/index.html: 2 preloads; exactly one (the body regular) is allowed"}},
+		{"preload target missing", func(t *testing.T, dist string) {
+			edit(t, filepath.Join(dist, page), func(s string) string {
+				tag := preloadTag.FindString(s)
+				return strings.Replace(s, tag, strings.Replace(tag, `href="/fonts/`, `href="/fonts/nope-`, 1), 1)
+			})
+		}, []string{"privacy/index.html: preload target /fonts/nope-", "is not a shipped font"}},
+		{"CSS url target missing", func(t *testing.T, dist string) {
+			edit(t, filepath.Join(dist, page), func(s string) string { return strings.Replace(s, "url(/fonts/", "url(/fonts/nope-", 1) })
+		}, []string{"privacy/index.html: CSS references /fonts/nope-", "which is not in dist"}},
+		{"more than six requests", func(t *testing.T, dist string) {
+			edit(t, filepath.Join(dist, page), func(s string) string {
+				return strings.Replace(s, "</main>", strings.Repeat(`<img src="/x.png" alt="">`, 5)+"</main>", 1)
+			})
+		}, []string{"privacy/index.html: estimated first-view requests", "> 6 (row 14): document, favicon, ", "5 eager images"}},
+		{"the /fonts/* cache rule missing", func(t *testing.T, dist string) {
+			edit(t, filepath.Join(dist, "_headers"), func(s string) string {
+				return strings.Replace(s, "/fonts/*\n  ! Cache-Control\n  Cache-Control: public, max-age=31536000, immutable\n", "/fonts/*\n  ! Cache-Control\n", 1)
+			})
+		}, []string{"_headers: no rule for /fonts/* with Cache-Control: public, max-age=31536000, immutable"}},
+	}
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			out := fmt.Sprintf("dist-%d", i)
+			copyDir(t, filepath.Join(root, "dist"), filepath.Join(root, out))
+			tc.corrupt(t, filepath.Join(root, out))
+			err := CheckDist(Options{Root: root, Out: out})
+			if err == nil {
+				t.Fatal("CheckDist() = nil, want a finding")
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("CheckDist() error lacks %q:\n%v", want, err)
+				}
+			}
+		})
 	}
 }

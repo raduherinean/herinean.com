@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type Renderer struct {
@@ -20,12 +21,16 @@ var kinds = []string{"home", "index", "piece", "colophon", "privacy", "404"}
 
 // New parses the shared templates once, then one clone per page kind. Every page file defines "content";
 // cloning before parsing each keeps the definitions apart (in one set, the last file parsed would win for all kinds).
-func New(templatesDir, cssPath string) (*Renderer, error) {
+func New(templatesDir, cssPath string, fontURLs map[string]string) (*Renderer, error) {
 	raw, err := os.ReadFile(cssPath)
 	if err != nil {
 		return nil, err
 	}
-	css := minifyCSS(string(raw))
+	css := string(raw)
+	for from, to := range fontURLs { // /fonts/x.woff2 → /fonts/x.<hash8>.woff2, before minify and hash
+		css = strings.ReplaceAll(css, "url("+from+")", "url("+to+")")
+	}
+	css = minifyCSS(css)
 	shared := []string{"base.html", "entries.html", "scorecard.html"}
 	for i, f := range shared {
 		shared[i] = filepath.Join(templatesDir, f)
