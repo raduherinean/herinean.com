@@ -65,6 +65,8 @@ Portrait: export a pre-rotated JPEG at least 800 px wide to `assets/portrait.jpg
 ## TLS
 Minimum TLS 1.3 (see ADR-0011 for the evidence). Restricting the TLS 1.2 cipher list needs Advanced Certificate Manager ($10/month), which is why 1.2 is off rather than "on with modern ciphers".
 
+HSTS preload: **not submitted yet.** All four zones have served `strict-transport-security: max-age=63072000; includeSubDomains; preload` since 2026-09-17 (`f41bd6b`); hstspreload.org wants the header live for a while before submission, so submit no earlier than 2026-09-25 and record the dates here, per domain.
+
 ## Verification
 `scripts/verify-edge.sh` — the edge test suite (settings, redirects, CAA, mail DNS, DNSSEC, apex headers, HTTP/3, TLS). Resolves through 1.1.1.1 with `curl --resolve`, so local resolver caches cannot fake a result. Run after any infra change. This machine's `curl` lacks HTTP/3; the suite then checks the `alt-svc: h3` advertisement instead.
 External: Mozilla Observatory (`curl -X POST 'https://observatory-api.mdn.mozilla.net/api/v2/scan?host=herinean.com'`), SSL Labs API (`https://api.ssllabs.com/api/v3/analyze?host=herinean.com&startNew=on&all=done`, poll until READY), internet.nl (start `https://internet.nl/site/herinean.com/`, poll `/site/probes/herinean.com/`, results at `/site/herinean.com/results`; retest window ~5 minutes), securityheaders.com (browser only; blocks scripted access), dnsviz. HSTS preload submitted: <dates>.
