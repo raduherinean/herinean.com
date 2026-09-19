@@ -9,6 +9,6 @@ author:
   github: https://github.com/rlucian
   email: security@herinean.com
 ai_disclosure:
-  en: "The platform was designed and built with Claude Code from a written spec. Every piece is drafted with AI, its technical claims checked against the code and the commits, then edited and signed off by me. The judgment and the mistakes are mine."
+  en: "The platform was designed and built with Claude Code from a written spec. Every piece is drafted with AI, then edited and signed off by me; before the first piece is published, a second pass checks its technical claims against the code and the commits. The judgment and the mistakes are mine."
   # ro has no consumer yet (the colophon is EN-only); kept ready for the day a Romanian page carries the disclosure.
-  ro: "Platforma a fost proiectată și construită cu Claude Code, pornind de la o specificație scrisă. Fiecare text e scris cu AI, afirmațiile tehnice sunt verificate față de cod și commit-uri, apoi îl editez și îl asum eu. Judecata și greșelile îmi aparțin."
+  ro: "Platforma a fost proiectată și construită cu Claude Code, pornind de la o specificație scrisă. Fiecare text e scris cu AI, apoi îl editez și îl asum eu; înainte de publicarea primului text, un al doilea pas îi verifică afirmațiile tehnice față de cod și commit-uri. Judecata și greșelile îmi aparțin."
