@@ -125,27 +125,44 @@ function stubPage(dir, urlPath) {
 }
 
 test(
-  "links passes on a fixture with its internal targets stubbed and fails when a href points at /missing/",
+  "links passes on a fixture with its internal targets stubbed, ignores a href that only 404.html carries, and fails when a real page's href points at /missing/",
   { timeout: 30000 },
   async () => {
     const dir = tempCopy();
     try {
       for (const p of ["/writing/", "/colophon/", "/privacy/", "/ro/articole/", "/ro/confidentialitate/"]) stubPage(dir, p);
+
       const s = await serveFixture(dir);
       try {
-        // The real /404.html carries a <link rel="canonical"> pointing at itself, and (matching
-        // production) the server always answers that literal path with a 404 status — so that one
-        // link can never resolve, by design, regardless of stubbing. That's a genuine generator
-        // finding (reported, not patched here); exclude 404.html here so this test isolates the
-        // module's own link-resolution logic from that known, separate issue.
-        const pages = (await loadPages(s.base, { include404: true })).filter((p) => p.path !== "/404.html");
+        const pages = await loadPages(s.base, { include404: true });
         const [ok] = await linksRun(ctxFor(s.base, pages));
         assert.equal(ok.pass, true, ok.value);
       } finally {
         await s.close();
       }
 
-      // Break one internal href (the first "Writing" link on the home page) so it points nowhere.
+      // 404.html is not a link source (controller ruling: spec §3 row 1 carves it out to Nu +
+      // axe only — its self-canonical answering 404 is by design, and its other links are the
+      // shared masthead/footer every other page already carries). A href that ONLY 404.html
+      // carries, pointing at a path that doesn't exist anywhere, must not be checked at all —
+      // the row stays green.
+      const nf = join(dir, "404.html");
+      const nfBefore = readFileSync(nf, "utf8");
+      const nfAfter = nfBefore.replace("</body>", '<a href="/only-on-404/">only on 404</a></body>');
+      assert.notEqual(nfAfter, nfBefore, "fixture 404.html has no </body> to anchor the mutation");
+      writeFileSync(nf, nfAfter);
+      const onlyOn404 = await serveFixture(dir);
+      try {
+        const pages = await loadPages(onlyOn404.base, { include404: true });
+        const [ok] = await linksRun(ctxFor(onlyOn404.base, pages));
+        assert.equal(ok.pass, true, ok.value);
+        assert.doesNotMatch(ok.value, /only-on-404/);
+      } finally {
+        await onlyOn404.close();
+      }
+
+      // Break one internal href on a real page (the first "Writing" link on the home page) so it
+      // points nowhere — this one must still fail the row.
       const idx = join(dir, "index.html");
       const before = readFileSync(idx, "utf8");
       const after = before.replace('href="/writing/"', 'href="/missing/"');
@@ -153,7 +170,7 @@ test(
       writeFileSync(idx, after);
       const bad = await serveFixture(dir);
       try {
-        const badPages = (await loadPages(bad.base, { include404: true })).filter((p) => p.path !== "/404.html");
+        const badPages = await loadPages(bad.base, { include404: true });
         const [row] = await linksRun(ctxFor(bad.base, badPages));
         assert.equal(row.pass, false);
         assert.match(row.value, /\/missing\/ → 404/);

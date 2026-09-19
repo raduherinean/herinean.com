@@ -3,11 +3,12 @@ import { row, summary } from "./row.mjs";
 export const name = "Links";
 export const modes = ["ci"];
 // Row 4: every same-origin href/src resolves (fail); external links are fetched with a timeout and only warn (allowlist bench/links-allow.txt).
+// 404.html is excluded as a source (spec §3 row 1 carves it out to Nu + axe only): its self-canonical answers 404 by design, and its other links are the shared masthead/footer every other page already carries.
 export async function run(ctx) {
   const problems = [], warnings = [];
   const allow = readFileSync(new URL("../links-allow.txt", import.meta.url), "utf8").split("\n").map((s) => s.trim()).filter((s) => s && !s.startsWith("#"));
   const internal = new Map(), external = new Map();
-  for (const p of ctx.pages) {
+  for (const p of ctx.pages.filter((p) => p.path !== "/404.html")) {
     for (const el of p.$("a[href], img[src], link[href], source[srcset], img[srcset]").toArray()) {
       const attr = p.$(el).attr("href") || p.$(el).attr("src") || p.$(el).attr("srcset") || "";
       for (const raw of attr.split(",").map((s) => s.trim().split(" ")[0]).filter(Boolean)) {
