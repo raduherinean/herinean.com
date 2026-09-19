@@ -39,8 +39,10 @@ jobs:
           shards=$(seq 1 "$k" | sed "s#^#\"#; s#\$#/$k\"#" | paste -sd, | sed 's/^/[/; s/$/]/')
           echo "launched=$launched" >> "$GITHUB_OUTPUT"; echo "shards=$shards" >> "$GITHUB_OUTPUT"
           echo "launched: $launched; $n pages → $k Lighthouse shards" >> "$GITHUB_STEP_SUMMARY"
+      # dist/ is generated output, not secrets — v4's hidden-file skip (meant for stray .env
+      # files) would otherwise drop dist/.well-known/security.txt and mta-sts.txt.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with: { name: "dist-${{ github.sha }}", path: "dist/\nsite\ndist.sha256", if-no-files-found: error }
+        with: { name: "dist-${{ github.sha }}", path: "dist/\nsite\ndist.sha256", if-no-files-found: error, include-hidden-files: true }
   audit:
     needs: build
     uses: ./.github/workflows/audit.yml
@@ -84,11 +86,13 @@ jobs:
     env: { GH_TOKEN: "${{ github.token }}" }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version }
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with: { name: scorecard-ci, path: . }
         continue-on-error: true
       - run: |
-          body=$(scripts/pr-comment.sh "${{ github.event.pull_request.number }}" --get | sed '/_Scorecard follows/,$d')
+          body=$(scripts/pr-comment.sh "${{ github.event.pull_request.number }}" --get | sed '/_Scorecard follows/,$d; /^\*\*Audit (/,$d')
           { printf '%s\n\n**Audit (%s):**\n\n' "$body" "${GITHUB_SHA::7}"; node bench/merge.mjs --no-gate --out /dev/null --summary /dev/stdout scorecard-ci.json 2>/dev/null || echo "audit did not produce a scorecard"; } > comment.md
           scripts/pr-comment.sh "${{ github.event.pull_request.number }}" comment.md
   publish-ci:
@@ -141,9 +145,10 @@ jobs:
           mkdir -p stash
           scripts/kv.sh get scorecard > stash/scorecard.html || : > stash/scorecard.html
           scripts/kv.sh get scorecard --metadata > stash/scorecard.meta || echo '{}' > stash/scorecard.meta
-          scripts/kv.sh get scorecard.json > stash/scorecard.json || echo '[]' > stash/scorecard.json
+          grep -q '^{' stash/scorecard.meta || echo '{}' > stash/scorecard.meta
+          scripts/kv.sh get scorecard.json > stash/scorecard.json || : > stash/scorecard.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with: { name: "kv-stash-${{ github.sha }}", path: stash/ }
+        with: { name: "kv-stash-${{ github.sha }}", path: stash/, overwrite: true }
       - run: chmod +x site && cp scorecard-ci.json scorecard.json && scripts/scorecard-publish.sh scorecard.json
       # wrangler 4.135.0, verified locally: `deployments list --json` is OLDEST-first, so its [0] is
       # wrong for "previous"; `deployments status --json` instead returns ONE object for the live
@@ -157,6 +162,7 @@ jobs:
           echo "previous=$previous" >> "$GITHUB_OUTPUT"
           out=$(npx wrangler deploy 2>&1 | tee /dev/stderr)
           current=$(printf '%s\n' "$out" | grep -Eo 'Version ID: [0-9a-f-]+' | head -1 | cut -d' ' -f3)
+          [ -n "$current" ] || { echo "wrangler deploy printed no version id"; exit 1; }
           echo "current=$current" >> "$GITHUB_OUTPUT"
           echo "deployed $current (previous $previous)" >> "$GITHUB_STEP_SUMMARY"
       - if: failure()
@@ -165,8 +171,8 @@ jobs:
           [ -s stash/scorecard.html ] && scripts/kv.sh put scorecard stash/scorecard.html --metadata "$(cat stash/scorecard.meta)" || true
           [ -s stash/scorecard.json ] && scripts/kv.sh put scorecard.json stash/scorecard.json || true
   post:
-    needs: [build, deploy]
-    if: always() && needs.build.outputs.launched == 'true' && (needs.deploy.result == 'success' || github.event_name == 'workflow_dispatch')
+    needs: [build, audit, deploy]
+    if: always() && needs.build.outputs.launched == 'true' && (needs.deploy.result == 'success' || (github.event_name == 'workflow_dispatch' && needs.audit.outputs.pass == 'true'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: production

@@ -3,7 +3,7 @@
 set -euo pipefail
 pr=${1:?pr}; src=${2:?file or --get}
 repo=${GITHUB_REPOSITORY:?}
-id=$(gh api "repos/$repo/issues/$pr/comments" --paginate --jq '.[] | select(.body | startswith("<!-- herinean-ci -->")) | .id' | head -1)
+id=$(gh api "repos/$repo/issues/$pr/comments" --paginate --jq '.[] | select(.body | startswith("<!-- herinean-ci -->")) | .id' | sed -n 1p)
 if [ "$src" = "--get" ]; then [ -n "$id" ] && gh api "repos/$repo/issues/comments/$id" --jq .body || echo "<!-- herinean-ci -->"; exit 0; fi
 if [ -n "$id" ]; then gh api -X PATCH "repos/$repo/issues/comments/$id" -F body=@"$src" >/dev/null
 else gh api -X POST "repos/$repo/issues/$pr/comments" -F body=@"$src" >/dev/null; fi
