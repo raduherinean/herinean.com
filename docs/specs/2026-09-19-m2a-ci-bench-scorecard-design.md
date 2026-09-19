@@ -131,7 +131,7 @@ Rows 11, 18, 19 and 20 are external or weekly and are not the bench's. Row 5's v
 - Go tools as `tool` directives in `go.mod`: `staticcheck` and `actionlint`, run as `go tool …`, pinned in `go.sum`, bumped by Dependabot. The pre-commit hook runs `actionlint` when `.github/` changes. The colophon's dependency count comes from the built binary's build info, which never links tools; the plan asserts the count is unchanged.
 - Toolchain: `setup-go` with `go-version-file: go.mod` and `GOTOOLCHAIN=local` — the RUNBOOK's `GOTOOLCHAIN=go1.27.1` intent (no silent download) with one source of truth; RUNBOOK updated.
 - Full-depth checkout. On pull requests the checkout is GitHub's synthetic merge commit, whose time is "now", so PR builds differ between runs; irrelevant for previews, and the build-twice check is within one run. `main` builds use the real commit time.
-- `scripts/dist-hash.sh` produces the sorted hash list locally and in CI; the first green run's list is compared once against a dgx build of the same commit (RUNBOOK).
+- `scripts/dist-hash.sh` produces the sorted hash list locally and in CI; the first green run's list is compared once against a local arm64 build of the same commit (RUNBOOK).
 - `.github/dependabot.yml`: gomod, github-actions, npm `/`, npm `/bench`; weekly; minor and patch grouped.
 - `.gitignore`: `/node_modules/`, `/bench/.cache/`.
 

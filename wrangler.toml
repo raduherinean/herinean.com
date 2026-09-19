@@ -25,7 +25,9 @@ PROD_HOST = "herinean.com"   # wrangler dev presents requests with the first rou
 binding = "VIEWS"
 dataset = "herinean_views"
 
-# The colophon scorecard: an HTML fragment and its JSON, written by CI after each green post-deploy check (spec §7).
+# The colophon scorecard: an HTML fragment and its JSON (spec §7). CI writes the CI rows before each
+# `wrangler deploy` (and, before launch, on every green push to main), then CI + post rows once tier 1
+# has verified production; a failed verification restores the previous build's rows with its rollback.
 [[kv_namespaces]]
 binding = "SCORECARD"
 id = "62348f3926714d6085de6fbcd775481a"

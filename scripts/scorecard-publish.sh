@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Renders the scorecard fragment from scorecard.json (+ manual rows) and writes it and the JSON to KV. CI runs this after a green post-deploy check.
+# Renders the scorecard fragment from scorecard.json (+ manual rows) and writes it and the JSON to KV.
+# CI runs it three ways: `publish-ci` with the CI rows on every green push to main before launch; `deploy`
+# with the CI rows just before `wrangler deploy`; `publish` with CI + post rows once tier 1 has verified production.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 [ -d node_modules/wrangler ] || npm ci --silent

@@ -189,8 +189,9 @@ func TestServeStaticServesBuiltDistOnly(t *testing.T) {
 	if resp.Header.Get("Content-Security-Policy") == "" {
 		t.Error("/ lacks the _headers CSP")
 	}
-	// Controller's ruling: the preloaded font URL must be served with the pinned font/woff2 type, not whatever
-	// mime.TypeByExtension (or an absent OS mime.types) happens to return on this machine.
+	// The preloaded font URL must be served with the pinned font/woff2 type, not whatever
+	// mime.TypeByExtension (or an absent OS mime.types) happens to return on this machine: the
+	// bench's headers row expects exactly that type, and a preload with the wrong type is wasted.
 	if m := regexp.MustCompile(`/fonts/[^"]+\.woff2`).FindString(body); m == "" {
 		t.Error("/ has no preloaded font URL to check")
 	} else if resp, _ := get(m, false); resp.Header.Get("Content-Type") != "font/woff2" {

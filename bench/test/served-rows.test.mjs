@@ -204,11 +204,11 @@ test(
         await s.close();
       }
 
-      // 404.html is not a link source (controller ruling: spec §3 row 1 carves it out to Nu +
-      // axe only — its self-canonical answering 404 is by design, and its other links are the
-      // shared masthead/footer every other page already carries). A href that ONLY 404.html
-      // carries, pointing at a path that doesn't exist anywhere, must not be checked at all —
-      // the row stays green.
+      // 404.html is not a link source: spec §3 row 1 carves it out to Nu + axe only — its
+      // self-canonical answering 404 is by design, and its other links are the shared
+      // masthead/footer every other page already carries. A href that ONLY 404.html carries,
+      // pointing at a path that doesn't exist anywhere, must not be checked at all — the row
+      // stays green.
       const nf = join(dir, "404.html");
       const nfBefore = readFileSync(nf, "utf8");
       const nfAfter = nfBefore.replace("</body>", '<a href="/only-on-404/">only on 404</a></body>');

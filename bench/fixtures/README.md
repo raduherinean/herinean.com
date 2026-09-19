@@ -1,8 +1,9 @@
 # `site-ok` fixture
 
 A minimal *built* site, used by `bench/test/*.test.mjs` so module tests never depend on the Go
-binary or a live server. Built from commit `c860ede` (`go build -tags nodynamic -o .cache/site
-./cmd/site && .cache/site build`), copying real `dist/` output:
+binary or a live server. It was built by `site build` from this repository's own content at the
+time (`go build -tags nodynamic -o .cache/site ./cmd/site && .cache/site build`), copying real
+`dist/` output; "Refreshing" below regenerates it from the current tree:
 
 - `index.html`, `ro/index.html`, `404.html`, `_headers`, `robots.txt`, `llms.txt`,
   `.well-known/security.txt`, `feed.xml`, `feed.en.xml`, `feed.ro.xml`, `feed.json`,
@@ -22,8 +23,10 @@ binary or a live server. Built from commit `c860ede` (`go build -tags nodynamic 
   python3 -c "from PIL import Image; Image.new('RGB', (1200, 630), (250, 248, 244)).save('bench/fixtures/site-ok/og/home-en.3b3118bf.png', optimize=True)"
   ```
 
-Excluded on purpose (per task-5-brief.md): `writing/`, `privacy/`, `colophon/`, `ro/articole/`,
-`ro/confidentialitate/` — the fixture only needs to exercise `/` and `/ro/`.
+Excluded on purpose: `writing/`, `privacy/`, `colophon/`, `ro/articole/`, `ro/confidentialitate/`
+— the fixture only needs to exercise `/` and `/ro/`; a test that needs a piece page or a stub for
+one of these paths writes it into its own temporary copy (see `addPiece` and `stubPage` in
+`bench/test/`).
 
 `/` and `/ro/` reference each other's `hreflang` (verify with `grep hreflang
 bench/fixtures/site-ok/ro/index.html`) — this is what lets the i18n test's "broken hreflang"
@@ -41,6 +44,5 @@ cp dist/fonts/*.woff2 bench/fixtures/site-ok/fonts/
 cp dist/.well-known/security.txt bench/fixtures/site-ok/.well-known/
 ```
 Then hand-edit `sitemap.xml` to keep only the `/` and `/ro/` entries, and regenerate the `og/*`
-and `img/home/*` placeholders (above) if the real filenames' content hashes changed. Update the
-commit hash at the top of this file. Check the total with `du -sh bench/fixtures/site-ok` — keep
-it under 300 KB.
+and `img/home/*` placeholders (above) if the real filenames' content hashes changed. Check the
+total with `du -sh bench/fixtures/site-ok` — keep it under 300 KB.

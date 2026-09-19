@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds, checks and uploads a preview version (never production). Prints the preview URL. CI (M2) does the same on PRs.
+# Builds, checks and uploads a preview version (never production). Prints the preview URL. CI does the same on PRs.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 [ -d node_modules/wrangler ] || npm ci --silent
