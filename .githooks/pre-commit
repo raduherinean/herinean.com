@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# gofmt + vet + site check before every commit. Install with scripts/setup.sh.
+set -euo pipefail
+export PATH="$HOME/.local/bin:$PATH"
+if git diff --cached --name-only | grep -q '\.go$'; then
+  files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+  if [ -n "$files" ]; then
+    unf=$(gofmt -l $files)
+    [ -z "$unf" ] || { echo "gofmt needed: $unf" >&2; exit 1; }
+  fi
+  go vet ./...
+fi
+if git diff --cached --name-only | grep -qE '^(content|i18n|assets|templates|site\.yaml)'; then
+  # `go run` always exits 1 on a nonzero child status (it never propagates the
+  # real code), so build a temp binary and run that directly to get the exit
+  # code site.Check actually returns (3 = author inputs missing).
+  bin=$(mktemp)
+  trap 'rm -f "$bin"' EXIT
+  go build -tags nodynamic -o "$bin" ./cmd/site
+  set +e; SOURCE_DATE_EPOCH="$(date +%s)" "$bin" check; rc=$?; set -e
+  if [ "$rc" -eq 3 ]; then
+    echo "pre-commit: author inputs still missing (site check exit 3) — allowed before launch; CI will not allow it" >&2
+  elif [ "$rc" -ne 0 ]; then
+    exit "$rc"
+  fi
+fi

@@ -1,0 +1,33 @@
+nav.writing: Writing
+nav.language: Română
+nav.language_lang: ro
+nav.skip: Skip to content
+home.latest: Latest
+home.all: All writing →
+index.title: Writing
+piece.updated: Updated
+piece.min_read: min read
+piece.read_in_other: Citește în română →
+piece.also_on: Also on
+piece.discuss: LinkedIn
+piece.medium: Medium
+piece.byline_role: CTO
+table.label: Table
+pillar.build-log: Build log
+pillar.opportunity: Opportunity
+pillar.governance: AI + governance
+pillar.analysis: Analysis
+lang.en: English
+lang.ro: Romanian
+lang.badge.ro: RO
+lang.badge.en: EN
+footer.linkedin: LinkedIn
+footer.rss: RSS
+footer.colophon: Colophon
+footer.privacy: Privacy
+footer.promise: No JavaScript, no cookies, no trackers.
+notfound.title: Page not found
+notfound.body: Page not found.
+notfound.home: Home
+date.months: January,February,March,April,May,June,July,August,September,October,November,December
+date.months_short: Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec

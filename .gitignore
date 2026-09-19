@@ -11,3 +11,9 @@
 
 # wrangler local state
 /.wrangler/
+
+# built binary (go build -o site ./cmd/site)
+/site
+
+# Claude Code worktrees (the .claude/ skills and CLAUDE.md themselves are public, spec §13)
+/.claude/worktrees/

@@ -1,0 +1,51 @@
+{{define "base"}}<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.HeadTitle}}</title>
+<meta name="description" content="{{.Description}}">
+{{if .Robots}}<meta name="robots" content="{{.Robots}}">{{end}}
+<link rel="canonical" href="{{.Canonical}}">
+{{range .Alternates}}<link rel="alternate" hreflang="{{.Lang}}" href="{{.Href}}">
+{{end}}<link rel="alternate" type="application/rss+xml" title="{{.SiteName}} ({{.Lang}})" href="{{.FeedURL}}">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:site_name" content="{{.SiteName}}">
+<meta property="og:type" content="{{.OGType}}">
+<meta property="og:title" content="{{.Title}}">
+<meta property="og:description" content="{{.Description}}">
+<meta property="og:url" content="{{.Canonical}}">
+<meta property="og:image" content="{{.OGImage}}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="{{.OGLocale}}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{.Title}}">
+<meta name="twitter:description" content="{{.Description}}">
+<meta name="twitter:image" content="{{.OGImage}}">
+<script type="application/ld+json">{{.JSONLD}}</script>
+<style>{{.CSS}}</style>
+</head>
+<body>
+<a class="skip" href="#main">{{.T "nav.skip"}}</a>
+<div class="wrap">
+<header>
+<div class="mast">
+{{if eq .Kind "home"}}<h1 class="name"><a href="{{.HomeURL}}">{{.SiteName}}</a></h1>{{else}}<p class="name"><a href="{{.HomeURL}}">{{.SiteName}}</a></p>{{end}}
+<nav><a href="{{.IndexURL}}">{{.T "nav.writing"}}</a><a href="{{.OtherHomeURL}}" lang="{{.T "nav.language_lang"}}" hreflang="{{.T "nav.language_lang"}}">{{.T "nav.language"}}</a></nav>
+</div>
+{{if .Tagline}}<p class="tagline">{{.Tagline}}</p>{{end}}
+</header>
+<main id="main">
+{{template "content" .}}
+</main>
+<footer>
+<p><a href="{{.Cfg.Author.LinkedIn}}">{{.T "footer.linkedin"}}</a> · <a href="{{.FeedURL}}">{{.T "footer.rss"}}</a> · <a href="/colophon/">{{.T "footer.colophon"}}</a> · <a href="{{.PrivacyURL}}">{{.T "footer.privacy"}}</a></p>
+<p>{{.T "footer.promise"}}</p>
+</footer>
+</div>
+</body>
+</html>
+{{end}}

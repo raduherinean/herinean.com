@@ -1,0 +1,13 @@
+base_url: https://herinean.com
+name: Radu Herinean
+tagline:
+  en: "Software, built in the open — and the thinking behind it."
+  ro: "Software construit în mod deschis — și gândirea din spatele lui."
+author:
+  linkedin: https://www.linkedin.com/in/raduherinean
+  x: https://x.com/raduherinean
+  github: https://github.com/rlucian
+  email: security@herinean.com
+ai_disclosure:
+  en: "Some drafts on this site are written with AI assistance; every published piece is reviewed and edited by me before it goes live."
+  ro: "Unele articole de pe acest site sunt redactate cu ajutorul inteligenței artificiale; fiecare text publicat este verificat și editat de mine înainte de a fi publicat."

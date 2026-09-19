@@ -24,7 +24,7 @@
 
 Done 2026-09-18: the infra token carries **Workers KV Storage: Edit** (already there) and **Account Analytics: Read** (added). Task 0 step 4 only confirms it.
 
-Nothing else is needed from Radu; `sudo apt install -y fonts-liberation` only if Task 0 step 3 reports it missing (present on dgx as of 2026-09-18). The KV namespace id is produced by Task 3 and committed in `wrangler.toml`; account id and token come from `~/.config/herinean/m0.env` as in M0.
+Nothing else is needed from Radu; `sudo apt install -y fonts-liberation` only if Task 0 step 3 reports it missing (present on the build machine as of 2026-09-18). The KV namespace id is produced by Task 3 and committed in `wrangler.toml`; account id and token come from `~/.config/herinean/m0.env` as in M0.
 
 ## File map
 
@@ -52,7 +52,7 @@ Nothing else is needed from Radu; `sudo apt install -y fonts-liberation` only if
 - [ ] **Step 1: Branch**
 
 ```bash
-cd /home/radoo/Documents/Projects/herinean.com && export PATH="$HOME/.local/bin:$PATH"
+cd "$(git rev-parse --show-toplevel)" && export PATH="$HOME/.local/bin:$PATH"
 git checkout m1a/generator && git pull gitea m1a/generator && git checkout -b m1b/edge
 go test ./... >/dev/null && echo "M1a green"
 ```
@@ -450,7 +450,6 @@ git commit -m "$(cat <<'MSG'
 M1b: fonts — pinned masters, subset WOFF2 with Romanian glyphs, metric-matched fallbacks computed from the files
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 MSG
 )" && git push gitea m1b/edge
 ```
@@ -1134,7 +1133,6 @@ git add -A && git commit -m "$(cat <<'MSG'
 M1b: RUNBOOK, ADR-0004 analytics, ADR-0010 fonts, README status
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 MSG
 )"
 git push gitea m1b/edge && git push -u origin m1b/edge

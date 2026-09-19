@@ -7,7 +7,7 @@ Everything operational lives here. If it isn't here, it isn't a supported operat
 - Tokens: `herinean-infra` (operator; scoped to the four zones + Workers; recreate with the same permissions when it expires) in `~/.config/herinean/cf-infra.token` (mode 600). Permissions that turned out to be needed: Zone Settings, DNS, SSL and Certificates, Single Redirect, Bot Management, Workers Routes (all Edit) on the four zones; Workers Scripts and Workers KV (Edit) on the account. `herinean-ci` (GitHub Actions; Workers Scripts Edit, Workers KV Storage Edit, Account Analytics Read, Account Settings Read) as the repo secret `CLOUDFLARE_API_TOKEN` — set with `gh secret set CLOUDFLARE_API_TOKEN --repo raduherinean/herinean.com < file`, then delete the local file. Rotate: create new → update file/secret → delete old.
 - Operator inputs: `~/.config/herinean/m0.env` (see `docs/plans/2026-09-17-m0-edge-foundation.md`, "Operator inputs"). Nothing in it is secret except the token it reads from its own file.
 - GitHub: `raduherinean/herinean.com` (public), owned by the `rlucian` account through the `raduherinean` organisation. `main` is protected by the ruleset "main" (PR, signed commits, squash only, no force-push, no deletion). Commits are SSH-signed with `~/.ssh/herinean_signing`; the public key is registered on GitHub as a Signing Key; `radu@herinean.com` is the commit email.
-- Remotes: `origin` = GitHub (public; `main` + publish PRs), `gitea` = git.thrac.com (private; all work branches).
+- Remotes: `origin` = GitHub (public; `main` + publish PRs), `gitea` = a private Gitea (all work branches).
 
 ## Edge as code (OpenTofu, `infra/`)
 1. `. scripts/env.sh` (and `export PATH="$HOME/.local/bin:$PATH"` — tofu lives there)
@@ -29,6 +29,25 @@ All four domains: Workspace MX, SPF `include:_spf.google.com -all`, DMARC with s
 - Preview: `npx wrangler@4 versions upload` prints a `workers.dev` preview URL. Cloudflare stamps every preview response `x-robots-tag: noindex` itself (it overrides the Worker's own value); the Worker additionally serves a disallow-all robots.txt there.
 - Custom domains are declared in `wrangler.toml`; wrangler creates their DNS records. `run_worker_first` limits the Worker to page routes.
 - `_headers` apply to asset responses only, not to responses the Worker builds itself.
+
+## Generator
+- Build the binary with `go build -tags nodynamic -o site ./cmd/site` (gitignored) — the `nodynamic` tag is what keeps the WebP encoder pure Go (see below); `ci.yml` (M2) must pass the same tag to `go build`, `go test ./...` and `go vet`/`staticcheck` alike, since the image tests encode too. Prefer the built binary over `go run`: `go run` exits 1 for any non-zero child status, so it turns exit 3 into a plain failure and hides which case you are in.
+- `./site build` — reads `site.yaml`, `content/`, `i18n/`, `assets/`, `templates/` and writes `dist/`.
+- `./site check [--dist]` — validates the sources without writing; `--dist` additionally checks a built `dist/`.
+- `./site serve [--host 0.0.0.0] [--port 8080]` — rebuilds on each request and serves `dist/` for local/LAN preview. It is where a piece gets written: the fields `site new` leaves blank (title, date, pillar, summary) render with visible draft defaults and are listed on stderr at each rebuild; `build` and `check` still refuse them. Everything else (cedilla, missing alt, broken link, …) fails the preview with the same `file:line` message.
+- `./site new <en|ro> <slug>` — creates a new piece from `content/_template.md` under `content/<lang>/`.
+- `./site scorecard` — prints the public build scorecard (also rendered on the colophon page).
+
+Exit codes: `0` everything checks out; `1` a real problem (bad front matter, missing i18n, cedilla, missing image, broken link, …); `3` only author inputs are missing (⟨placeholder⟩ text and/or `assets/portrait.jpg`) — the pre-commit hook warns and allows this, CI fails on it.
+
+Reproducibility: the build's notion of "now" is `SOURCE_DATE_EPOCH` if set, else the last commit's timestamp — wall-clock time never enters the output, so two builds of the same commit are byte-identical. `.cache/` is the image-processing cache (OG cards, resized images), keyed by the Go version, the encoder module versions and the in-repo encoding settings (quality, resize kernel, `ogLayout` — bump that constant when the OG card's drawing changes); it is safe to delete and will be rebuilt.
+- CI must clone with `fetch-depth: 0`: sitemap `lastmod` comes from each page's last commit, and a shallow clone makes every page carry HEAD's time.
+- CI pins `GOTOOLCHAIN=go1.27.1`: the colophon prints the Go version, so a different toolchain changes the output.
+- M2 verifies once that a CI (amd64) `dist/` hashes equal a local (arm64) one before claiming cross-machine byte identity — float rounding in the resizer may differ between architectures.
+
+If `site build` stops with `webp: a host libwebp was loaded…`, build with `-tags nodynamic` — the generator refuses host-dependent image bytes. `CGO_ENABLED=0` is not a remedy: purego loads the host library through its own fakecgo runtime on Linux, so only the build tag compiles the loader out.
+
+Portrait: export a pre-rotated JPEG at least 800 px wide to `assets/portrait.jpg` (the resizer ignores EXIF orientation), metadata stripped — the repo is public and the file is served as is at 480 px. Portrait orientation is fine: the home page keeps the aspect; the OG card centre-crops a square, so keep the face near the middle.
 
 ## TLS
 Minimum TLS 1.3 (see ADR-0011 for the evidence). Restricting the TLS 1.2 cipher list needs Advanced Certificate Manager ($10/month), which is why 1.2 is off rather than "on with modern ciphers".

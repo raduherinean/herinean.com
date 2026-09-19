@@ -57,7 +57,7 @@ Every row is pass/fail. **CI** blocks deploy. **post** runs against production r
 | 17 | Caching | `/img/*` `/og/*` content-hashed, `max-age=31536000, immutable`; HTML `max-age=0, must-revalidate`, edge-cached with ETag; feeds `max-age=300`; correct `Content-Type` on feeds and `security.txt` | post |
 | 18 | Sustainability | websitecarbon A+ | ext (API-automatable in the weekly job) |
 | 19 | Global latency and uptime | TTFB p50 < 100 ms from 5 regions (globalping in the weekly job); external uptime monitor with alerting | weekly + ext |
-| 20 | Repo hygiene | README, LICENSE (code MIT; content CC BY-NC-ND 4.0), ADRs, this spec, RUNBOOK, CI badge, dependency count on colophon (`go list -m all`), reproducible build (`-trimpath`, pinned toolchain, `SOURCE_DATE_EPOCH` = commit time), Dependabot (modules, actions, bench), CodeQL, OpenSSF Scorecard badge (shown honestly; 10/10 is structurally unreachable) | ext (Scorecard/CodeQL run on their own) |
+| 20 | Repo hygiene | README, LICENSE (code MIT; content CC BY-NC-ND 4.0), ADRs, this spec, RUNBOOK, CI badge, dependency count on colophon (the modules linked into the generator, from the binary's build info), reproducible build (`-trimpath`, pinned toolchain, `SOURCE_DATE_EPOCH` = commit time), Dependabot (modules, actions, bench), CodeQL, OpenSSF Scorecard badge (shown honestly; 10/10 is structurally unreachable) | ext (Scorecard/CodeQL run on their own) |
 | 21 | Font correctness | Vendored fonts contain U+0218–021B (ș ț Ș Ț comma-below) and ă â î; metric-matched fallback produces no layout shift (Playwright: font blocked vs. allowed, positions equal within 1 px) | CI |
 
 ## 4. Content model, URLs, pages
@@ -133,7 +133,7 @@ site scorecard    scorecard.json (+ data/scorecard-manual.yaml) → validated HT
 | `edge` | Generate `_headers` (CSP style hash computed from the exact inlined CSS bytes; per-path CORP and Cache-Control; feed content types) and `_redirects` | stdlib |
 | `site` | Orchestrate: load → validate → images → render → feeds/seo/edge → write `dist/` in sorted order, fixed mtimes; `SOURCE_DATE_EPOCH` from the commit | all |
 
-Target: under a dozen modules; `go list -m all` is printed on the colophon. The build time is the commit timestamp, so the same commit yields byte-identical `dist/` (security.txt `Expires` = commit + 364 d; colophon build date = commit date).
+Target: under a dozen modules; the modules linked into the generator (from the binary's build info, so the list is reproducible per build) are printed on the colophon. The build time is the commit timestamp, so the same commit yields byte-identical `dist/` (security.txt `Expires` = commit + 364 d; colophon build date = commit date).
 
 ### 5.2 Validation (`check`) — fails with `file:line`
 
@@ -193,7 +193,7 @@ Consequences enforced by `check --dist`: no `style=` attributes anywhere; chroma
 
 ### 6.3 Analytics
 
-One Analytics Engine dataset. Per HTML view: `path, lang, referrer host, ref, country, 1`. Not stored: IP, user agent, full referrer URL, or anything that counts *readers* rather than *reads*. Views include some bots; numbers compare pieces, they don't measure reach. The weekly job snapshots per-piece totals (by `ref`, by country) into a KV key so history survives platform retention. `scripts/analytics.sh` merges live + snapshot: views per piece, by `ref`, by country, 30/90 days. The statement above appears verbatim on the colophon and the privacy page.
+One Analytics Engine dataset. Per HTML view: `path, lang, referrer host, ref, country, 1`. Not stored: IP, user agent, full referrer URL, or anything that counts *readers* rather than *reads*. Views include some bots; numbers compare pieces, they don't measure reach. The weekly job snapshots per-piece totals (by `ref`, by country) into a KV key so history survives platform retention. `scripts/analytics.sh` merges live + snapshot: views per piece, by `ref`, by country, 30/90 days. The statement above appears, in substance, on the colophon and the privacy page (each in its own words: the colophon speaks to the peer, the privacy page to the reader, in both languages).
 
 ### 6.4 Infrastructure as code
 
@@ -226,7 +226,7 @@ Local requirements: Go, git, `gh`, Claude Code. Remotes: `gitea` (private; every
 
 1. `site new en <slug>` → one file (empty `date`, blank `pillar`). Branch `piece/<slug>`, tracking `gitea`.
 2. Write on `site serve` (`--host 0.0.0.0` to read on a phone over LAN).
-3. `/review-piece` — editorial template, tier check by judgement (no denylist of client names in a public repo), summary length, diacritics, embeds/charts constraints, and a **native LinkedIn post** (complete, not a teaser; link goes in the first comment). `/translate-piece` — either direction, shared `key`.
+3. `/review-piece` — editorial template, tier check by judgement (no denylist of client names in a public repo), summary length, diacritics, embeds/charts constraints, a **fact-check pass** (an agent with repository access checks each technical claim against the code, the commits and the logs and marks it confirmed, wrong or unverifiable — the colophon describes this process, so it must exist before launch; M2), and a **native LinkedIn post** (complete, not a teaser; link goes in the first comment). `/translate-piece` — either direction, shared `key`.
 4. `/publish-piece` — stamps `date` (Europe/Bucharest), runs `check`, pushes to `origin`, opens the PR. CI audits and comments the preview (the only real-edge preview; the cost of private drafts).
 5. Squash-merge: `Publish: <title>`. Deployed in about a minute.
 6. Distribute: native LinkedIn post with `…?ref=li` in the first comment; X with `?ref=x`; Medium optional. `/link-piece` → `Link: <title> → LinkedIn` PR, auto-merge.

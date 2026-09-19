@@ -1,0 +1,10 @@
+{{define "content"}}
+<article>
+{{if .Translation}}<p class="switch"><a href="{{.Translation.URL}}" lang="{{.Translation.Lang}}" hreflang="{{.Translation.Lang}}">{{.T "piece.read_in_other"}}</a></p>{{end}}
+<h1 class="title">{{.Piece.Title}}</h1>
+<p class="meta"><time datetime="{{.DateISO}}">{{.DateText}}</time>{{if .UpdatedText}} · {{.T "piece.updated"}} <time datetime="{{.UpdatedISO}}">{{.UpdatedText}}</time>{{end}} · {{.Piece.ReadingMinutes}} {{.T "piece.min_read"}} · <span class="label">{{.PillarText}}</span></p>
+{{.Body}}
+{{if or .Piece.LinkedIn .Piece.Medium}}<p class="also">{{.T "piece.also_on"}} {{if .Piece.LinkedIn}}<a href="{{.Piece.LinkedIn}}">{{.T "piece.discuss"}}</a>{{end}}{{if and .Piece.LinkedIn .Piece.Medium}} · {{end}}{{if .Piece.Medium}}<a href="{{.Piece.Medium}}">{{.T "piece.medium"}}</a>{{end}}</p>{{end}}
+<p class="byline">{{.SiteName}} — {{.T "piece.byline_role"}}. <a href="{{.Cfg.Author.LinkedIn}}">LinkedIn</a></p>
+</article>
+{{end}}

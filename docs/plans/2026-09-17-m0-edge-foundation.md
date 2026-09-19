@@ -173,7 +173,6 @@ git commit -m "$(cat <<'MSG'
 M0: operator env loader and edge verification skeleton
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 MSG
 )"
 ```
@@ -233,7 +232,6 @@ git commit -m "$(cat <<'MSG'
 README
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 MSG
 )"
 git checkout infra/m0 && git rebase main
@@ -424,7 +422,6 @@ Zone ids, MX set and DKIM public key are committed on purpose: none of
 them is secret and the edge is meant to be readable.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 MSG
 )"
 git push gitea infra/m0
@@ -550,7 +547,6 @@ Email obfuscation, Rocket Loader, Cloudflare Fonts, Speed Brain and Bot
 Fight Mode all add scripts or resources to pages. Off on all four zones.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 MSG
 )"
 git push gitea infra/m0
@@ -847,9 +843,9 @@ cd infra && tofu apply m0-mail.plan && rm m0-mail.plan && ../scripts/infra-backu
 ```
 Expected: *mail DNS* section all `ok` (`.com` DMARC matches `p=none` for now).
 
-- [ ] **Step 7: Prove the chain on `.com`** (operator): send a message from `radu@herinean.com` to any Gmail address, open it, ⋮ → **Show original**. Expected: `SPF: PASS`, `DKIM: 'PASS' with domain herinean.com`, `DMARC: 'PASS'`. If DKIM shows `gappssmtp.com` or `herinean.net`, Google Admin → Gmail → Authenticate email → herinean.com → **Start authentication** first, wait an hour, resend.
+- [x] **Step 7: Prove the chain on `.com`** (operator): send a message from `radu@herinean.com` to any Gmail address, open it, ⋮ → **Show original**. Expected: `SPF: PASS`, `DKIM: 'PASS' with domain herinean.com`, `DMARC: 'PASS'`. If DKIM shows `gappssmtp.com` or `herinean.net`, Google Admin → Gmail → Authenticate email → herinean.com → **Start authentication** first, wait an hour, resend.
 
-- [ ] **Step 8: Flip `.com` DMARC to reject**
+- [x] **Step 8: Flip `.com` DMARC to reject**
 
 Edit `infra/zones.auto.tfvars`: add `dmarc_policy = "reject"`. Then `cd infra && tofu plan -out m0-dmarc.plan` (expected: 1 update in-place), `tofu apply m0-dmarc.plan && rm m0-dmarc.plan && ../scripts/infra-backup.sh && cd .. && scripts/verify-edge.sh`. Expected: `_dmarc.herinean.com` now `p=reject`.
 
@@ -899,9 +895,9 @@ output "ds_records" {
 cd infra && tofu plan -out m0-dnssec.plan && tofu apply m0-dnssec.plan && rm m0-dnssec.plan && tofu output ds_records && ../scripts/infra-backup.sh && cd ..
 ```
 
-- [ ] **Step 4: Registrar side** (operator): at each registrar, DNSSEC → add DS record → paste the four fields (key tag, algorithm `13`, digest type `2`, digest). `.ro` at the RoTLD registrar supports it; `.com/.net/.info` at theirs. Propagation: minutes to a few hours.
+- [x] **Step 4: Registrar side** (operator): at each registrar, DNSSEC → add DS record → paste the four fields (key tag, algorithm `13`, digest type `2`, digest). `.ro` at the RoTLD registrar supports it; `.com/.net/.info` at theirs. Propagation: minutes to a few hours.
 
-- [ ] **Step 5: Verify** — `scripts/verify-edge.sh`; expected DS present and `AD` flag on all four. Cross-check one with `https://dnsviz.net/d/herinean.com/dnssec/` (all green).
+- [x] **Step 5: Verify** — `scripts/verify-edge.sh`; expected DS present and `AD` flag on all four. Cross-check one with `https://dnsviz.net/d/herinean.com/dnssec/` (all green).
 
 - [ ] **Step 6: Commit and push to gitea** — `M0: DNSSEC on all four zones` with the trailers.
 
@@ -1250,7 +1246,6 @@ git commit -m "$(cat <<'MSG'
 M0: RUNBOOK and ADRs 0002, 0005, 0012
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01CyBKVKXNbCCfWDPgYiMTKf
 MSG
 )"
 git push gitea infra/m0

@@ -1,0 +1,14 @@
+base_url: https://herinean.com
+name: Radu Herinean
+tagline:
+  en: "I build AI systems and then have to live with them."
+  ro: "Construiesc sisteme AI cu care tot eu trebuie să trăiesc."
+author:
+  linkedin: https://www.linkedin.com/in/herinean
+  x: https://x.com/raduherinean
+  github: https://github.com/rlucian
+  email: security@herinean.com
+ai_disclosure:
+  en: "The platform was designed and built with Claude Code from a written spec. Every piece is drafted with AI, its technical claims checked against the code and the commits, then edited and signed off by me. The judgment and the mistakes are mine."
+  # ro has no consumer yet (the colophon is EN-only); kept ready for the day a Romanian page carries the disclosure.
+  ro: "Platforma a fost proiectată și construită cu Claude Code, pornind de la o specificație scrisă. Fiecare text e scris cu AI, afirmațiile tehnice sunt verificate față de cod și commit-uri, apoi îl editez și îl asum eu. Judecata și greșelile îmi aparțin."
