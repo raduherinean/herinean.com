@@ -40,6 +40,10 @@ Modules implemented so far:
 | Module | Row | What it checks |
 |---|---|---|
 | `i18n.mjs` | i18n | `<html lang>` matches the path; exactly one absolute canonical with a trailing slash; hreflang alternates are symmetric (the other page links back to me under my own language) plus `x-default` |
+| `social.mjs` | Social previews | every page has `og:*` + `twitter:card=summary_large_image`; `og:image` is a 1200×630 PNG under 200 KB at a content-hashed `/og/` URL |
+| `wellknown.mjs` | Well-known files | `security.txt` (RFC 9116 fields, `Expires` valid and ≤ 1 year out), `robots.txt` with a `Sitemap:` line, `sitemap.xml` entries carry `lastmod` and `x-default`, `llms.txt`, favicons, and a real 404 status on an unknown path |
+| `feeds.mjs` | Feeds | RSS 2.0 (`/feed.xml`, `.en`, `.ro`) strict-parses, required channel elements, `atom:link rel=self`, items have full text and only absolute URLs; JSON Feed 1.1 required fields |
+| `jsonld.mjs` | Structured data | every `ld+json` block parses; each known `@type` (`WebSite`, `Person`, `BlogPosting`, `BreadcrumbList`) carries its required fields; `Person.sameAs` has LinkedIn, X and GitHub |
 
 Later tasks add one module per remaining spec §5 row; `audit.mjs`'s `MODULES.checks` and
 `MODULES.lighthouse` lists grow to name each one as it lands.
