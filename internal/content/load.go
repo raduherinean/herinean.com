@@ -195,12 +195,19 @@ func (s *Site) Render(lookup func(key, dest string) *ImageInfo) error {
 	return nil
 }
 
-// Latest returns the n newest pieces across languages.
-func (s *Site) Latest(n int) []*Piece {
-	if n > len(s.Pieces) {
-		n = len(s.Pieces)
+// ForLang is what a reader of lang sees on the home and index pages: every piece, newest first, but one
+// entry per key — the lang version when the pair has one, else the other language's, which the templates
+// badge as foreign. A piece that exists only in the other language stays visible; a translated piece is
+// not listed twice.
+func (s *Site) ForLang(lang string) []*Piece {
+	var out []*Piece
+	for _, p := range s.Pieces {
+		if p.Lang != lang && p.Translation != nil {
+			continue // its lang twin is listed instead
+		}
+		out = append(out, p)
 	}
-	return s.Pieces[:n]
+	return out
 }
 
 // T looks up a UI string; a missing key is a programming error caught by tests, so it panics loudly.

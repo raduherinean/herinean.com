@@ -68,8 +68,8 @@ English at the root, Romanian under `/ro/`, `x-default` → English. Slugs are p
 
 | Page | EN | RO |
 |---|---|---|
-| Home = About + latest five (any language, badge when not the page language) | `/` | `/ro/` |
-| Writing index (all pieces, newest first, grouped by year; pillar label + language badge; one-line summary) | `/writing/` | `/ro/articole/` |
+| Home = About + latest five (one entry per key: the page language's version when it exists, else the other language's with a badge) | `/` | `/ro/` |
+| Writing index (every key once, newest first, grouped by year — the page language's version when it exists, else the other's with a badge; pillar label; one-line summary) | `/writing/` | `/ro/articole/` |
 | Piece | `/writing/<slug>/` | `/ro/articole/<slug>/` |
 | Colophon (scorecard, stack, dependencies, AI disclosure, known trade-offs, repo) | `/colophon/` | — (EN only) |
 | Privacy notice (what is and isn't processed; Cloudflare as CDN; analytics statement) | `/privacy/` | `/ro/confidentialitate/` |
@@ -104,7 +104,7 @@ Site UI strings live in `i18n/en.yaml` and `i18n/ro.yaml`; a string missing in o
 
 - **Piece:** language switch (only when the pair exists; link carries `hreflang` and `lang`) → title → meta line (date, updated, reading time, pillar) → body → footnotes → "Also on LinkedIn · Medium" (when set; excluded from feeds) → one-line author footer with LinkedIn link. No prev/next, related, tags, comments.
 - **Home:** masthead with name + tagline → portrait (home only) → 3–4 About paragraphs → rule → Latest (five entries) → "All writing →". `Person` and `WebSite` JSON-LD here.
-- **Index:** entries under year headings. **Entry format everywhere:** date (tabular) · pillar (small caps) · language badge when foreign (plain text, visually-hidden full name, `lang` attribute) · title · one-line summary.
+- **Index:** entries under year headings, one per key (a translated piece is listed once, in the page language; a piece that exists only in the other language is listed with its badge). **Entry format everywhere:** date (tabular) · pillar (small caps) · language badge when foreign (plain text, visually-hidden full name, `lang` attribute) · title · one-line summary.
 - **Colophon:** five-line summary → scorecard table (status, value, when, verify-yourself link; stacked label/value on narrow screens) → dependency list with versions + bench tool versions → analytics statement → AI disclosure → privacy link → known trade-offs → repo, spec, "how it was built" piece → commit SHA, build date, Go version.
 - **404:** one sentence in each language, links to both homes and indexes.
 

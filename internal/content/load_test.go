@@ -46,8 +46,32 @@ func TestLoadFixture(t *testing.T) {
 	if s.T("ro", "nav.writing") != "Articole" || s.T("en", "pillar.analysis") != "Analysis" {
 		t.Error("strings")
 	}
-	if got := s.Latest(3); len(got) != 3 {
-		t.Errorf("Latest(3) = %d", len(got))
+}
+
+// ForLang lists one piece per key: the viewer language's version when it exists, the other language's
+// otherwise (it carries the badge). Newest first by the listed piece's date. The fixture holds an EN-only
+// piece, a RO-only piece and one pair, so each view has three entries and the pair appears once.
+func TestForLangOneEntryPerKey(t *testing.T) {
+	s, probs := Load("../../testdata/site", fixtureNow)
+	if err := probs.Err(); err != nil {
+		t.Fatal(err)
+	}
+	slugs := func(ps []*Piece) []string {
+		var out []string
+		for _, p := range ps {
+			out = append(out, p.Lang+"/"+p.Slug)
+		}
+		return out
+	}
+	want := map[string][]string{
+		"en": {"en/with-media", "ro/doar-ro", "en/paired"},
+		"ro": {"en/with-media", "ro/doar-ro", "ro/pereche"},
+	}
+	for lang, w := range want {
+		got := slugs(s.ForLang(lang))
+		if strings.Join(got, " ") != strings.Join(w, " ") {
+			t.Errorf("ForLang(%q) = %v, want %v", lang, got, w)
+		}
 	}
 }
 

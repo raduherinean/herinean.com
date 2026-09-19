@@ -103,8 +103,12 @@ func TestPieceGolden(t *testing.T) {
 func TestHomeIndexGolden(t *testing.T) {
 	cfg, s, r := fixture(t)
 	for _, lang := range content.Langs {
+		listed := s.ForLang(lang) // the same selection pages.go makes: one entry per key
 		var entries []Entry
-		for _, p := range s.Latest(5) {
+		for i, p := range listed {
+			if i == 5 {
+				break
+			}
 			entries = append(entries, EntryFor(cfg, s, lang, p))
 		}
 		home := s.Pages["home."+lang]
@@ -121,7 +125,7 @@ func TestHomeIndexGolden(t *testing.T) {
 
 		idx := &PageData{Cfg: cfg, Site: s, Lang: lang, Kind: "index", PreloadFont: testFonts["/fonts/SourceSerif4-Regular.woff2"], Title: s.T(lang, "index.title"), HeadTitle: s.T(lang, "index.title") + " — " + cfg.Name,
 			Description: cfg.Tagline[lang], Path: cfg.IndexURL(lang), Canonical: cfg.Abs(cfg.IndexURL(lang)), OGImage: cfg.Abs("/og/home-" + lang + ".deadbeef.png"),
-			OGType: "website", OGLocale: map[string]string{"en": "en_US", "ro": "ro_RO"}[lang], Years: Years(cfg, s, lang, s.Pieces),
+			OGType: "website", OGLocale: map[string]string{"en": "en_US", "ro": "ro_RO"}[lang], Years: Years(cfg, s, lang, listed),
 			Alternates: AlternatesFor(cfg, cfg.IndexURL("en"), cfg.IndexURL("ro")), JSONLD: WebSiteLD(cfg, lang, cfg.Tagline[lang])}
 		out, err = r.Render("index", idx)
 		if err != nil {
