@@ -20,6 +20,13 @@ export async function run(ctx) {
   const all = ctx.pages.filter((p) => p.path !== "/404.html").map((p) => p.path);
   const mine = all.filter((_, k) => k % n === i - 1);
   const ffs = ctx.formFactor ? [ctx.formFactor] : ["mobile", "desktop"];
+  const checkFor = (ff) => `${ctx.mode === "post" ? name + " (production)" : name} [${ff} ${i}/${n}]`;
+  // An empty shard (n greater than the page count) must not pass silently — merge.mjs folds this
+  // shard's `pass` straight into the merged row, so a quietly-green empty shard would hide a real
+  // gap instead of failing loud (the bench's "empty audit scope is a red row" convention).
+  if (mine.length === 0) {
+    return ffs.map((ff) => ({ ...row(checkFor(ff), false, `shard ${i}/${n} has no pages (${all.length} in the sitemap)`, ctx), pages: 0, worst: 0 }));
+  }
   const chrome = await launch({ chromePath: chromium.executablePath(), chromeFlags: ["--headless=new", "--no-sandbox", "--disable-gpu"] });
   const rows = [];
   try {
@@ -54,9 +61,8 @@ export async function run(ctx) {
         if (failing.length) problems.push(`${path}: ${failing.map((c) => `${c} ${med[c]}`).join(", ")}`);
         worst = Math.min(worst, ...Object.values(med));
       }
-      const check = `${ctx.mode === "post" ? name + " (production)" : name} [${ff} ${i}/${n}]`;
       const value = problems.length ? problems.join("; ") : `${mine.length} pages ${ff}: 100/100/100/100`;
-      rows.push({ ...row(check, problems.length === 0, value, ctx, { failingAudits, scores }), pages: mine.length, worst });
+      rows.push({ ...row(checkFor(ff), problems.length === 0, value, ctx, { failingAudits, scores }), pages: mine.length, worst });
     }
   } finally {
     await chrome.kill();

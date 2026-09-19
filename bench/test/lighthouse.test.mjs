@@ -32,3 +32,20 @@ test(
     }
   },
 );
+
+// No Chrome involved — an empty shard must be caught before launch, so this stays fast.
+test("lighthouse shard 3/3 on the one-page fixture has no pages, and reports a red row rather than passing silently", async () => {
+  const s = await serveFixture(FIXTURE);
+  try {
+    const pages = (await loadPages(s.base, { include404: true })).filter((p) => p.path === "/");
+    const rows = await run(ctxFor(s.base, pages, { formFactor: "mobile", shard: "3/3" }));
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].check, "Lighthouse [mobile 3/3]");
+    assert.equal(rows[0].pass, false);
+    assert.match(rows[0].value, /no pages/);
+    assert.equal(rows[0].pages, 0);
+    assert.equal(rows[0].worst, 0);
+  } finally {
+    await s.close();
+  }
+});
