@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { sh } from "../lib/sh.mjs";
 import { run as dnsRun } from "../lib/dns.mjs";
 import { tls12Problem, tls13Problem, http3Problem, aaaaProblem } from "../lib/transport.mjs";
@@ -59,10 +62,40 @@ test("http3Problem: '3' from -w %{http_version} is clean; anything else names wh
   assert.equal(http3Problem({ out: "", err: "curl: (92) HTTP/3 stream 0 reset" }), "HTTP/3: got 'curl: (92) HTTP/3 stream 0 reset'");
 });
 
-test("aaaaProblem: a non-empty dig answer is clean; an empty one is a problem", () => {
-  assert.equal(aaaaProblem({ out: "2606:4700::1\n" }), null);
-  assert.equal(aaaaProblem({ out: "" }), "no AAAA record");
-  assert.equal(aaaaProblem({ out: "\n" }), "no AAAA record");
+test("aaaaProblem: an IPv6 literal on exit 0 is clean; an empty answer, a non-address answer or a non-zero exit is a problem", () => {
+  assert.equal(aaaaProblem({ code: 0, out: "2606:4700::1\n" }), null);
+  assert.equal(aaaaProblem({ code: 0, out: "2606:4700:3030::6815:4001\n2606:4700:3030::ac43:d4a5\n" }), null);
+  assert.equal(aaaaProblem({ code: 0, out: "" }), "no AAAA record");
+  assert.equal(aaaaProblem({ code: 0, out: "\n" }), "no AAAA record");
+  // dig prints its own errors to stdout; non-empty stdout alone must never read as "AAAA present"
+  assert.equal(aaaaProblem({ code: 0, out: ";; connection timed out; no servers could be reached\n" }), "AAAA: dig answered ';; connection timed out; no servers could be reached', not an IPv6 address");
+  assert.equal(aaaaProblem({ code: 9, out: ";; connection timed out; no servers could be reached\n" }), "AAAA: dig exit 9: ;; connection timed out; no servers could be reached");
+  assert.equal(aaaaProblem({ code: 9, out: "2606:4700::1\n" }), "AAAA: dig exit 9: 2606:4700::1");
+});
+
+// The same helper over a real process: a stub `dig` on disk, run through sh() exactly as run() runs
+// the real one, so the {code, out, err} shape the helper sees is the one spawnSync produces.
+function stubDig(script) {
+  const dir = mkdtempSync(join(tmpdir(), "bench-dig-"));
+  const f = join(dir, "dig");
+  writeFileSync(f, `#!/bin/sh\n${script}\n`, { mode: 0o755 });
+  return { f, rm: () => rmSync(dir, { recursive: true, force: true }) };
+}
+test("aaaaProblem: a stubbed dig that times out (its error on stdout, exit 9) is a red row; a real-looking AAAA answer is green", () => {
+  const timeout = stubDig('echo ";; connection timed out; no servers could be reached"; exit 9');
+  try {
+    const r = sh(timeout.f, ["+short", "AAAA", "example.test", "@1.1.1.1"]);
+    assert.equal(r.code, 9);
+    assert.match(aaaaProblem(r), /^AAAA: dig exit 9: ;; connection timed out/);
+  } finally {
+    timeout.rm();
+  }
+  const ok = stubDig('echo "2606:4700:3030::6815:4001"; exit 0');
+  try {
+    assert.equal(aaaaProblem(sh(ok.f, ["+short", "AAAA", "example.test", "@1.1.1.1"])), null);
+  } finally {
+    ok.rm();
+  }
 });
 
 // --- caching.mjs: cachingProblems() over canned plain-object responses, no network ---

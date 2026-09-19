@@ -6,8 +6,9 @@ export const modes = ["post"];
 
 // The package's CLI entry (package.json bin: mdn-http-observatory-scan -> bin/wrapper.js), run
 // via `node <wrapper.js> <host>` rather than through node_modules/.bin so it works regardless of
-// cwd. It prints `{scan: {grade, score, ...}, tests: {...}}` on success, `{error}` on failure —
-// exit 1 either way (see @mdn/mdn-http-observatory src/scan.js).
+// cwd. It prints `{scan: {grade, score, ...}, tests: {...}}` and exits 0 on success, `{error}` and
+// exits 1 on failure (see @mdn/mdn-http-observatory src/scan.js); run() decides on the JSON shape
+// and never reads the exit code.
 const CLI = fileURLToPath(new URL("../node_modules/@mdn/mdn-http-observatory/bin/wrapper.js", import.meta.url));
 
 // Pure parser — unit-tested against canned CLI stdout, no network in tests.

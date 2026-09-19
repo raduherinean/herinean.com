@@ -40,14 +40,14 @@ Modules implemented so far:
 | Module | Row | What it checks |
 |---|---|---|
 | `lighthouse.mjs` | Lighthouse | the [`lighthouse`](https://www.npmjs.com/package/lighthouse) API against Playwright's Chromium, launched via `chrome-launcher`; mobile and desktop; 3 runs per page, median per category; every sitemap page (`/404.html` excluded) must score 100 on performance, accessibility, best-practices and seo. Sharded — see "Sharding Lighthouse" below. `modes = ["ci", "post"]` |
-| `i18n.mjs` | i18n | `<html lang>` matches the path; exactly one absolute canonical with a trailing slash; hreflang alternates are symmetric (the other page links back to me under my own language) plus `x-default` |
-| `social.mjs` | Social previews | every page has `og:*` + `twitter:card=summary_large_image`; `og:image` is a 1200×630 PNG under 200 KB at a content-hashed `/og/` URL |
+| `i18n.mjs` | i18n | `<html lang>` matches the path; exactly one absolute canonical with a trailing slash, and it is the page itself (a well-formed canonical naming another page fails); hreflang alternates are symmetric (the other page links back to me under my own language) plus `x-default` |
+| `social.mjs` | Social previews | every page has `og:*` + `twitter:card=summary_large_image`; `og:image` is a 1200×630 PNG under 200 KB at a content-hashed `/og/` URL on the site's own origin (the page's canonical origin — pages carry production URLs even when CI serves them from `127.0.0.1`) |
 | `wellknown.mjs` | Well-known files | `security.txt` (RFC 9116 fields, `Expires` valid and ≤ 1 year out), `robots.txt` with a `Sitemap:` line, `sitemap.xml` entries carry `lastmod` and `x-default`, `llms.txt`, favicons, and a real 404 status on an unknown path |
 | `feeds.mjs` | Feeds | RSS 2.0 (`/feed.xml`, `.en`, `.ro`) strict-parses, required channel elements, `atom:link rel=self`, items have full text and only absolute URLs; JSON Feed 1.1 required fields |
-| `jsonld.mjs` | Structured data | every `ld+json` block parses; each known `@type` (`WebSite`, `Person`, `BlogPosting`, `BreadcrumbList`) carries its required fields; `Person.sameAs` has LinkedIn, X and GitHub |
+| `jsonld.mjs` | Structured data | every `ld+json` block parses; presence is asserted by page type — the home pages (`/`, `/ro/`) must carry `WebSite` and `Person`, a piece (`/writing/<slug>/`, `/ro/articole/<slug>/`) `BlogPosting` and `BreadcrumbList`; each known `@type` carries its required fields; `Person.sameAs` has LinkedIn, X and GitHub |
 | `headers.mjs` | Security headers | served headers per path class (`/`, a preloaded font, `og:image`, `/img/*`, feeds, `sitemap.xml`, `robots.txt`, `llms.txt`, `security.txt`) match spec §6.2; the CSP's style-src hash equals the sha256 of each page's own inline `<style>`; HSTS and no `Set-Cookie` everywhere. `modes = ["ci", "post"]` |
 | `privacy.mjs` | Privacy | a real Chromium load of every page: no `Set-Cookie`, no third-party request, no `/cdn-cgi/` in the HTML, no `<script>` besides `application/ld+json`. `modes = ["ci", "post"]` |
-| `weight.mjs` | Weight | HTML+CSS ≤ 30 KB brotli; fonts ≤ 100 KB total with exactly one preloaded; first view (Chromium, mobile viewport) ≤ 6 requests and ≤ 150 KB brotli-equivalent; 0 bytes of executable JS |
+| `weight.mjs` | Weight | HTML+CSS ≤ 30 KB brotli; fonts ≤ 100 KB total with exactly one preloaded; first view (Chromium, mobile viewport, a fresh browser context per page so every page is a cold load, not a cache hit on the previous page's fonts) ≤ 6 requests and ≤ 150 KB brotli-equivalent; 0 bytes of executable JS |
 | `links.mjs` | Links | every same-origin `href`/`src`/`srcset` across every page (incl. `/404.html`) resolves with 200, or the row fails; external links get a 10 s timeout and only warn, checked against `bench/links-allow.txt` |
 | `html.mjs` | HTML validity | the [Nu Html Checker](https://validator.github.io/validator/) (`vnu-jar`) reports 0 errors and 0 warnings; `html-validate` (`bench/.htmlvalidate.json`: `recommended` + `a11y` + `document`) reports 0 errors — every page, `/404.html` included. `modes = ["ci", "post"]` |
 | `a11y.mjs` | Accessibility | [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) against WCAG 2.2 AA in a real Chromium, in both `light` and `dark` `prefers-color-scheme`; AAA contrast (`color-contrast-enhanced`) everywhere except the `--ink-2` secondary-text selectors (`bench/lib/a11y.mjs`'s `SECONDARY`, kept in step with `assets/css/site.css`); skip link is the first tab stop; every interactive element gets a visible `:focus-visible` outline; tab stops account for every interactive element; the language-switch link carries `lang`. `modes = ["ci", "post"]` |
@@ -139,13 +139,27 @@ Fetches `BASE`'s sitemap, runs every wanted module, writes `FILE` (the row array
 `FILE.detail.json`. Always exits 0, even when rows fail — `merge.mjs` is the gate, not the audit.
 
 ```
-node bench/merge.mjs --out scorecard.json [--build SHA --build-url URL] [--summary FILE] [--no-gate] rows.json…
+node bench/merge.mjs --out scorecard.json [--build SHA --build-url URL] [--summary FILE] [--no-gate] [--expect ci|post] rows.json…
 ```
 
 Folds any number of row files into one `scorecard.json`: orders rows per the spec (`ORDER` in
 `merge.mjs`), folds Lighthouse shard rows (`Lighthouse [mobile 1/2]`, …) into a single row, and
 prepends an `Audited build` row when `--build` is given. Writes the Markdown table to `--summary`
 (appending, for a CI job summary) and exits 1 when any row is red, unless `--no-gate`.
+
+`--expect ci|post` names the row set the inputs must cover (`EXPECT` in `merge.mjs`, derived from
+`ORDER`: the thirteen CI rows from `Lighthouse` through `Font correctness`, or the nine
+`(production)` rows). Every expected row no file delivered — a `checks` job that died before
+writing, a Lighthouse shard that never reported — is added as a red `not measured (no rows file)`
+row, so a missing measurement is visible on the scorecard and counted by the gate rather than
+silently absent. CI's `merge` job passes it; the `comment` and `publish` jobs, which re-fold
+already-merged files, do not, and neither does `scripts/bench.sh --only …`, where the skipped rows
+are the user's choice.
+
+`audit.mjs` itself refuses to measure a build the sitemap misdescribes: a sitemap page that does not
+answer 200, or a `/404.html` that does not answer 404, aborts the run before any module loads
+(the error names each `path → status`), the job fails, and `--expect` marks every row of that mode
+`not measured`.
 
 ## Testing
 

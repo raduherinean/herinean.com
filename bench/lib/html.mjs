@@ -27,9 +27,14 @@ export async function run(ctx) {
     // checker did not run at all, which must fail loudly rather than read as "0 messages".
     if (nu.error) problems.push(`Nu did not run: ${nu.error.message}`);
     else if (nu.code !== 0) problems.push(`Nu did not run: exit ${nu.code}: ${nu.err.trim().split("\n")[0]}`);
+    // Exit 0 with nothing on stdout is not "zero messages" either — Nu always prints a {"messages"}
+    // document, so an empty stdout means the checker never ran (a JVM that printed to stderr and
+    // returned 0, a wrapper that swallowed the output), and must not read as a clean page.
+    else if (!nu.out.trim()) problems.push(`Nu did not run: exit 0 with no output${nu.err.trim() ? `: ${nu.err.trim().split("\n")[0]}` : ""}`);
     else {
-      const msgs = JSON.parse(nu.out || '{"messages":[]}').messages;
-      for (const m of msgs) if (m.type === "error" || (m.type === "info" && m.subType === "warning")) problems.push(`Nu ${m.type}${m.subType ? "/" + m.subType : ""} ${files.find((f) => m.url?.endsWith(f[0]))?.[1] || ""}:${m.lastLine}: ${m.message}`);
+      const msgs = JSON.parse(nu.out).messages;
+      if (!Array.isArray(msgs)) problems.push("Nu did not run: its output carries no messages array");
+      else for (const m of msgs) if (m.type === "error" || (m.type === "info" && m.subType === "warning")) problems.push(`Nu ${m.type}${m.subType ? "/" + m.subType : ""} ${files.find((f) => m.url?.endsWith(f[0]))?.[1] || ""}:${m.lastLine}: ${m.message}`);
     }
   } finally {
     rmSync(dir, { recursive: true, force: true });

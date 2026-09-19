@@ -60,6 +60,30 @@ test("headers passes on the fixture (all 12 path classes, including both feed lo
   }
 });
 
+test("headers fails when a page's inline <style> no longer matches the CSP's style-src hash", async () => {
+  const dir = tempCopy();
+  try {
+    // The served CSP (from _headers) still carries the hash of the original <style>; one extra
+    // comment in the sheet changes its sha256 and nothing else about the page.
+    const idx = join(dir, "index.html");
+    const before = readFileSync(idx, "utf8");
+    const after = before.replace("<style>", "<style>/* drift */");
+    assert.notEqual(after, before, "fixture index.html has no <style> to anchor the mutation");
+    writeFileSync(idx, after);
+    const bad = await serveFixture(dir);
+    try {
+      const badPages = await loadPages(bad.base, { include404: true });
+      const [row] = await headersRun(ctxFor(bad.base, badPages));
+      assert.equal(row.pass, false);
+      assert.match(row.value, /^1 problem: \/: CSP style hash does not match the inline <style>$/);
+    } finally {
+      await bad.close();
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test(
   "privacy passes on the fixture and fails when a page carries an executable script",
   { timeout: 120000 },
@@ -119,6 +143,32 @@ test(
         const [row] = await weightRun(ctxFor(bad.base, badPages, { browser }));
         assert.equal(row.pass, false);
         assert.match(row.value, /HTML\+CSS \d+ bytes brotli > 30 KB/);
+      } finally {
+        await bad.close();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  "weight fails when a page preloads no font (exactly one preload is the rule)",
+  { timeout: 120000 },
+  async () => {
+    const dir = tempCopy();
+    try {
+      const idx = join(dir, "index.html");
+      const before = readFileSync(idx, "utf8");
+      const after = before.replace(/<link rel="preload" href="\/fonts\/[^"]+" as="font"[^>]*>/, "");
+      assert.notEqual(after, before, "fixture index.html has no font preload to remove");
+      writeFileSync(idx, after);
+      const bad = await serveFixture(dir);
+      try {
+        const badPages = await loadPages(bad.base, { include404: true });
+        const [row] = await weightRun(ctxFor(bad.base, badPages, { browser }));
+        assert.equal(row.pass, false);
+        assert.match(row.value, /\/: 0 font preloads, want 1/);
       } finally {
         await bad.close();
       }

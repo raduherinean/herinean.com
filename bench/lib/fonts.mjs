@@ -29,9 +29,16 @@ async function measureApplied(page) {
   }, PROBE_TEXT);
 }
 
+// A paragraph's line count is its box height over its computed line-height. `line-height: normal`
+// computes to the keyword, not a length, so parseFloat gives NaN and the division would report
+// NaN lines — which `Math.abs(NaN - n) > 1` reads as "within one line", i.e. a silent pass. Such a
+// paragraph is reported as unmeasurable (`null`) and run() turns it into a problem, rather than
+// estimated from fontSize × 1.2: `normal` is font-dependent (about 1.15–1.3), and a guessed
+// denominator would make the ±1-line claim rest on a guess. The site's CSS sets a line-height on
+// body, so this only fires on a page that lost it.
 const measureLayout = (page) => page.evaluate(() => ({
   h: document.documentElement.scrollHeight,
-  lines: [...document.querySelectorAll("main p")].map((e) => Math.round(e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight))),
+  lines: [...document.querySelectorAll("main p")].map((e) => { const lh = parseFloat(getComputedStyle(e).lineHeight); return Number.isFinite(lh) && lh > 0 ? Math.round(e.getBoundingClientRect().height / lh) : null; }),
 }));
 
 export async function run(ctx) {
@@ -40,6 +47,9 @@ export async function run(ctx) {
   const problems = [], measured = [];
   const browser = await ctx.browser();
   for (const vp of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
+    // One set of contexts per viewport, shared across pages, is deliberate here (unlike weight.mjs):
+    // Playwright routing disables the HTTP cache, so `delayed` and `blocked` are cold on every page,
+    // and `fast` measures whether the web font rendered, which holds whether or not it came from cache.
     const fast = await browser.newContext({ viewport: vp });
     const delayed = await browser.newContext({ viewport: vp });
     const blocked = await browser.newContext({ viewport: vp });
@@ -67,7 +77,11 @@ export async function run(ctx) {
           if (!applied) problems.push(`${vp.width} ${p.path}: web font not applied`);
           const dh = Math.abs(web.h - fb.h) / fb.h;
           if (dh > 0.05) problems.push(`${vp.width} ${p.path}: height ${web.h} vs ${fb.h} (${(dh * 100).toFixed(1)} %)`);
-          web.lines.forEach((l, k) => { if (fb.lines[k] !== undefined && Math.abs(l - fb.lines[k]) > 1) problems.push(`${vp.width} ${p.path}: paragraph ${k + 1} ${l} vs ${fb.lines[k]} lines`); });
+          web.lines.forEach((l, k) => {
+            if (fb.lines[k] === undefined) return;
+            if (l === null || fb.lines[k] === null) problems.push(`${vp.width} ${p.path}: paragraph ${k + 1} has line-height: normal, lines not measurable`);
+            else if (Math.abs(l - fb.lines[k]) > 1) problems.push(`${vp.width} ${p.path}: paragraph ${k + 1} ${l} vs ${fb.lines[k]} lines`);
+          });
           measured.push({ vp: vp.width, path: p.path, cls, height: [web.h, fb.h], applied });
         } finally {
           await a.close(); await d.close(); await b.close();

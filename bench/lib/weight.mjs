@@ -13,13 +13,16 @@ export async function run(ctx) {
   for (const u of fontURLs) fontBytes += (await (await fetch(ctx.base + u)).arrayBuffer()).byteLength;
   if (fontBytes > 100 * 1024) problems.push(`fonts total ${fontBytes} bytes > 100 KB`);
   const browser = await ctx.browser();
-  const bctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  try {
-    for (const p of pages) {
-      const html = br(Buffer.from(p.html));
-      if (html > 30 * 1024) problems.push(`${p.path}: HTML+CSS ${html} bytes brotli > 30 KB`);
-      const preloads = p.$('link[rel="preload"][as="font"]').length;
-      if (preloads !== 1) problems.push(`${p.path}: ${preloads} font preloads, want 1`);
+  for (const p of pages) {
+    const html = br(Buffer.from(p.html));
+    if (html > 30 * 1024) problems.push(`${p.path}: HTML+CSS ${html} bytes brotli > 30 KB`);
+    const preloads = p.$('link[rel="preload"][as="font"]').length;
+    if (preloads !== 1) problems.push(`${p.path}: ${preloads} font preloads, want 1`);
+    // One browser context per page: a context owns its HTTP cache, so every page is a cold first
+    // view. Sharing one context would let every page after the first take fonts and images from
+    // the cache and under-count its requests and bytes.
+    const bctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    try {
       const page = await bctx.newPage();
       const reqs = [], pending = [];
       let seen = 0, failed = 0;
@@ -52,9 +55,9 @@ export async function run(ctx) {
       if (total > 150 * 1024) problems.push(`${p.path}: first view ${total} bytes > 150 KB`);
       if (reqs.some((r) => r.js)) problems.push(`${p.path}: JavaScript fetched`);
       per.push({ path: p.path, html, requests: reqs.length, total, failed });
+    } finally {
+      await bctx.close();
     }
-  } finally {
-    await bctx.close();
   }
   const worst = per.reduce((w, x) => (x.total > w.total ? x : w), per[0]);
   return [row(name, problems.length === 0, summary(`worst first view ${worst.path}: ${worst.requests} requests, ${(worst.total / 1024).toFixed(1)} KB brotli-equivalent; fonts ${(fontBytes / 1024).toFixed(1)} KB, one preload; 0 bytes JS`, problems), ctx, per)];

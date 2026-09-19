@@ -14,6 +14,9 @@ export async function run(ctx) {
     if (canon.length !== 1) problems.push(`${p.path}: ${canon.length} canonical links`);
     const href = canon.attr("href") || "";
     if (!/^https:\/\/[^/]+\/.*\/$|^https:\/\/[^/]+\/$/.test(href)) problems.push(`${p.path}: canonical ${href} not absolute with a trailing slash`);
+    // The canonical must be this page, not merely a well-formed URL: a page whose canonical names
+    // another page tells search engines to drop it, which the shape check alone would pass.
+    else if (new URL(href).pathname !== p.path) problems.push(`${p.path}: canonical ${href} is another page`);
     const alts = p.$('link[rel="alternate"][hreflang]').toArray().map((e) => ({ l: p.$(e).attr("hreflang"), h: p.$(e).attr("href") }));
     if (alts.length && !alts.some((a) => a.l === "x-default")) problems.push(`${p.path}: hreflang without x-default`);
     for (const a of alts) {
@@ -24,5 +27,5 @@ export async function run(ctx) {
       if (!back.some((b) => b.h === href && b.l === lang)) problems.push(`${p.path}: ${a.h} does not point back with hreflang=${lang}`);
     }
   }
-  return [row(name, problems.length === 0, summary(`${pages.length} pages: lang, canonical, hreflang symmetric`, problems), ctx, problems)];
+  return [row(name, problems.length === 0, summary(`${pages.length} pages: lang, self-canonical, hreflang symmetric`, problems), ctx, problems)];
 }

@@ -3,12 +3,22 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
-const { values: a, positionals: files } = parseArgs({ allowPositionals: true, options: { out: { type: "string" }, build: { type: "string" }, "build-url": { type: "string" }, summary: { type: "string" }, "no-gate": { type: "boolean", default: false } } });
+import { today } from "./lib/row.mjs";
+const { values: a, positionals: files } = parseArgs({ allowPositionals: true, options: { out: { type: "string" }, build: { type: "string" }, "build-url": { type: "string" }, summary: { type: "string" }, "no-gate": { type: "boolean", default: false }, expect: { type: "string" } } });
 
 export const ORDER = ["Audited build", "Lighthouse", "HTML validity", "Accessibility", "Links", "Feeds", "Structured data", "Social previews", "i18n", "Security headers", "Weight", "Privacy", "Well-known files", "Font correctness",
   "Lighthouse (production)", "HTML validity (production)", "Accessibility (production)", "Security headers (production)", "Transport (production)", "Mozilla HTTP Observatory (production)", "DNS, mail, domains (production)", "Privacy (production)", "Caching (production)"];
 
-export function merge(rowsIn, build) {
+// What each mode's row files must contain, derived from ORDER so the two never drift: `ci` is every
+// name from Lighthouse through Font correctness (Audited build comes from --build, not from a file);
+// `post` is every "(production)" name. A row that no file delivered — a checks job that died before
+// writing, a module whose name changed — becomes a red "not measured" row rather than a silent gap.
+export const EXPECT = {
+  ci: ORDER.slice(ORDER.indexOf("Lighthouse"), ORDER.indexOf("Font correctness") + 1),
+  post: ORDER.filter((c) => c.endsWith(" (production)")),
+};
+
+export function merge(rowsIn, build, expect) {
   const rows = [];
   const lh = new Map(); // check → shard rows
   for (const r of rowsIn) {
@@ -26,7 +36,12 @@ export function merge(rowsIn, build) {
     const value = missing.length ? `${missing.length} shards missing (${missing.join(", ")})` : pass ? `${pages} pages × mobile + desktop, 3-run median: all 100 (worst ${worst})` : failing.join("; ");
     rows.push({ check, pass, value, when: shards[0].when, link: shards[0].link, link_text: shards[0].link_text });
   }
-  if (build) rows.unshift({ check: "Audited build", pass: true, value: build.sha, when: rows[0]?.when || new Date().toISOString().slice(0, 10), link: build.url, link_text: "commit" });
+  if (expect) {
+    if (!EXPECT[expect]) throw new Error(`--expect ${expect}: want ci or post`);
+    const have = new Set(rows.map((r) => r.check));
+    for (const check of EXPECT[expect]) if (!have.has(check)) rows.push({ check, pass: false, value: "not measured (no rows file)", when: today(), link: "", link_text: "" });
+  }
+  if (build) rows.unshift({ check: "Audited build", pass: true, value: build.sha, when: rows[0]?.when || today(), link: build.url, link_text: "commit" });
   const idx = (c) => { const i = ORDER.indexOf(c); return i < 0 ? ORDER.length : i; };
   rows.sort((x, y) => idx(x.check) - idx(y.check));
   return rows;
@@ -35,9 +50,11 @@ export function merge(rowsIn, build) {
 export const table = (rows) => ["| Check | Result | Value |", "|---|---|---|", ...rows.map((r) => `| ${r.check} | ${r.pass ? "✅ pass" : "❌ FAIL"} | ${r.value.replace(/\|/g, "\\|")} |`)].join("\n") + "\n";
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  if (!a.out || files.length === 0) { console.error("usage: merge.mjs --out scorecard.json [--build SHA --build-url URL] [--summary FILE] [--no-gate] rows.json…"); process.exit(2); }
+  // With --expect, no row files at all is a valid (and fully red) input: every job died before
+  // uploading, and the scorecard must say so row by row rather than not exist.
+  if (!a.out || (files.length === 0 && !a.expect) || (a.expect && !EXPECT[a.expect])) { console.error("usage: merge.mjs --out scorecard.json [--build SHA --build-url URL] [--summary FILE] [--no-gate] [--expect ci|post] rows.json…"); process.exit(2); }
   const rowsIn = files.flatMap((f) => JSON.parse(readFileSync(f, "utf8")));
-  const rows = merge(rowsIn, a.build ? { sha: a.build, url: a["build-url"] || "" } : null);
+  const rows = merge(rowsIn, a.build ? { sha: a.build, url: a["build-url"] || "" } : null, a.expect);
   writeFileSync(a.out, JSON.stringify(rows, null, 1) + "\n");
   if (a.summary) writeFileSync(a.summary, table(rows), { flag: "a" });
   const red = rows.filter((r) => !r.pass);

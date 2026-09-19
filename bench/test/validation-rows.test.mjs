@@ -81,6 +81,29 @@ test(
   },
 );
 
+test("html reports 'Nu did not run' — a red row — when java exits 0 without printing anything", { timeout: 30000 }, async () => {
+  // A `java` stub first on PATH that returns 0 and prints nothing: the shape of a JVM that never
+  // reached the checker. Before the guard, `nu.out || '{"messages":[]}'` read that as a clean page.
+  const stubDir = mkdtempSync(join(tmpdir(), "bench-java-stub-"));
+  const savedPath = process.env.PATH;
+  try {
+    writeFileSync(join(stubDir, "java"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+    process.env.PATH = `${stubDir}:${savedPath}`;
+    const s = await serveFixture(FIXTURE);
+    try {
+      const pages = await loadPages(s.base, { include404: true });
+      const [row] = await htmlRun(ctxFor(s.base, pages));
+      assert.equal(row.pass, false);
+      assert.match(row.value, /Nu did not run: exit 0 with no output/);
+    } finally {
+      await s.close();
+    }
+  } finally {
+    process.env.PATH = savedPath;
+    rmSync(stubDir, { recursive: true, force: true });
+  }
+});
+
 test(
   "html and a11y both fail closed in post mode when /colophon/ is absent from the page set",
   { timeout: 30000 },

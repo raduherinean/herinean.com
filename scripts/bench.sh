@@ -33,5 +33,7 @@ if [ -z "$BASE" ]; then
   BASE=http://127.0.0.1:8089
 fi
 node bench/audit.mjs "$BASE" --mode "$MODE" "${ONLY[@]}" --dist dist --out .cache/bench/rows.json
-node bench/merge.mjs --out .cache/bench/scorecard.json --build "$(git rev-parse --short HEAD)" --build-url "https://github.com/raduherinean/herinean.com/commit/$(git rev-parse HEAD)" --no-gate .cache/bench/rows.json
+# --expect only for a full run: a partial (--only) run skips rows on purpose, and "not measured" would be noise, not a finding.
+EXPECT=(); [ ${#ONLY[@]} -eq 0 ] && EXPECT=(--expect "$MODE")
+node bench/merge.mjs --out .cache/bench/scorecard.json --build "$(git rev-parse --short HEAD)" --build-url "https://github.com/raduherinean/herinean.com/commit/$(git rev-parse HEAD)" --no-gate "${EXPECT[@]}" .cache/bench/rows.json
 echo "rows: .cache/bench/scorecard.json (detail: .cache/bench/rows.json.detail.json)"
