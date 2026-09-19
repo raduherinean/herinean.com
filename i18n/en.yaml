@@ -26,7 +26,7 @@ footer.linkedin: LinkedIn
 footer.rss: RSS
 footer.colophon: Colophon
 footer.privacy: Privacy
-footer.promise: No JavaScript, no cookies, no trackers.
+footer.promise: No JavaScript, no cookies, no third-party requests.
 colophon.type: Type
 colophon.type.body: "Body text is set in Herinean Serif — Source Serif 4 by Adobe, subset and renamed as its licence requires — and titles in Newsreader by Production Type. Both are Open Font License; the files and licences are in the repository."
 notfound.title: Page not found
