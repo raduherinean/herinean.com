@@ -24,12 +24,13 @@ function tempCopy() {
   return dir;
 }
 
-test("headers passes on the fixture and fails when the server overrides x-frame-options", async () => {
+test("headers passes on the fixture (all 12 path classes, including both feed locales) and fails when the server overrides x-frame-options", async () => {
   const s = await serveFixture(FIXTURE);
   try {
     const pages = await loadPages(s.base, { include404: true });
     const [ok] = await headersRun(ctxFor(s.base, pages));
     assert.equal(ok.pass, true, ok.value);
+    assert.match(ok.value, /^12 path classes/);
   } finally {
     await s.close();
   }
@@ -44,6 +45,18 @@ test("headers passes on the fixture and fails when the server overrides x-frame-
     assert.match(row.value, /x-frame-options = SAMEORIGIN/);
   } finally {
     await bad.close();
+  }
+
+  // Scope the override to /feed.ro.xml only, so the other 11 classes stay green and the failure
+  // can only have come from the class this fix added.
+  const badFeed = await serveFixture(FIXTURE, { path: "/feed.ro.xml", headers: { "content-type": "text/plain" } });
+  try {
+    const badFeedPages = await loadPages(badFeed.base, { include404: true });
+    const [row] = await headersRun(ctxFor(badFeed.base, badFeedPages));
+    assert.equal(row.pass, false);
+    assert.match(row.value, /\/feed\.ro\.xml: content-type = text\/plain/);
+  } finally {
+    await badFeed.close();
   }
 });
 

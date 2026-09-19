@@ -9,7 +9,12 @@ export function serveFixture(dir, headersOverride) {
     let fp = join(dir, p);
     if (existsSync(fp) && statSync(fp).isDirectory()) fp = join(fp, "index.html");
     for (const r of rules) if (r.match(p)) for (const [k, v] of r.headers) v === null ? res.removeHeader(k) : res.setHeader(k, v);
-    if (headersOverride) for (const [k, v] of Object.entries(headersOverride)) res.setHeader(k, v);
+    // headersOverride is either a flat {header: value} object applied to every response, or
+    // {path, headers} to scope it to one path only (e.g. breaking a single feed variant).
+    if (headersOverride) {
+      const scoped = headersOverride.path !== undefined;
+      if (!scoped || headersOverride.path === p) for (const [k, v] of Object.entries(scoped ? headersOverride.headers : headersOverride)) res.setHeader(k, v);
+    }
     if (!existsSync(fp) || p === "/404.html") { res.statusCode = 404; res.setHeader("content-type", "text/html; charset=utf-8"); res.end(existsSync(join(dir, "404.html")) ? readFileSync(join(dir, "404.html")) : "nope"); return; }
     const ext = fp.split(".").pop();
     const types = { html: "text/html; charset=utf-8", xml: "application/xml; charset=utf-8", json: "application/json", txt: "text/plain; charset=utf-8", svg: "image/svg+xml", png: "image/png", ico: "image/x-icon", woff2: "font/woff2", webp: "image/webp", jpg: "image/jpeg", css: "text/css" };

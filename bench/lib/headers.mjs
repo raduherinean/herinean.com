@@ -3,17 +3,22 @@ import { row, summary } from "./row.mjs";
 export const name = "Security headers";
 export const modes = ["ci", "post"];
 const COMMON = { "x-content-type-options": /^nosniff$/, "referrer-policy": /^strict-origin-when-cross-origin$/, "permissions-policy": /camera=\(\)/, "cross-origin-opener-policy": /^same-origin$/, "x-frame-options": /^DENY$/, "strict-transport-security": /^max-age=63072000; includeSubDomains; preload$/ };
+// /*'s own rules (cache-control, same-origin CORP), inherited by every class below that has no more specific override.
+const INHERITED = { "cross-origin-resource-policy": /^same-origin$/, "cache-control": /^public, max-age=0, must-revalidate$/ };
+const feedExpect = { ...COMMON, "content-type": /^application\/rss\+xml; charset=utf-8$/, "cache-control": /^public, max-age=300$/ };
 const CLASSES = [
   { path: "/", expect: { ...COMMON, "content-security-policy": /^default-src 'none'; style-src 'sha256-[A-Za-z0-9+/=]+'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'$/, "cross-origin-resource-policy": /^same-origin$/, "cache-control": /^public, max-age=0, must-revalidate$/, "content-type": /^text\/html; charset=utf-8$/ } },
   { find: (pages) => pages[0].$('link[rel="preload"][as="font"]').attr("href"), expect: { ...COMMON, "cross-origin-resource-policy": /^same-origin$/, "cache-control": /^public, max-age=31536000, immutable$/, "content-type": /^font\/woff2$/ } },
   { find: (pages) => pages[0].$('meta[property="og:image"]').attr("content") && new URL(pages[0].$('meta[property="og:image"]').attr("content")).pathname, expect: { ...COMMON, "cross-origin-resource-policy": /^cross-origin$/, "cache-control": /^public, max-age=31536000, immutable$/, "content-type": /^image\/png$/ } },
   { find: (pages) => pages.map((p) => p.$("img[src^='/img/']").attr("src")).find(Boolean), expect: { ...COMMON, "cross-origin-resource-policy": /^cross-origin$/, "cache-control": /^public, max-age=31536000, immutable$/ } },
-  { path: "/feed.xml", expect: { ...COMMON, "content-type": /^application\/rss\+xml; charset=utf-8$/, "cache-control": /^public, max-age=300$/ } },
+  { path: "/feed.xml", expect: feedExpect },
+  { path: "/feed.en.xml", expect: feedExpect },
+  { path: "/feed.ro.xml", expect: feedExpect },
   { path: "/feed.json", expect: { ...COMMON, "content-type": /^application\/feed\+json; charset=utf-8$/, "cache-control": /^public, max-age=300$/ } },
-  { path: "/sitemap.xml", expect: { ...COMMON, "content-type": /^application\/xml; charset=utf-8$/ } },
-  { path: "/robots.txt", expect: { ...COMMON, "content-type": /^text\/plain; charset=utf-8$/ } },
-  { path: "/llms.txt", expect: { ...COMMON, "content-type": /^text\/plain; charset=utf-8$/ } },
-  { path: "/.well-known/security.txt", expect: { ...COMMON, "content-type": /^text\/plain; charset=utf-8$/ } },
+  { path: "/sitemap.xml", expect: { ...COMMON, ...INHERITED, "content-type": /^application\/xml; charset=utf-8$/ } },
+  { path: "/robots.txt", expect: { ...COMMON, ...INHERITED, "content-type": /^text\/plain; charset=utf-8$/ } },
+  { path: "/llms.txt", expect: { ...COMMON, ...INHERITED, "content-type": /^text\/plain; charset=utf-8$/ } },
+  { path: "/.well-known/security.txt", expect: { ...COMMON, ...INHERITED, "content-type": /^text\/plain; charset=utf-8$/ } },
 ];
 // Row 9: the served headers per path class match spec §6.2; the CSP's style hash is the page's own <style>; HSTS everywhere.
 export async function run(ctx) {
