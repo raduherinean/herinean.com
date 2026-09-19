@@ -179,8 +179,10 @@ jobs:
   post:
     needs: [build, audit, deploy]
     # The workflow_dispatch branch also requires main: a dispatch from any other ref must never
-    # verify, roll back or republish production.
-    if: always() && needs.build.outputs.launched == 'true' && (needs.deploy.result == 'success' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && needs.audit.outputs.pass == 'true'))
+    # verify, roll back or republish production. It checks the audit JOB as well as its pass output:
+    # under always() the output alone would admit a run whose rows were green but whose fragment
+    # failed Nu (the merge job records pass= before it renders).
+    if: always() && needs.build.outputs.launched == 'true' && (needs.deploy.result == 'success' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && needs.audit.result == 'success' && needs.audit.outputs.pass == 'true'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: production

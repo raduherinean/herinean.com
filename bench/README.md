@@ -150,16 +150,19 @@ prepends an `Audited build` row when `--build` is given. Writes the Markdown tab
 `--expect ci|post` names the row set the inputs must cover (`EXPECT` in `merge.mjs`, derived from
 `ORDER`: the thirteen CI rows from `Lighthouse` through `Font correctness`, or the nine
 `(production)` rows). Every expected row no file delivered — a `checks` job that died before
-writing, a Lighthouse shard that never reported — is added as a red `not measured (no rows file)`
+writing, or every Lighthouse shard missing — is added as a red `not measured (no rows file)`
 row, so a missing measurement is visible on the scorecard and counted by the gate rather than
-silently absent. CI's `merge` job passes it; the `comment` and `publish` jobs, which re-fold
+silently absent (when only some Lighthouse shards reported, the fold names them: `N shards
+missing (…)`). CI's `merge` job passes it; the `comment` and `publish` jobs, which re-fold
 already-merged files, do not, and neither does `scripts/bench.sh --only …`, where the skipped rows
 are the user's choice.
 
 `audit.mjs` itself refuses to measure a build the sitemap misdescribes: a sitemap page that does not
-answer 200, or a `/404.html` that does not answer 404, aborts the run before any module loads
-(the error names each `path → status`), the job fails, and `--expect` marks every row of that mode
-`not measured`.
+answer 200 aborts the run before any module loads (the error names each `path → status`), the job
+fails, and `--expect` marks every row of that mode `not measured`. In `ci` mode `/404.html` must
+also answer 404 — `site serve --static`'s contract; on production the asset layer answers it with a
+301 to `/404/` (force-trailing-slash), so post mode leaves the edge's 404 behaviour to
+`scripts/verify-edge.sh`.
 
 ## Testing
 

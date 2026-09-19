@@ -22,12 +22,15 @@ const MODULES = {
 const wanted = a.only ? MODULES[a.only] : [...MODULES.checks, ...MODULES.lighthouse];
 const ctx = { base, mode: a.mode, dist: a.dist, when: today(), link: a.link, linkText: a["link-text"], formFactor: a["form-factor"], shard: a.shard, browser: makeBrowser() };
 ctx.pages = await loadPages(base, { include404: true });
-// A sitemap page that does not answer 200 (or a /404.html that does not answer 404) means the served
-// build is not the one the sitemap describes; every row would then measure the wrong thing, so the
-// audit stops here, before any module runs. The job fails, and merge.mjs --expect marks every row
-// of this mode "not measured" rather than letting a partial set read as an audit.
-const misserved = ctx.pages.filter((p) => (p.path === "/404.html" ? p.status !== 404 : p.status !== 200)).map((p) => `${p.path} → ${p.status}`);
-if (misserved.length) throw new Error(`pages not served as the sitemap says (want 200, /404.html 404): ${misserved.join(", ")}`);
+// A sitemap page that does not answer 200 means the served build is not the one the sitemap
+// describes; every row would then measure the wrong thing, so the audit stops here, before any
+// module runs. The job fails, and merge.mjs --expect marks every row of this mode "not measured"
+// rather than letting a partial set read as an audit. /404.html must answer 404 in ci mode only:
+// that is `site serve --static`'s contract, while on production the asset layer answers it with a
+// 301 to /404/ (force-trailing-slash, see the RUNBOOK) and verify-edge.sh covers the edge's 404s.
+const want404 = ctx.mode === "ci";
+const misserved = ctx.pages.filter((p) => (p.path === "/404.html" ? want404 && p.status !== 404 : p.status !== 200)).map((p) => `${p.path} → ${p.status}`);
+if (misserved.length) throw new Error(`pages not served as the sitemap says (want 200${want404 ? ", /404.html 404" : ""}): ${misserved.join(", ")}`);
 const rows = [], detail = {};
 for (const m of wanted) {
   const mod = await import(`./lib/${m}.mjs`);
