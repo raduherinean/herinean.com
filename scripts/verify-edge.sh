@@ -109,7 +109,7 @@ done
 section "apex headers and routing"
 U=https://herinean.com
 expect_status "$U/" 200
-expect_header "$U/" content-security-policy "^default-src 'none'; (style-src 'sha256-[A-Za-z0-9+/=]+'; img-src 'self'; font-src 'self'; )?base-uri 'none'; form-action 'none'; frame-ancestors 'none'$"
+expect_header "$U/" content-security-policy "^default-src 'none'; (style-src 'sha256-[A-Za-z0-9+/=]+'; img-src 'self'; font-src 'self'; connect-src 'self'; )?base-uri 'none'; form-action 'none'; frame-ancestors 'none'$"
 expect_header "$U/" strict-transport-security '^max-age=63072000; includeSubDomains; preload$'
 expect_header "$U/" x-content-type-options '^nosniff$'
 expect_header "$U/" referrer-policy '^strict-origin-when-cross-origin$'

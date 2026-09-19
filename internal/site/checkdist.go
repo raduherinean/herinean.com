@@ -86,7 +86,7 @@ func checkHeaderCoverage(dist string, headers []byte, probs *content.Problems) {
 		}
 	}
 	// the HTML class: every header spec §6.2 puts on /* (the CSP hash itself is matched against each page separately)
-	require("/*", "Content-Security-Policy: default-src 'none'; style-src 'sha256-", "base-uri 'none'", "form-action 'none'", "frame-ancestors 'none'",
+	require("/*", "Content-Security-Policy: default-src 'none'; style-src 'sha256-", "connect-src 'self'", "base-uri 'none'", "form-action 'none'", "frame-ancestors 'none'",
 		"Strict-Transport-Security: max-age=63072000; includeSubDomains; preload", "X-Content-Type-Options: nosniff",
 		"Referrer-Policy: strict-origin-when-cross-origin", "Permissions-Policy: ", "Cross-Origin-Opener-Policy: same-origin",
 		"Cross-Origin-Resource-Policy: same-origin", "X-Frame-Options: DENY", "Cache-Control: public, max-age=0, must-revalidate")

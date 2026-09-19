@@ -5,9 +5,12 @@ package edge
 
 import "fmt"
 
+// connect-src 'self' lets a page fetch its own same-origin resources; the site ships no <script>,
+// so no page code can ever use it — it exists only because Lighthouse's robots-txt audit fetches
+// /robots.txt from the audited page's own context, and default-src 'none' blocked that fetch.
 func Headers(cssHash string) []byte {
 	return []byte(fmt.Sprintf(`/*
-  Content-Security-Policy: default-src 'none'; style-src '%s'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'none'; style-src '%s'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin

@@ -8,7 +8,7 @@ import (
 func TestHeaders(t *testing.T) {
 	h := string(Headers("sha256-abc"))
 	for _, want := range []string{
-		"/*\n  Content-Security-Policy: default-src 'none'; style-src 'sha256-abc'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+		"/*\n  Content-Security-Policy: default-src 'none'; style-src 'sha256-abc'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
 		"Strict-Transport-Security: max-age=63072000; includeSubDomains; preload",
 		"Cross-Origin-Resource-Policy: same-origin",
 		"/img/*\n  ! Cross-Origin-Resource-Policy\n  ! Cache-Control\n  Cross-Origin-Resource-Policy: cross-origin\n  Cache-Control: public, max-age=31536000, immutable",
