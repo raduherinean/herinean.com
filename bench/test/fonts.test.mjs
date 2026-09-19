@@ -21,7 +21,7 @@ function tempCopy() {
 }
 
 test(
-  "fonts produces a Font correctness row with per-page CLS/height detail for 2 pages × 2 widths",
+  "fonts produces a Font correctness row with per-page CLS/height/applied detail for 2 pages × 2 widths",
   { timeout: 180000 },
   async () => {
     const s = await serveFixture(FIXTURE);
@@ -36,6 +36,7 @@ test(
         assert.equal(typeof m.path, "string");
         assert.equal(typeof m.cls, "number");
         assert.ok(Array.isArray(m.height) && m.height.length === 2, "height carries [web, fallback]");
+        assert.equal(typeof m.applied, "boolean");
       }
     } finally {
       await s.close();
@@ -44,7 +45,7 @@ test(
 );
 
 test(
-  "fonts fails closed when /fonts/ is deleted — the web font never applies, even after the 600 ms delay",
+  "fonts fails closed when /fonts/ is deleted — the paint probe never detects the web face",
   { timeout: 180000 },
   async () => {
     const dir = tempCopy();
