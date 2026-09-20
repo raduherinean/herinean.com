@@ -2,7 +2,9 @@ import { createServer } from "node:http";
 import { readFileSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 // Serves a fixture directory like site serve --static would: _headers applied, index.html for directories, 404.html with 404.
-export function serveFixture(dir, headersOverride) {
+// opts.redirect404 makes /404.html answer 301 → /404/ instead, the way the edge's asset layer does on production
+// (force-trailing-slash), so a test can serve what post mode sees.
+export function serveFixture(dir, headersOverride, opts = {}) {
   const rules = parseHeaders(existsSync(join(dir, "_headers")) ? readFileSync(join(dir, "_headers"), "utf8") : "");
   const srv = createServer((req, res) => {
     let p = decodeURIComponent(new URL(req.url, "http://x").pathname);
@@ -15,6 +17,7 @@ export function serveFixture(dir, headersOverride) {
       const scoped = headersOverride.path !== undefined;
       if (!scoped || headersOverride.path === p) for (const [k, v] of Object.entries(scoped ? headersOverride.headers : headersOverride)) res.setHeader(k, v);
     }
+    if (p === "/404.html" && opts.redirect404) { res.statusCode = 301; res.setHeader("location", "/404/"); res.end(); return; }
     if (!existsSync(fp) || p === "/404.html") { res.statusCode = 404; res.setHeader("content-type", "text/html; charset=utf-8"); res.end(existsSync(join(dir, "404.html")) ? readFileSync(join(dir, "404.html")) : "nope"); return; }
     const ext = fp.split(".").pop();
     const types = { html: "text/html; charset=utf-8", xml: "application/xml; charset=utf-8", json: "application/json", txt: "text/plain; charset=utf-8", svg: "image/svg+xml", png: "image/png", ico: "image/x-icon", woff2: "font/woff2", webp: "image/webp", jpg: "image/jpeg", css: "text/css" };

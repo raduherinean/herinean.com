@@ -6,6 +6,7 @@ import { parseArgs } from "node:util";
 import { loadPages } from "./lib/pages.mjs";
 import { today } from "./lib/row.mjs";
 import { makeBrowser } from "./lib/browser.mjs";
+import { MODULES } from "./lib/modules.mjs";
 
 const { values: a, positionals } = parseArgs({ allowPositionals: true, options: {
   mode: { type: "string", default: "ci" }, only: { type: "string" }, "form-factor": { type: "string" }, shard: { type: "string", default: "1/1" },
@@ -13,12 +14,6 @@ const { values: a, positionals } = parseArgs({ allowPositionals: true, options: 
 const base = (positionals[0] || "").replace(/\/$/, "");
 if (!base || !a.out) { console.error("usage: audit.mjs BASE --out FILE [--mode ci|post] …"); process.exit(2); }
 
-// Every module under bench/lib/ that produces a row; a module is listed here only once it exists,
-// so `audit.mjs` never fails on an import of a row that has not been written yet.
-const MODULES = {
-  checks: ["i18n", "social", "wellknown", "feeds", "jsonld", "headers", "privacy", "weight", "links", "html", "a11y", "fonts", "transport", "observatory", "dns", "caching"],
-  lighthouse: ["lighthouse"],
-};
 const wanted = a.only ? MODULES[a.only] : [...MODULES.checks, ...MODULES.lighthouse];
 const ctx = { base, mode: a.mode, dist: a.dist, when: today(), link: a.link, linkText: a["link-text"], formFactor: a["form-factor"], shard: a.shard, browser: makeBrowser() };
 ctx.pages = await loadPages(base, { include404: true });
