@@ -25,7 +25,7 @@ Every Go command takes `-tags nodynamic`. `site check` exit 3 means author input
 - Two remotes: a private one for drafts (every `piece/*` branch) and `origin` on GitHub, public. `origin` is reached only through `/publish-piece` and `/link-piece`, or by the owner.
 - A `piece/*` branch carries content only: `content/<lang>/<slug>.md` files sharing one key, and `assets/img/<key>/`.
 - The model never edits `content/` by hand. Front-matter fields change through `site stamp` and `site link`; `/translate-piece` creates one new file, once. Everything else in a piece is the author's.
-- Review ledgers are private: they live in the shared git directory (`node .claude/skills/publish-piece/gate.mjs path <piece>`) and never enter a commit, a pull request or this repository.
+- Review ledgers are private: they live in the shared git directory (`node .claude/skills/publish-piece/gate.mjs path <piece>`) and never enter a commit, a pull request or this repository. Only the author marks them, at `gate.mjs mark` in their own terminal; agents never run `mark`.
 - Examples in skills and docs are invented. Nothing from a draft, a ledger or the author's work goes into a file here as an example.
 - URLs never change and pieces are never deleted: a correction sets `updated:`; a retraction is a note at the top.
 - No private host, local path or session link in any file.

@@ -91,4 +91,4 @@ Write or update `$LEDGER` in this shape (the gate reads the `hash:` line and the
 Re-extract the claims and flags from the current text. Keep the author's Author, Note and Resolution on claims and flags whose text is unchanged; a changed claim or flag starts empty again. Update the `hash:` line. The last run must follow the last edit: `/publish-piece` refuses a ledger whose hash is not the piece's.
 
 ## What to tell the author
-The ledger's path; claims by verdict; claims waiting for the author's ✓; tier flags waiting for a resolution; the mechanical problems; that nothing in `content/` was changed.
+The ledger's path; claims by verdict; claims waiting for the author's ✓; tier flags waiting for a resolution; the mechanical problems; that nothing in `content/` was changed. To mark, they run `node .claude/skills/publish-piece/gate.mjs mark` in their own terminal — it prompts through everything still waiting for them and writes the cells itself. Agents never run `mark`: it refuses without a terminal, because the marks are the author's alone.
