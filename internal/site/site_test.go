@@ -198,7 +198,7 @@ func TestLaunchedRuleAcceptsLaunchDay(t *testing.T) {
 	}
 }
 
-// controller ruling: a blank date in non-draft mode is already refused ("date is empty"); with a zero Date, the
+// A blank date in non-draft mode is already refused ("date is empty"); with a zero Date, the
 // launch-date loop must not also report a misleading "0001-01-01 is before launched".
 func TestLaunchedRuleSkipsBlankDate(t *testing.T) {
 	root := fixtureRoot(t)

@@ -40,14 +40,13 @@ export function splitRow(line) {
   return cells;
 }
 
-// GateTableError marks a `## <heading>` section the gate found but could not read as a table: fix-round-1
-// evidence showed rows silently vanishing (a blank or prose line between rows, a bullet list, a lone data row
-// with no header) instead of refusing; fix-round-2 evidence showed the same for a GFM row with no leading `|`
-// (outer pipes are optional in GFM, but the gate is not a renderer and must not guess), a row hidden behind `>` or
-// `- `, and a duplicate heading dodged by extra whitespace or a trailing `##`; fix-round-3 evidence showed the
-// pipeless-row check missed a whole fake table placed ABOVE the real header (it only looked from the header
-// onward), missed a lazy line with no pipe at all sitting directly under a row, and found the duplicate-heading
-// check still dodgeable by wrapping the name (`## **Claims**`) or extending it (`## Claims (continued)`).
+// GateTableError marks a `## <heading>` section the gate found but could not read as a table. The gate refuses
+// rather than guess, so it does not silently drop or misread: a blank or prose line between rows, a bullet list
+// standing in for a table, a lone data row with no header, a GFM row written without a leading `|` (outer pipes
+// are optional in GFM, but the gate is not a renderer), a row hidden behind `>` or `- `, a fake table pasted above
+// the real header, a lazy line with no pipe sitting directly under a row, or a duplicate heading disguised by
+// extra whitespace, decoration (`## **Claims**`) or extension (`## Claims (continued)`) of its name — each of
+// these would let a mark the author owes go unseen.
 // checkLedger turns this into a refusal message; it is not a "no section" (that stays `table() === null`, since
 // the ledger template always writes header + separator, even with zero rows).
 class GateTableError extends Error {}
