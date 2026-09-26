@@ -4,11 +4,13 @@
 //   node .claude/skills/publish-piece/gate.mjs hash   <piece.md>       sha256:<hex> of the piece file
 //   node .claude/skills/publish-piece/gate.mjs scope  [--base <ref>]   the branch changes one key's content only
 //   node .claude/skills/publish-piece/gate.mjs ledger <piece.md>...    every mark the author owes is there
+//   node .claude/skills/publish-piece/gate.mjs mark   [<piece.md>]     the author marks claims at a prompt
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { createInterface } from 'node:readline/promises';
 
 export const sha256 = (bytes) => 'sha256:' + createHash('sha256').update(bytes).digest('hex');
 
@@ -74,6 +76,10 @@ function hasUnescapedPipe(s) {
   return false;
 }
 
+// isSepRow reports whether a split row is a table separator (`|---|:--:|...`), shared by table() and setCells() so
+// both skip and re-find rows the same way.
+const isSepRow = (cells) => cells.length > 0 && cells.every((c) => /^:?-{3,}:?$/.test(c));
+
 // table returns the rows of the first Markdown table under `## <heading>` (keyed by lower-cased header), or null
 // when the heading is absent. The section runs from just after the (single, exact) `## <heading>` to the next
 // `##`-level heading of any name, or EOF.
@@ -125,8 +131,7 @@ export function table(md, heading) {
 
   let hIdx = -1;
   for (let i = start + 1; i < end; i++) if (lines[i].trim().startsWith('|')) { hIdx = i; break; }
-  const isSep = (cells) => cells.length > 0 && cells.every((c) => /^:?-{3,}:?$/.test(c));
-  if (hIdx < 0 || hIdx + 1 >= end || !lines[hIdx + 1].trim().startsWith('|') || !isSep(splitRow(lines[hIdx + 1]))) {
+  if (hIdx < 0 || hIdx + 1 >= end || !lines[hIdx + 1].trim().startsWith('|') || !isSepRow(splitRow(lines[hIdx + 1]))) {
     throw new GateTableError(`## ${heading} has no table header`);
   }
   const headerCells = splitRow(lines[hIdx]);
@@ -136,7 +141,7 @@ export function table(md, heading) {
     const l = lines[i].trim();
     if (!l.startsWith('|')) continue; // blank, or safe prose already cleared above.
     const cells = splitRow(l);
-    if (isSep(cells)) continue;
+    if (isSepRow(cells)) continue;
     const norm = cells.map((c) => c.toLowerCase());
     if (norm.length === header.length && norm.every((c, j) => c === header[j])) continue;
     rows.push(Object.fromEntries(header.map((h, j) => [h, cells[j] ?? ''])));
@@ -199,6 +204,165 @@ export function checkLedger(ledger, piece, modelPass) {
   return probs;
 }
 
+// pendingItems lists every claim and tier flag `mark` can still fix: a `source` claim with no Author, a `repo`
+// claim the agent did not confirm and the author hasn't checked-and-noted, and a tier flag whose Resolution is not
+// one of the two valid words for its own tier. A claim already marked ✗ is not pending — checkLedger already
+// refuses it, and the fix is to the piece, not the ledger. A tier flag whose own `tier` cell is neither `work` nor
+// `client` is left out too: `mark`'s prompt (see markLedger) only knows those two menus, so it cannot offer one;
+// checkLedger still refuses it on its own terms.
+export function pendingItems(md) {
+  const items = [];
+  const claims = table(md, 'Claims');
+  if (claims) {
+    for (const c of claims) {
+      const kind = (c.kind ?? '').toLowerCase();
+      const agent = (c.agent ?? '').toLowerCase();
+      const author = c.author ?? '';
+      const note = c.note ?? '';
+      if (author === '✗') continue;
+      if (kind === 'source' && author === '') items.push({ section: 'Claims', id: c['#'], row: c });
+      else if (kind === 'repo' && agent !== 'confirmed' && !(author === '✓' && note !== '')) {
+        items.push({ section: 'Claims', id: c['#'], row: c });
+      }
+    }
+  }
+  const tier = table(md, 'Tier');
+  if (tier) {
+    for (const f of tier) {
+      const t = (f.tier ?? '').toLowerCase();
+      const r = (f.resolution ?? '').toLowerCase();
+      const ok = RESOLUTIONS[t];
+      if (ok && !ok.includes(r)) items.push({ section: 'Tier', id: f['#'], row: f });
+    }
+  }
+  return items;
+}
+
+// splitLines splits `md` into {line, eol} pairs so a rewrite can touch one line and reproduce every other line's
+// own end-of-line bytes untouched — CRLF, bare LF, or (on the last line) none at all.
+function splitLines(md) {
+  const out = [];
+  const re = /\r\n|\r|\n/g;
+  let last = 0, m;
+  while ((m = re.exec(md))) {
+    out.push({ line: md.slice(last, m.index), eol: m[0] });
+    last = re.lastIndex;
+  }
+  out.push({ line: md.slice(last), eol: '' });
+  return out;
+}
+
+// setCells replaces exactly the row identified by `section` ('Claims' or 'Tier') and `id` (its `#` cell) with
+// `patch` merged onto the row's current cells, keyed by lower-cased header name — so a header in any column order
+// still lands the value in the right cell. Every other line of `md` is byte-identical to before, EOL included; the
+// rewritten row is re-serialised `| c1 | c2 | … |`, with a literal `|` in any cell written `\|` (splitRow's escape,
+// read back the same way by table()).
+export function setCells(md, section, id, patch) {
+  const parts = splitLines(md);
+  const target = section.toLowerCase();
+  const names = parts.map((p) => headingName(p.line));
+  let start = -1;
+  for (let i = 0; i < parts.length; i++) {
+    if (names[i] !== null && headingLetters(names[i]) === target) { start = i; break; }
+  }
+  if (start < 0) throw new Error(`no ## ${section} section`);
+  let end = parts.length;
+  for (let i = start + 1; i < end; i++) if (names[i] !== null) { end = i; break; }
+  let hIdx = -1;
+  for (let i = start + 1; i < end; i++) if (parts[i].line.trim().startsWith('|')) { hIdx = i; break; }
+  if (hIdx < 0) throw new Error(`## ${section} has no table header`);
+  const headerCells = splitRow(parts[hIdx].line);
+  const headerLower = headerCells.map((c) => c.toLowerCase());
+  const idCol = headerLower.indexOf('#');
+  for (let i = hIdx + 2; i < end; i++) {
+    if (!parts[i].line.trim().startsWith('|')) continue;
+    const cells = splitRow(parts[i].line);
+    if (isSepRow(cells)) continue;
+    if ((cells[idCol] ?? '') !== String(id)) continue;
+    const merged = headerLower.map((h, j) => (Object.prototype.hasOwnProperty.call(patch, h) ? String(patch[h]) : (cells[j] ?? '')));
+    const escaped = merged.map((c) => c.replace(/\|/g, '\\|'));
+    parts[i] = { line: '| ' + escaped.join(' | ') + ' |', eol: parts[i].eol };
+    return parts.map((p) => p.line + p.eol).join('');
+  }
+  throw new Error(`## ${section}: no row # ${id}`);
+}
+
+// markLedger drives the author's own prompt loop over every pendingItems() entry, in table order — the loop the
+// `mark` CLI command runs. `ask(promptText)` is an async function that shows the prompt and returns the typed
+// line (a readline `question` in the CLI; a scripted queue of answers in tests). `save(md)`, when given, is
+// awaited after every completed answer, so quitting (`q`) or an interrupt loses nothing already typed.
+export async function markLedger(md, ask, save) {
+  let current = md;
+  let marked = 0, skipped = 0, quit = false;
+  const items = pendingItems(current);
+  for (const item of items) {
+    if (quit) break;
+    if (item.section === 'Claims') {
+      const row = item.row;
+      const kind = (row.kind ?? '').toLowerCase();
+      const agent = (row.agent ?? '').toLowerCase();
+      console.log(`claim ${item.id} — ${kind}, agent: ${row.agent ?? ''}`);
+      console.log(row.claim ?? '');
+      console.log(row.evidence ?? '');
+      let answer;
+      for (;;) {
+        answer = (await ask('y = ✓ checked · n = ✗ wrong · s = skip · q = quit: ')).trim().toLowerCase();
+        if (['y', 'n', 's', 'q'].includes(answer)) break;
+      }
+      if (answer === 's') { skipped++; continue; }
+      if (answer === 'q') { quit = true; break; }
+      const authorMark = answer === 'y' ? '✓' : '✗';
+      const noteRequired = kind === 'repo' && agent !== 'confirmed' && answer === 'y';
+      let note = '', escape = null;
+      for (;;) {
+        const a = (await ask('note (Enter for none): ')).trim();
+        if (a.toLowerCase() === 's') { escape = 's'; break; }
+        if (a.toLowerCase() === 'q') { escape = 'q'; break; }
+        if (noteRequired && a === '') continue;
+        note = a;
+        break;
+      }
+      if (escape === 's') { skipped++; continue; }
+      if (escape === 'q') { quit = true; break; }
+      current = setCells(current, 'Claims', item.id, { author: authorMark, note });
+      if (save) await save(current);
+      marked++;
+    } else {
+      const row = item.row;
+      const tier = (row.tier ?? '').toLowerCase();
+      console.log(`tier flag ${item.id} — ${tier}`);
+      console.log(row.sentence ?? '');
+      console.log(row.why ?? '');
+      const valid = tier === 'work' ? ['k', 'c', 's', 'q'] : ['o', 'c', 's', 'q'];
+      const promptText = tier === 'work'
+        ? 'k = kept · c = changed · s = skip · q = quit: '
+        : 'o = signed-off · c = changed · s = skip · q = quit: ';
+      let answer;
+      for (;;) {
+        answer = (await ask(promptText)).trim().toLowerCase();
+        if (valid.includes(answer)) break;
+      }
+      if (answer === 's') { skipped++; continue; }
+      if (answer === 'q') { quit = true; break; }
+      if (tier === 'work') {
+        current = setCells(current, 'Tier', item.id, { resolution: answer === 'k' ? 'kept' : 'changed' });
+      } else if (answer === 'o') {
+        let who = '';
+        for (;;) {
+          who = (await ask('who signed off, and when: ')).trim();
+          if (who !== '') break;
+        }
+        current = setCells(current, 'Tier', item.id, { resolution: 'signed-off', why: `${row.why ?? ''} — signed off: ${who}` });
+      } else {
+        current = setCells(current, 'Tier', item.id, { resolution: 'changed' });
+      }
+      if (save) await save(current);
+      marked++;
+    }
+  }
+  return { md: current, marked, skipped, quit };
+}
+
 // checkScope returns every reason a branch is not a piece branch. `changes` are `git diff --name-status` entries
 // ({status: first letter, path: last path}) against the base; `keyOf(path)` reads a changed piece's key.
 export function checkScope(changes, keyOf) {
@@ -223,9 +387,94 @@ export function checkScope(changes, keyOf) {
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 const ledgerDir = (key) => join(resolve(git('rev-parse', '--git-common-dir')), 'review', key);
+const reviewRoot = () => join(resolve(git('rev-parse', '--git-common-dir')), 'review');
 
-function main(argv) {
+// pieceVerdict prints (to stderr, like the `ledger` command) every reason the gate still refuses `pieceFile`,
+// given its ledger's current text, or prints `ok` to stdout when it now passes.
+function pieceVerdict(pieceFile) {
+  const bytes = readFileSync(pieceFile);
+  const dir = ledgerDir(pieceKey(bytes)), lang = pieceLang(pieceFile);
+  const lp = join(dir, `ledger-${lang}.md`), mp = join(dir, `model-pass-${lang}.md`);
+  const probs = checkLedger(readFileSync(lp, 'utf8'), bytes, existsSync(mp) ? readFileSync(mp) : null);
+  for (const p of probs) console.error(`gate: ${pieceFile}: ${p}`);
+  if (!probs.length) console.log(`gate: ${pieceFile}: ok`);
+  return probs.length ? 1 : 0;
+}
+
+// findLedgers lists every ledger-*.md under <git-common-dir>/review/*/ that pendingItems() finds at least one
+// pending item in, as {path, key, lang, count}. A ledger table it cannot read is a refusal, not "no ledgers": the
+// caller surfaces the error and stops rather than silently skipping it.
+function findLedgers() {
+  const root = reviewRoot();
+  if (!existsSync(root)) return [];
+  const found = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const dir = join(root, entry.name);
+    for (const file of readdirSync(dir)) {
+      const m = /^ledger-([a-z]+)\.md$/.exec(file);
+      if (!m) continue;
+      const path = join(dir, file);
+      const md = readFileSync(path, 'utf8');
+      const count = pendingItems(md).length;
+      if (count > 0) found.push({ path, key: entry.name, lang: m[1], count });
+    }
+  }
+  return found;
+}
+
+async function runMark(pieceArg) {
+  let ledgerPath;
+  if (pieceArg) {
+    const bytes = readFileSync(pieceArg);
+    const key = pieceKey(bytes), lang = pieceLang(pieceArg);
+    if (!key || !lang) { console.error(`gate: ${pieceArg}: not a piece (content/<en|ro>/<slug>.md with a key:)`); return 2; }
+    ledgerPath = join(ledgerDir(key), `ledger-${lang}.md`);
+    if (!existsSync(ledgerPath)) { console.error(`gate: no ledger at ${ledgerPath}; run /review-piece`); return 1; }
+  }
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const ask = (q) => rl.question(q);
+  try {
+    if (!ledgerPath) {
+      const found = findLedgers();
+      if (found.length === 0) { console.log('nothing waits for you'); return 0; }
+      found.forEach((f, i) => console.log(`${i + 1}) ${f.key} (${f.lang}): ${f.count} pending`));
+      for (;;) {
+        const a = (await ask('pick a ledger (or q): ')).trim().toLowerCase();
+        if (a === 'q') return 0;
+        const n = Number.parseInt(a, 10);
+        if (Number.isInteger(n) && n >= 1 && n <= found.length) { ledgerPath = found[n - 1].path; break; }
+      }
+    }
+    const save = (md) => writeFileSync(ledgerPath, md);
+    const initial = readFileSync(ledgerPath, 'utf8');
+    const { marked, skipped } = await markLedger(initial, ask, save);
+    if (pieceArg) {
+      console.log(`${marked} marked, ${skipped} skipped;`);
+      pieceVerdict(pieceArg);
+    } else {
+      console.log(`${marked} marked, ${skipped} skipped; run the gate: node .claude/skills/publish-piece/gate.mjs ledger <piece>`);
+    }
+    return 0;
+  } finally {
+    rl.close();
+  }
+}
+
+async function main(argv) {
   const [cmd, ...rest] = argv;
+  if (cmd === 'mark' && rest.length <= 1) {
+    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+      console.error('gate: mark needs a terminal — the author types the marks; run it in your own shell');
+      return 2;
+    }
+    try {
+      return await runMark(rest[0]);
+    } catch (e) {
+      console.error(`gate: ${e.message}`);
+      return 1;
+    }
+  }
   if ((cmd === 'path' || cmd === 'hash') && rest.length === 1) {
     const bytes = readFileSync(rest[0]);
     if (cmd === 'hash') { console.log(sha256(bytes)); return 0; }
@@ -258,8 +507,8 @@ function main(argv) {
     }
     return refused ? 1 : 0;
   }
-  console.error('usage: gate.mjs path <piece> | hash <piece> | scope [--base <ref>] | ledger <piece>...');
+  console.error('usage: gate.mjs path <piece> | hash <piece> | scope [--base <ref>] | ledger <piece>... | mark [<piece>]');
   return 2;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) process.exitCode = main(process.argv.slice(2));
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) process.exitCode = await main(process.argv.slice(2));

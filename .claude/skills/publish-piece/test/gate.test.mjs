@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkLedger, checkScope, pieceKey, pieceLang, sha256, splitRow, table } from '../gate.mjs';
+import { spawnSync } from 'node:child_process';
+import { checkLedger, checkScope, markLedger, pendingItems, pieceKey, pieceLang, setCells, sha256, splitRow, table } from '../gate.mjs';
 
 const piece = '---\ntitle: "T"\ndate:\nkey: k\npillar: analysis\nsummary: "S"\n---\n\nBody.\n';
 const row = (cells) => `| ${cells.join(' | ')} |`;
@@ -210,4 +211,157 @@ test('"## Claims (continued)" is still a duplicate ## Claims heading', () => {
 test('prose containing an unescaped | between tables is refused', () => {
   const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n' + claimsHdr + okRepoRow + '\nClaim 1 checked at v1.2 | v1.3.\n' + tierSection;
   assert.match(checkLedger(md, piece, null).join('\n'), /## Claims line \d+: a line with \| must be a table row starting with \|; move prose out of this section or write the pipe as \\\|/);
+});
+
+// --- gate.mjs mark: pendingItems, setCells, markLedger ---------------------------------------------------------
+
+test('pendingItems: pending claims and flags, in table order; ✗ and confirmed/resolved rows are not pending', () => {
+  const unmarkedSource = ['1', 'revenue doubled', 'source', 'https://example.com', 'confirmed', '', ''];
+  const confirmedRepo = ['2', 'the parser rejects tabs', 'repo', 'lexer.go:42', 'confirmed', '', ''];
+  const unverRepoNoNote = ['3', 'the cache halves latency', 'repo', 'no benchmark', 'unverifiable', '✓', ''];
+  const wrongClaim = ['4', 'revenue tripled', 'source', 'https://example.com', 'wrong', '✗', ''];
+  const md = ledger({
+    claims: [unmarkedSource, confirmedRepo, unverRepoNoNote, wrongClaim],
+    tier: [
+      ['1', 'an unresolved work sentence', 'work', 'names an internal system', ''],
+      ['2', 'a client sentence', 'client', 'names a client', 'kept'],
+      ['3', 'a resolved client sentence', 'client', 'names a client', 'signed-off'],
+    ],
+  });
+  const items = pendingItems(md);
+  assert.deepEqual(items.map((i) => [i.section, i.id]), [
+    ['Claims', '1'],
+    ['Claims', '3'],
+    ['Tier', '1'],
+    ['Tier', '2'],
+  ]);
+});
+
+test('pendingItems surfaces an unreadable table as an error, never "nothing pending"', () => {
+  assert.throws(() => pendingItems('## Claims\n\nrevenue doubled | 2 | source | https://x | confirmed |  |\n'), /table row starting with \|/);
+});
+
+test('setCells changes only the target row; every other byte of the file is unchanged', () => {
+  const claim1 = ['1', 'revenue doubled', 'source', 'https://example.com', 'confirmed', '', ''];
+  const claim2 = ['2', 'the parser rejects tabs', 'repo', 'lexer.go:42', 'confirmed', '', ''];
+  const md = ledger({ claims: [claim1, claim2] });
+  const updated = setCells(md, 'Claims', '1', { author: '✓', note: 'checked' });
+  assert.equal(table(updated, 'Claims')[0].author, '✓');
+  assert.equal(table(updated, 'Claims')[0].note, 'checked');
+  assert.equal(table(updated, 'Claims')[1].author, '');
+  const before = md.split('\n');
+  const after = updated.split('\n');
+  assert.equal(after.length, before.length);
+  const diffLines = before.map((l, i) => (l === after[i] ? null : i)).filter((i) => i !== null);
+  assert.deepEqual(diffLines.length, 1);
+});
+
+test('setCells escapes | in a written cell; table() reads it back unescaped', () => {
+  const claim1 = ['1', 'revenue doubled', 'source', 'https://example.com', 'confirmed', '', ''];
+  const md = ledger({ claims: [claim1] });
+  const updated = setCells(md, 'Claims', '1', { note: 'a | b' });
+  assert.match(updated, /a \\\| b/);
+  assert.equal(table(updated, 'Claims')[0].note, 'a | b');
+});
+
+test('setCells keeps CRLF on every line of a CRLF ledger', () => {
+  const claim1 = ['1', 'revenue doubled', 'source', 'https://example.com', 'confirmed', '', ''];
+  const md = ledger({ claims: [claim1] }).replaceAll('\n', '\r\n');
+  const updated = setCells(md, 'Claims', '1', { author: '✓' });
+  const lines = updated.split('\n');
+  for (let i = 0; i < lines.length - 1; i++) assert.ok(lines[i].endsWith('\r'), `line ${i} lost its CR`);
+  assert.equal(table(updated, 'Claims')[0].author, '✓');
+});
+
+test('setCells: columns in a non-default header order', () => {
+  const md = ledger({
+    claimsHeader: '| Author | # | Kind | Agent | Claim | Evidence | Note |',
+    claims: [['', '1', 'source', 'confirmed', 'revenue doubled', 'https://example.com', '']],
+  });
+  const updated = setCells(md, 'Claims', '1', { author: '✓', note: 'checked by hand' });
+  assert.equal(table(updated, 'Claims')[0].author, '✓');
+  assert.equal(table(updated, 'Claims')[0].note, 'checked by hand');
+});
+
+const scripted = (answers) => {
+  let i = 0;
+  return async () => {
+    if (i >= answers.length) throw new Error('markLedger asked more questions than the script has answers');
+    return answers[i++];
+  };
+};
+
+test('markLedger: answering y (and required notes/sign-off) satisfies the gate', async () => {
+  const md = ledger({
+    claims: [
+      ['1', 'revenue doubled', 'source', 'https://example.com', 'confirmed', '', ''],
+      ['2', 'the cache halves latency', 'repo', 'no benchmark', 'unverifiable', '', ''],
+    ],
+    tier: [['1', 'a client sentence', 'client', 'names a client', '']],
+  });
+  const answers = ['y', '', 'y', 'measured by hand', 'o', 'the client, 2026-10-01'];
+  const { md: result, marked, skipped, quit } = await markLedger(md, scripted(answers));
+  assert.equal(marked, 3);
+  assert.equal(skipped, 0);
+  assert.equal(quit, false);
+  assert.deepEqual(checkLedger(result, piece, null), []);
+});
+
+test('markLedger: n writes an author ✗', async () => {
+  const md = ledger({ claims: [['1', 'revenue doubled', 'source', 'https://example.com', 'confirmed', '', '']] });
+  const { md: result, marked } = await markLedger(md, scripted(['n', '']));
+  assert.equal(marked, 1);
+  assert.equal(table(result, 'Claims')[0].author, '✗');
+});
+
+test('markLedger: s skips, leaving the cell empty', async () => {
+  const md = ledger({ claims: [['1', 'revenue doubled', 'source', 'https://example.com', 'confirmed', '', '']] });
+  const { md: result, marked, skipped } = await markLedger(md, scripted(['s']));
+  assert.equal(marked, 0);
+  assert.equal(skipped, 1);
+  assert.equal(table(result, 'Claims')[0].author, '');
+});
+
+test('markLedger: q stops and keeps earlier answers', async () => {
+  const md = ledger({
+    claims: [
+      ['1', 'revenue doubled', 'source', 'https://example.com', 'confirmed', '', ''],
+      ['2', 'the parser rejects tabs', 'source', 'https://example.com', 'confirmed', '', ''],
+    ],
+  });
+  const { md: result, marked, quit } = await markLedger(md, scripted(['y', '', 'q']));
+  assert.equal(marked, 1);
+  assert.equal(quit, true);
+  assert.equal(table(result, 'Claims')[0].author, '✓');
+  assert.equal(table(result, 'Claims')[1].author, '');
+});
+
+test('markLedger: a repo-unconfirmed y with an empty note re-prompts, then accepts', async () => {
+  const md = ledger({ claims: [['1', 'the cache halves latency', 'repo', 'no benchmark', 'unverifiable', '', '']] });
+  const { md: result, marked } = await markLedger(md, scripted(['y', '', '  ', 'noted, footnote 3']));
+  assert.equal(marked, 1);
+  assert.equal(table(result, 'Claims')[0].author, '✓');
+  assert.equal(table(result, 'Claims')[0].note, 'noted, footnote 3');
+});
+
+test('markLedger: a client flag "o" appends the sign-off to Why', async () => {
+  const md = ledger({ tier: [['1', 'a client sentence', 'client', 'names a client', '']] });
+  const { md: result, marked } = await markLedger(md, scripted(['o', 'the client, 2026-10-01']));
+  assert.equal(marked, 1);
+  const row = table(result, 'Tier')[0];
+  assert.equal(row.resolution, 'signed-off');
+  assert.equal(row.why, 'names a client — signed off: the client, 2026-10-01');
+});
+
+test('markLedger: an invalid answer re-prompts', async () => {
+  const md = ledger({ claims: [['1', 'revenue doubled', 'source', 'https://example.com', 'confirmed', '', '']] });
+  const { marked } = await markLedger(md, scripted(['x', 'y', '']));
+  assert.equal(marked, 1);
+});
+
+test('CLI: mark refuses without a terminal', () => {
+  const gatePath = new URL('../gate.mjs', import.meta.url).pathname;
+  const result = spawnSync(process.execPath, [gatePath, 'mark'], { input: '', encoding: 'utf8' });
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /mark needs a terminal — the author types the marks; run it in your own shell/);
 });
