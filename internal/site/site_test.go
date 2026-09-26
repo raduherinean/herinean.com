@@ -124,3 +124,41 @@ func TestCheckMissingPortraitIsAuthorInput(t *testing.T) {
 		}
 	}
 }
+
+const draftPiece = "---\ntitle: \"\"\ndate:\nkey: ciorna\npillar:\nsummary: \"\"\n---\n\n## Situation\n\nStill writing.\n"
+
+func writePiece(t *testing.T, root, lang, slug, src string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(root, "content", lang, slug+".md"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// check --draft is what the hook runs on piece/* branches: the fields `site new` leaves blank are warnings there.
+func TestCheckDraftAllowsBlankFields(t *testing.T) {
+	root := fixtureRoot(t)
+	writePiece(t, root, "ro", "ciorna", draftPiece)
+	if err := Check(Options{Root: root}); err == nil || !strings.Contains(err.Error(), "date is empty") {
+		t.Fatalf("Check: want the blank date refused, got %v", err)
+	}
+	if err := Check(Options{Root: root, Draft: true}); err != nil {
+		t.Fatalf("Check(Draft): want nil, got %v", err)
+	}
+}
+
+// Every other rule still fails under --draft: the mode forgives what `site new` leaves blank, nothing else.
+func TestCheckDraftStillFailsOtherRules(t *testing.T) {
+	cases := []struct{ name, src, want string }{
+		{"long summary", strings.Replace(draftPiece, `summary: ""`, `summary: "`+strings.Repeat("x", 161)+`"`, 1), "160"},
+		{"cedilla", draftPiece + "\nReţea.\n", "comma-below"},
+		{"future date", strings.Replace(draftPiece, "date:\n", "date: 2026-09-30\n", 1), "after"},
+		{"draft field", strings.Replace(draftPiece, "pillar:\n", "pillar:\ndraft: true\n", 1), "draft"},
+	}
+	for _, c := range cases {
+		root := fixtureRoot(t)
+		writePiece(t, root, "ro", "ciorna", c.src)
+		if err := Check(Options{Root: root, Draft: true}); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: Check(Draft) = %v, want an error containing %q", c.name, err, c.want)
+		}
+	}
+}

@@ -23,11 +23,16 @@ func main() {
 	case "check":
 		fs := flag.NewFlagSet("check", flag.ExitOnError)
 		dist := fs.Bool("dist", false, "check the built dist/ instead of the sources")
+		draft := fs.Bool("draft", false, "blank title/date/pillar/summary are warnings, not failures (piece/* branches)")
 		_ = fs.Parse(os.Args[2:])
-		if *dist {
+		switch {
+		case *dist && *draft:
+			fmt.Fprintln(os.Stderr, "site check: --dist and --draft do not combine")
+			os.Exit(2)
+		case *dist:
 			err = site.CheckDist(site.Options{Root: ".", Out: "dist"})
-		} else {
-			err = site.Check(site.Options{Root: "."})
+		default:
+			err = site.Check(site.Options{Root: ".", Draft: *draft})
 		}
 	case "serve":
 		fs := flag.NewFlagSet("serve", flag.ExitOnError)
@@ -65,7 +70,7 @@ func main() {
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
   site build              content/ + assets/ + templates/ + i18n/ → dist/
-  site check [--dist]     validate sources (or the built dist/)
+  site check [--draft|--dist]  validate sources (--draft: blanks site new leaves are warnings) or the built dist/
   site serve [--static] [--host H] [--port P]
   site new <en|ro> <slug>
   site scorecard --in scorecard.json --manual data/scorecard-manual.yaml --out scorecard.html`)
