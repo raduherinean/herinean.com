@@ -1,6 +1,6 @@
 # M2b — Authoring: four skills, drafts that commit, one-commit publish: design
 
-**Status (2026-09-26):** designed; each section reviewed adversarially before approval, then the whole document against the north star, the repository's rules and the working specs and settings (findings folded in: corrections, the LinkedIn post, public skill examples, gate tests in CI, the spec amendments list, trailers, client sign-off). Implementation plan: next.
+**Status (2026-09-26):** implemented on `m2b/design` (plan: `docs/plans/2026-09-26-m2b-authoring.md`) and accepted on an invented piece (§10); this document now describes what was built. Each section was reviewed adversarially before approval, then the whole document against the north star, the repository's rules and the working specs and settings (findings folded in: corrections, the LinkedIn post, public skill examples, gate tests in CI, the spec amendments list, trailers, client sign-off). Pending: the parent-spec amendments of §11 (the plan's Task 11), which are written against the text after `colophon/one-ai-disclosure` and M2a reach `main`.
 
 **Parent spec:** `docs/specs/2026-09-17-herinean-com-design.md` — §8 (authoring and publishing), §10 (the AI disclosure), §11 (launch criteria), §13 (layout). **Sibling:** `docs/specs/2026-09-19-m2a-ci-bench-scorecard-design.md`, whose §2.2 listed M2b's scope. That list is now delivered in three parts: **M2b** (this document) — the path a piece takes from draft to `main`; **M2c** — the weekly job, the uptime monitor, the build id on the wire, CodeQL and OpenSSF Scorecard; **M2d** — the display-face probe and preload, the Android fallback face, the Newsreader name table, Worker tests under workerd. M2b stacks on M2a's branch; nothing in it needs M2a's first Actions run except the auto-merge in §7.
 
@@ -24,7 +24,7 @@ Everything listed for M2c and M2d above. The AI disclosure in `site.yaml` is unc
 
 ### 2.3 Ordering
 
-M2b lands before the first `Publish:` pull request (parent spec §11: the fact-check pass must exist before launch). The acceptance run (§10) is the first parked piece, English and Romanian.
+M2b lands before the first `Publish:` pull request (parent spec §11: the fact-check pass must exist before launch). The acceptance run (§10) used an invented piece, English and Romanian, because the first parked piece stays parked.
 
 ## 3. Decisions taken in the design (with the alternatives rejected)
 
@@ -70,6 +70,17 @@ repos: <path>, <path>
                client flags: signed-off (who and when in Why) or changed; never kept
 ```
 
+The gate refuses any table it cannot read whole, rather than guess: a mark the author owes must never go unseen.
+
+- Exactly one `## Claims` and one `## Tier` heading. A second heading whose name, reduced to its letters, is or begins with *Claims* or *Tier* (`## Claims (continued)`) is refused; so is a missing section.
+- In each section, every line that starts with `|` is read: the first is the header, the next line must be its separator, and every later one, except a repeated header or separator, is a row — across a blank line, and even when it belongs to a second table. A line with an unescaped `|` that does not start with `|`, and a non-blank line directly under a row, are refused: a Markdown viewer would show them as rows the gate did not read. A `|` inside a cell is written `\|`.
+- Columns are found by name, in any order and any case; a missing column is refused.
+- Every row has a `#`, and no `#` repeats.
+
+`/review-piece` writes each table as one block — header, separator, rows — and keeps notes in the Note column or in the free sections after the tables.
+
+**Marking:** the Author column and the resolutions are the author's alone. The author marks at `node .claude/skills/publish-piece/gate.mjs mark` in their own terminal: with no argument it lists the ledgers that still need marks; with a piece it opens that piece's ledger. It prompts through every claim and tier flag still waiting — asking for the note a repository claim needs, and for who signed off and when on a client flag — and writes each answer into its row. It refuses to run without a terminal, and agents never run it.
+
 **`/review-piece content/<lang>/<slug>.md`**, on a `piece/*` branch, re-runnable. Its first rule: **it never writes to `content/`** — front-matter fields change only through `site stamp` and `site link`. This holds by instruction; the hash in the ledger makes an edit the author did not make visible. Passes, in order:
 
 1. **Mechanical:** `site check --draft`; word count against the 1,500–3,000 band (reported, never a failure: parent spec §2 describes the reader, not a rule); every footnote defined and referenced; no embeds; every foreign-language fragment inside a `<span lang>` (spec row 3's in-piece rule, handed over by M2a); Romanian diacritics beyond the cedilla rule `check` already enforces.
@@ -87,23 +98,25 @@ Re-runs keep the author's marks on claims whose text is unchanged; a changed cla
 
 On `piece/<slug>` with a clean tree:
 
-1. **Scope:** the branch's changes against `origin/main` may touch only `content/*/` files sharing one `key` and `assets/img/<key>/`; anything else is refused.
-2. **Gate** — `node .claude/skills/publish-piece/gate.mjs` (Node standard library only; no package), per changed piece file: the ledger exists; its hash equals the file's; every source claim carries the author's ✓; every repository claim is confirmed or carries the author's ✓ with a note; every tier flag is resolved, and no client flag is *kept*; a translation differs from its model pass (and the skill shows how much the author changed).
-3. **Mode:** a piece file absent from `origin/main` is a **publication**; one present there is a **correction** (parent spec §8 step 8 — a fix, or a retraction note at the top). The mode sets the stamp, the branch prefix and the commit title below.
-4. **Stamp and verify, on a publish branch:** `publish/<slug>` (or `correct/<slug>`) from `origin/main`; the piece files and images copied from the piece branch; `site stamp` on each new piece file, `site stamp --updated` on each corrected one; `site check`, `site build`, `site check --dist`. The piece branch is never stamped and stays a draft. For a correction, the gate's hash and marks cover the changed claims; unchanged claims keep their marks from the publication's ledger.
+1. **Scope:** the branch's changes against `origin/main` may touch only `content/*/` files sharing one `key` and `assets/img/<key>/`; anything else is refused, and so is a deleted or renamed file (URLs never change).
+2. **Gate** — `node .claude/skills/publish-piece/gate.mjs` (Node standard library only; no package), per changed piece file: the ledger exists and its tables read whole (§5); its hash equals the file's; every source claim carries the author's ✓; every repository claim is confirmed or carries the author's ✓ with a note; no claim carries the author's ✗; every tier flag is resolved, and no client flag is *kept*; a translation differs from its model pass (and the skill shows how much the author changed). When a mark is missing, the skill tells the author to run `gate.mjs mark` (§5) and re-runs the gate.
+3. **Mode:** a piece file absent from `origin/main` is a **publication**; one present there is a **correction** (parent spec §8 step 8 — a fix, or a retraction note at the top). The mode sets the stamp, the branch prefix and the commit title below. A branch with both is refused — usually it predates the publication, and merging `origin/main` into it (below) drops the published file from the diff. A correction also requires `git merge-base --is-ancestor origin/main HEAD`: copying an older text over `origin/main` would silently undo what `main` changed since (a `linkedin:` line, an earlier `updated:`, an image).
+4. **Stamp and verify, on a publish branch:** `publish/<slug>` (or `correct/<slug>`) from `origin/main`, in a worktree of its own (if the branch already exists, an open PR makes this a re-stamp, step 7; without one, the skill stops and asks); the piece files and images copied from the piece branch; `site stamp` on each new piece file, `site stamp --updated` on each corrected one; `site check`, `site build`, `site check --dist`. The piece branch is never stamped and stays a draft. For a correction, the gate's hash and marks cover the changed claims; unchanged claims keep their marks from the publication's ledger.
 5. **The author's commit:** the skill shows the file list and diff stat and asks for the commit body in the author's words; typing it is the confirmation before anything reaches `origin`. One signed commit, `Publish: <title>` or `Correct: <title>`, that body, no trailer: like `Link:`, these are the author's acts on an article, and the colophon's disclosure covers the process (site commits keep the bare `Co-Authored-By: Claude`).
 6. **Push and PR:** push the publish branch (never `piece/<slug>`); `gh pr create`. The description says where the preview will appear and "merge today, or re-run `/publish-piece` to re-stamp". It carries no AI attribution line: the colophon's disclosure covers the process.
 7. **Re-stamp:** with an open PR, `/publish-piece` re-runs the gate, re-stamps, amends the single commit (re-signed) and pushes with `--force-with-lease` to the publish branch (the `main` ruleset does not cover it); the PR stays one commit, so with the repository's squash settings (title: commit or PR title; message: commit messages) the squash commit carries the author's message; GitHub appends the PR number to the title and signs the squash commit with its own key.
-8. **Merge:** squash (the repository allows merge and squash). Before launch the merge publishes CI rows and does not deploy; §4's launch rule re-stamps the piece on launch day.
-9. **Rehearsal:** `/publish-piece --rehearse <base>` runs steps 1–4 against `<base>` instead of `origin/main` and stops before the commit; nothing is committed or pushed. The acceptance run uses it, because `origin/main` has no M2b until M2b merges.
+8. **Merge:** squash (the repository allows merge and squash). Before launch the merge publishes CI rows and does not deploy; §4's launch rule re-stamps the piece on launch day. After the merge the author deletes the local publish branch; the skill keeps it until then, for a re-stamp.
+9. **Rehearsal:** `/publish-piece --rehearse <base>` runs steps 1–4 against `<base>` instead of `origin/main`, on a `rehearse/<slug>` branch, and stops before the commit: it shows the stamped files and dates, then removes its worktree and branch. Nothing is committed or pushed, and there is no body prompt. The acceptance run uses it, because `origin/main` has no M2b until M2b merges.
+
+**A correction starts on the existing `piece/<slug>` branch:** merge `origin/main` into it, keeping `main`'s version of each published file on a conflict, so the branch carries the published text with its date; then edit, `/review-piece`, `/publish-piece`. The branch is never rebased or re-cut: its history is already on the private remote (decision 5), and a merge passes step 3's ancestry check while the scope shows only the new edits.
 
 ## 7. `/link-piece`
 
-`/link-piece content/<lang>/<slug>.md <url>` runs `site link` (§4) on `link/<slug>` from `origin/main`: `site check`, one signed commit `Link: <title> → LinkedIn` (or Medium), no trailer (§6 step 5), push, PR. Not a correction: `updated:` is untouched. The link changes a live page (a second link labelled "LinkedIn" beside the byline's), so the PR takes the full audit like any other. **Auto-merge** (`gh pr merge --auto --squash`) is used only when the repository has a required status check and auto-merge enabled (§12); until then the skill opens the PR and leaves the merge to the author, and says so.
+`/link-piece content/<lang>/<slug>.md <url>` runs `site link` (§4) on `link/<slug>-<field>` (`linkedin` or `medium`) from `origin/main`: `site check`, one signed commit `Link: <title> → LinkedIn` (or Medium), no trailer (§6 step 5), push, PR, then the local branch is deleted. If that branch exists locally or on `origin` (an open PR, or a leftover), it stops and asks the author. Not a correction: `updated:` is untouched. The link changes a live page (a second link labelled "LinkedIn" beside the byline's), so the PR takes the full audit like any other. **Auto-merge** (`gh pr merge --auto --squash`) is used only when the repository has a required status check and auto-merge enabled (§12); until then the skill opens the PR and leaves the merge to the author, and says so.
 
 ## 8. `.claude/CLAUDE.md`
 
-Public, written as if clients read it. The north star in two sentences; the commands (`site build`, `check [--draft|--dist]`, `serve [--static]`, `stamp`, `link`, `new`, `scorecard`); commits are signed and end with a bare `Co-Authored-By: Claude`, which applies to subagents too, over any default trailer their harness suggests — except `Publish:`, `Correct:` and `Link:` commits, which carry none; skill files use invented examples only; `origin` is reached only through `/publish-piece` and `/link-piece` or by the owner; `piece/*` branches carry content only; the model never edits `content/` by hand — front-matter fields are set by `site stamp` and `site link`, and `/translate-piece` creates one new file, once; ledgers are private and not in the repository; every change keeps the scorecard green; where the spec, ADRs, RUNBOOK and plans are. It names no private host.
+Public, written as if clients read it. The north star in one sentence; the commands (`site build`, `check [--draft|--dist]`, `serve [--static]`, `stamp`, `link`, `new`, `scorecard`); commits are signed and end with a bare `Co-Authored-By: Claude`, which applies to subagents too, over any default trailer their harness suggests — except `Publish:`, `Correct:` and `Link:` commits, which carry none; skill files use invented examples only; `origin` is reached only through `/publish-piece` and `/link-piece` or by the owner; `piece/*` branches carry content only; the model never edits `content/` by hand — front-matter fields are set by `site stamp` and `site link`, and `/translate-piece` creates one new file, once; ledgers are private and not in the repository, and only the author marks them, at `gate.mjs mark` — agents never run it; every change keeps the scorecard green; where the spec, ADRs, RUNBOOK and plans are. It names no private host.
 
 ## 9. Layout
 
@@ -115,14 +128,16 @@ Public, written as if clients read it. The north star in two sentences; the comm
 .claude/skills/link-piece/SKILL.md
 ```
 
+The gate's commands, from the repository root: `gate.mjs path <piece>` (the ledger's path), `hash <piece>` (the piece's SHA-256), `scope [--base <ref>]` (§6 step 1), `ledger <piece>...` (§6 step 2), `mark [<piece>]` (the author's prompt, §5).
+
 `.gitignore` already excludes only `/.claude/worktrees/`.
 
 ## 10. Testing and acceptance
 
 - **Go:** `check --draft` (blank fields warn, every other rule fails); `stamp` and `stamp --updated` (Bucharest date across the UTC midnight, re-stamp, `date` untouched by `--updated`); `link` (field by host, replace, refuse a look-alike host and an unpublished piece); the launch rule; the host rule (exact host, a look-alike refused); `serve` keeping the last good build and answering 500 with no good build.
-- **Gate:** `node --test` over fixture ledgers — one passing fixture and one failing fixture per rule (stale hash, missing ✓ on a source claim, unresolved tier flag, a client flag marked *kept*, wrong repository claim without a note, translation equal to its model pass); run by CI's `build` job and by the hook.
+- **Gate:** `node --test` over fixture ledgers — one passing fixture and one failing fixture per rule (stale hash, missing ✓ on a source claim, an author ✗, unresolved tier flag, a client flag marked *kept*, wrong repository claim without a note, translation equal to its model pass), and a failing fixture for each table shape §5 refuses; `mark`'s prompts and writes (only the answered row changes), and its refusal without a terminal; run by CI's `build` job and by the hook.
 - **Hook:** the branch switch is shell; it is exercised by committing a dateless draft on a `piece/*` branch (passes with warnings) and on another branch (refused).
-- **Acceptance:** the first parked piece. `/review-piece` on the English and the Romanian file (the September ledger kept as reference and moved into the new location); `/publish-piece --rehearse m2b/design` run up to the body prompt, with the gate shown refusing a stale hash and a missing ✓ first. Pushing the publish branch is the author's call at that prompt.
+- **Acceptance:** an invented piece, because the first parked piece stays parked. The English draft, committed dateless on a local `piece/*` branch (the hook warns, and passes); `/translate-piece` into Romanian, then the author's edit of the pass; `/review-piece` on both files; the gate shown refusing a stale hash and a missing ✓, then passing once the author marked the ledgers — the English by hand, the Romanian at `gate.mjs mark`, added during the run; `/publish-piece --rehearse m2b/design`, through `check --dist`, stopping before the commit. Nothing was pushed, and the local branch was deleted. The tier, shape and editing passes first run on a real article with the first piece published.
 
 ## 11. Docs
 
@@ -132,9 +147,9 @@ Public, written as if clients read it. The north star in two sentences; the comm
 ## 12. Waits for Radu
 
 - After M2a's first Actions run: add a required status check on the gate job to the `main` ruleset, and enable auto-merge in the repository settings. Until both exist, pull requests can merge with CI red (M2a's deploy still waits for a green audit, so red never goes live) and `/link-piece` does not auto-merge.
-- The pushes at the acceptance run's body prompt.
+- Merging `colophon/one-ai-disclosure` and M2a into `main`: the spec amendments of §11 are written against that text and wait for it.
 
 ## 13. Decisions for Radu (made in the design without a question; revertable)
 
 1. Squash is the only merge method the skills assume; the repository also allows merge commits, kept for milestone branches whose commits are the story.
-2. The ledger is Markdown with two fixed tables (§5) rather than YAML: the author reads and marks it by hand, and the gate needs only the two tables.
+2. The ledger is Markdown with two fixed tables (§5) rather than YAML: the author reads it, and the gate needs only the two tables.
