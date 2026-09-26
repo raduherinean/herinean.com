@@ -104,3 +104,48 @@ test('scope: deletions and renames are refused', () => {
   assert.match(checkScope([{ status: 'D', path: 'content/en/a-piece.md' }], keyOf).probs.join('\n'), /deleted; published URLs never change/);
   assert.match(checkScope([{ status: 'R', path: 'content/en/a-piece.md' }], keyOf).probs.join('\n'), /renamed or copied/);
 });
+
+// Fix round 1: the review found that table() stopped at the first non-`|` line after the header and took
+// whatever `|` line came first as the header without checking a separator followed it — a blank or prose line
+// between rows silently dropped the rows after it, and a lone data row with no header became "zero claims". The
+// controller ruled the spec (the gate refuses when a mark is missing) overrides the plan's original code; these
+// fixtures are the review's bypass probes, adapted to this file's `piece`.
+const claimsHdr = '| # | Claim | Kind | Evidence | Agent | Author | Note |\n|---|---|---|---|---|---|---|\n';
+const tierSection = '\n## Tier\n\n| # | Sentence | Tier | Why | Resolution |\n|---|---|---|---|---|\n';
+const okRepoRow = '| 1 | parser | repo | a.go:1 | confirmed |  |  |\n';
+const badSourceRow = '| 2 | revenue doubled | source | https://x | confirmed |  |  |\n';
+
+test('fix round 1 (B1): a blank line between claim rows does not drop the later row', () => {
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n' + claimsHdr + okRepoRow + '\n' + badSourceRow + tierSection;
+  assert.match(checkLedger(md, piece, null).join('\n'), /needs the author's ✓/);
+});
+
+test('fix round 1 (B3): claims as a bullet list, no table, is refused', () => {
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n- 2. revenue doubled — source — https://x — confirmed — author: (none)\n' + tierSection;
+  assert.match(checkLedger(md, piece, null).join('\n'), /## Claims has no table header/);
+});
+
+test('fix round 1 (B4): a single claim row with no header row is refused', () => {
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n' + badSourceRow + tierSection;
+  assert.match(checkLedger(md, piece, null).join('\n'), /## Claims has no table header/);
+});
+
+test('fix round 1 (B5): a blank line between the header and the separator is refused', () => {
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n| # | Claim | Kind | Evidence | Agent | Author | Note |\n\n|---|---|---|---|---|---|---|\n' + badSourceRow + tierSection;
+  assert.match(checkLedger(md, piece, null).join('\n'), /## Claims has no table header/);
+});
+
+test('fix round 1 (B7): a blank line between tier rows does not drop the later, unresolved row', () => {
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n' + claimsHdr + '\n## Tier\n\n| # | Sentence | Tier | Why | Resolution |\n|---|---|---|---|---|\n| 1 | s | work | w | kept |\n\n| 2 | s | client | w | kept |\n';
+  assert.match(checkLedger(md, piece, null).join('\n'), /signed-off or changed/);
+});
+
+test('fix round 1 (B9): a duplicate ## Claims heading is refused', () => {
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n' + claimsHdr + '\n## Claims\n\n' + claimsHdr + badSourceRow + tierSection;
+  assert.match(checkLedger(md, piece, null).join('\n'), /more than one ## Claims heading/);
+});
+
+test('fix round 1: a Claims header missing a required column is refused, naming it', () => {
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n| # | Claim | Kind | Evidence | Agent | Note |\n|---|---|---|---|---|---|\n| 1 | x | repo | a.go | confirmed |  |\n' + tierSection;
+  assert.match(checkLedger(md, piece, null).join('\n'), /## Claims is missing column\(s\): author/);
+});

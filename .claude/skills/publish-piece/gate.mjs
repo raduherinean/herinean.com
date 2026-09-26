@@ -40,28 +40,76 @@ export function splitRow(line) {
   return cells;
 }
 
-// table returns the rows of the first Markdown table under `## <heading>`, keyed by lower-cased header, or null
-// when the heading is absent. The table ends at its first non-table line or at the next `## ` heading.
+// GateTableError marks a `## <heading>` section the gate found but could not read as a table: fix-round-1
+// evidence showed rows silently vanishing (a blank or prose line between rows, a bullet list, a lone data row
+// with no header) instead of refusing. checkLedger turns this into a refusal message; it is not a "no section"
+// (that stays `table() === null`, since the ledger template always writes header + separator, even with zero rows).
+class GateTableError extends Error {}
+
+// table returns the rows of the first Markdown table under `## <heading>` (keyed by lower-cased header), or null
+// when the heading is absent. The section runs to the next `## ` heading or EOF; every line in it that starts
+// with `|` belongs to the table, however many blank or prose lines fall between rows — a model-written ledger
+// with a stray blank line must not lose a row. The header is the section's first `|` line and must be followed,
+// on the very next source line (no blank line permitted there), by a separator row; otherwise, or if the section
+// has no `|` line at all, this throws GateTableError. A later `|` line that repeats the header or is itself a
+// separator is skipped; anything else becomes a row, even a second, differently-shaped table pasted in above —
+// it then fails whatever value or column check applies to it. `## <heading>` appearing more than once also
+// throws: a duplicate can't be silently picked between.
 export function table(md, heading) {
   const lines = md.split(/\r?\n/);
-  const start = lines.findIndex((l) => l.trim().toLowerCase() === `## ${heading.toLowerCase()}`);
-  if (start < 0) return null;
+  const target = `## ${heading.toLowerCase()}`;
+  const starts = [];
+  for (let i = 0; i < lines.length; i++) if (lines[i].trim().toLowerCase() === target) starts.push(i);
+  if (starts.length === 0) return null;
+  if (starts.length > 1) throw new GateTableError(`more than one ## ${heading} heading`);
+  const start = starts[0];
+  let end = lines.length;
+  for (let i = start + 1; i < end; i++) if (lines[i].trim().startsWith('## ')) { end = i; break; }
+
+  let hIdx = -1;
+  for (let i = start + 1; i < end; i++) if (lines[i].trim().startsWith('|')) { hIdx = i; break; }
+  const isSep = (cells) => cells.length > 0 && cells.every((c) => /^:?-{3,}:?$/.test(c));
+  if (hIdx < 0 || hIdx + 1 >= end || !lines[hIdx + 1].trim().startsWith('|') || !isSep(splitRow(lines[hIdx + 1]))) {
+    throw new GateTableError(`## ${heading} has no table header`);
+  }
+  const headerCells = splitRow(lines[hIdx]);
+  const header = headerCells.map((c) => c.toLowerCase());
+  const headerNorm = header; // splitRow already trims; table() lower-cases once, here, for both compares.
   const rows = [];
-  let header = null;
-  for (let i = start + 1; i < lines.length; i++) {
+  for (let i = hIdx + 2; i < end; i++) {
     const l = lines[i].trim();
-    if (l.startsWith('## ')) break;
-    if (!l.startsWith('|')) { if (header) break; continue; }
+    if (!l.startsWith('|')) continue;
     const cells = splitRow(l);
-    if (!header) { header = cells.map((c) => c.toLowerCase()); continue; }
-    if (cells.every((c) => /^:?-{3,}:?$/.test(c))) continue;
+    if (isSep(cells)) continue;
+    const norm = cells.map((c) => c.toLowerCase());
+    if (norm.length === headerNorm.length && norm.every((c, j) => c === headerNorm[j])) continue;
     rows.push(Object.fromEntries(header.map((h, j) => [h, cells[j] ?? ''])));
   }
+  Object.defineProperty(rows, 'header', { value: header, enumerable: false });
   return rows;
 }
 
 const AGENT = ['confirmed', 'wrong', 'unverifiable', 'blocked'];
 const RESOLUTIONS = { work: ['kept', 'changed'], client: ['signed-off', 'changed'] };
+const CLAIMS_COLUMNS = ['#', 'claim', 'kind', 'evidence', 'agent', 'author', 'note'];
+const TIER_COLUMNS = ['#', 'sentence', 'tier', 'why', 'resolution'];
+
+// readSection is checkLedger's front door onto table(): "no section" and "section present but unreadable" (a
+// GateTableError, or a header missing one of `columns`) are different refusals, but both leave nothing to
+// iterate, so both push one message onto `probs` and hand back `[]`.
+function readSection(ledger, heading, columns, probs) {
+  let rows;
+  try {
+    rows = table(ledger, heading);
+  } catch (e) {
+    probs.push(e.message);
+    return [];
+  }
+  if (rows === null) { probs.push(`the ledger has no ## ${heading} section`); return []; }
+  const missing = columns.filter((c) => !rows.header.includes(c));
+  if (missing.length) { probs.push(`## ${heading} is missing column(s): ${missing.join(', ')}`); return []; }
+  return rows;
+}
 
 // checkLedger returns every reason the gate refuses one piece, given the ledger's text, the piece's bytes and the
 // translation's saved model pass (null when the piece is not a translation).
@@ -70,9 +118,8 @@ export function checkLedger(ledger, piece, modelPass) {
   const h = /^hash:[ \t]*(sha256:[0-9a-f]{64})[ \t]*$/m.exec(ledger);
   if (!h) probs.push('the ledger has no hash: line');
   else if (h[1] !== sha256(piece)) probs.push('the piece changed since the review (the hash differs); re-run /review-piece');
-  const claims = table(ledger, 'Claims');
-  if (claims === null) probs.push('the ledger has no ## Claims section');
-  for (const c of claims ?? []) {
+  const claims = readSection(ledger, 'Claims', CLAIMS_COLUMNS, probs);
+  for (const c of claims) {
     const id = `claim ${c['#'] || '?'}`;
     const kind = (c.kind ?? '').toLowerCase(), agent = (c.agent ?? '').toLowerCase(), author = c.author ?? '', note = c.note ?? '';
     if (kind !== 'repo' && kind !== 'source') { probs.push(`${id}: kind ${JSON.stringify(c.kind)} is not repo or source`); continue; }
@@ -82,9 +129,8 @@ export function checkLedger(ledger, piece, modelPass) {
     else if (kind === 'source' && author !== '✓') probs.push(`${id}: a source claim needs the author's ✓ (checked by hand against the source)`);
     else if (kind === 'repo' && agent !== 'confirmed' && !(author === '✓' && note !== '')) probs.push(`${id}: a repository claim the agent did not confirm needs the author's ✓ and a note`);
   }
-  const tier = table(ledger, 'Tier');
-  if (tier === null) probs.push('the ledger has no ## Tier section');
-  for (const f of tier ?? []) {
+  const tier = readSection(ledger, 'Tier', TIER_COLUMNS, probs);
+  for (const f of tier) {
     const id = `tier flag ${f['#'] || '?'}`;
     const t = (f.tier ?? '').toLowerCase(), r = (f.resolution ?? '').toLowerCase();
     const ok = RESOLUTIONS[t];
