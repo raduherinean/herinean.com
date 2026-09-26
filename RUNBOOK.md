@@ -53,7 +53,7 @@ All four domains: Workspace MX, SPF `include:_spf.google.com -all`, DMARC with s
 - Fallbacks are Times New Roman / Liberation Serif with computed overrides; Android has neither Times nor Liberation, so a cold visit there renders a plain serif at its own metrics — no shift (nothing swaps under `optional`), just a different first page; row 21 measures on Linux CI.
 
 ## Analytics
-- `scripts/analytics.sh [--days 30|90] [--by path|ref|country|referrer]` — live Analytics Engine query (token needs Account Analytics: Read). Weekly snapshots to KV and the merge are M2b.
+- `scripts/analytics.sh [--days 30|90] [--by path|ref|country|referrer]` — live Analytics Engine query (token needs Account Analytics: Read). Weekly snapshots to KV and the merge are M2c.
 - What is stored, verbatim from the privacy page: path, language, referring host, `ref` tag, country, 1. Nothing that identifies a reader or links two visits to the same person. Verification runs (curl, the verify scripts) match the bot filter and are never counted; neither are speculative loads (`Sec-Purpose`/`Purpose: prefetch`, prerender) or non-document fetches (an iframe, a script on someone else's page).
 
 ## Generator
@@ -75,6 +75,17 @@ If `site build` stops with `webp: a host libwebp was loaded…`, build with `-ta
 
 Portrait: export a pre-rotated JPEG at least 800 px wide to `assets/portrait.jpg` (the resizer ignores EXIF orientation), metadata stripped — the repo is public and the file is served as is at 480 px. Portrait orientation is fine: the home page keeps the aspect; the OG card centre-crops a square, so keep the face near the middle.
 
+## Writing and publishing
+
+- Draft on `piece/<slug>`, branched from `main` and tracking the private remote; commit and push there as often as you like. The hook runs `site check --draft` on `piece/*` branches, so blank title, date, pillar and summary are warnings until publication. Write on `site serve`: a failing rule keeps the last good render on screen and prints the problem.
+- `/review-piece content/<lang>/<slug>.md` — mechanical checks, tier flags, shape, editing proposals (one sentence at most, never applied for you), a fact-check by a fresh agent, and help with the LinkedIn post, which you write. It never edits the piece. Re-run it after every round of edits; the last run must follow the last edit.
+- Ledgers: `node .claude/skills/publish-piece/gate.mjs path <piece>` prints the path — inside the shared git directory, so every worktree sees it and removing a worktree keeps it. Mark each source claim `✓` after checking it by hand against its source; resolve each tier flag (`kept`/`changed`; a client flag `signed-off`/`changed`). They are private and live on one disk: back them up now and then with `cp -r "$(git rev-parse --git-common-dir)/review" ~/.config/herinean/review-$(date -u +%Y%m%dT%H%M%SZ)`.
+- `/translate-piece content/<from>/<slug>.md <to>` — writes the first pass as a new file (never over an existing one) and keeps the untouched pass beside the ledger; rewrite it, then review it. House terms: `.claude/skills/translate-piece/glossary.md`.
+- `/publish-piece` — refuses when the branch touches anything but one key's content, when a ledger is missing or older than the piece, when a source claim lacks your ✓, a tier flag is unresolved, or a translation is the untouched model pass. Then it stamps the date on `publish/<slug>`, a branch built from `origin/main` (never the piece branch), runs check/build/check --dist, asks for your commit body, pushes and opens the PR. Merge the same day, or re-run `/publish-piece` to re-stamp (it amends the one commit). Merge with squash. `/publish-piece --rehearse <base>` does everything up to the body prompt against another base and commits nothing.
+- Corrections: start from the published text — a `piece/<slug>` branch cut from `origin/main` (or rebased onto it); edit, `/review-piece`, then `/publish-piece`, which refuses a correction branch that does not contain `origin/main`. It stamps `updated:` instead of `date:`, and the commit reads `Correct: <title>`; feeds keep the original date.
+- `/link-piece content/<lang>/<slug>.md <url>` once the LinkedIn post is up — one commit on `link/<slug>-<field>` (`linkedin` or `medium`) and a PR. It auto-merges once the `main` ruleset requires a status check and auto-merge is enabled in the repository settings; until then, merge it yourself when CI is green.
+- Launch day: set `launched:`; `site check` then refuses pieces dated earlier, so `site stamp` each of them in the launch commit — `datePublished` becomes launch day.
+
 ## TLS
 Minimum TLS 1.3 (see ADR-0011 for the evidence). Restricting the TLS 1.2 cipher list needs Advanced Certificate Manager ($10/month), which is why 1.2 is off rather than "on with modern ciphers".
 
@@ -91,5 +102,5 @@ External: Mozilla Observatory (`curl -X POST 'https://observatory-api.mdn.mozill
 - Cloudflare-wide outage: nothing to do; the site has no origin. Site recovery elsewhere: `site build` → any static host with the `_headers` equivalents; DNS TTL is auto.
 - Under attack: "Under Attack" mode serves a JS challenge and breaks the zero-JS promise for the duration. Prefer a WAF rate-limit rule first.
 - Billing failure on Workers Paid drops the account to Free quotas (100k req/day). Billing alert is set; fix the card.
-- Domains: auto-renew and registrar lock on all four; weekly job warns at 60 days to expiry (M2b).
+- Domains: auto-renew and registrar lock on all four; weekly job warns at 60 days to expiry (M2c).
 - Production serving a broken build: `post`'s tier-1 check rolls it back automatically; a rollback Cloudflare refuses, or a rollback needed outside that window, is the manual path in CI, above (`npx wrangler rollback <version-id>`).

@@ -15,4 +15,4 @@ export async function run(ctx) {
   const failMsg = m ? `${fails.length} failed: ${fails.slice(0, 3).map((l) => l.trim()).join("; ")}` : `no summary line found (exit ${r.code})`;
   return [row(name, pass, pass ? `verify-edge.sh --ci: ${m[1]} checks (DNSSEC, CAA, MX/SPF/DKIM/DMARC/MTA-STS/TLS-RPT ×4 zones, redirects, apex headers)` : `verify-edge.sh --ci: ${failMsg}`, ctx, r.out)];
 }
-// (Domain expiry via RDAP is the weekly job's, M2b.)
+// (Domain expiry via RDAP is the weekly job's, M2c.)
