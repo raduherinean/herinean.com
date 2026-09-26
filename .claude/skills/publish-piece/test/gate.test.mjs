@@ -149,3 +149,30 @@ test('fix round 1: a Claims header missing a required column is refused, naming 
   const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n| # | Claim | Kind | Evidence | Agent | Note |\n|---|---|---|---|---|---|\n| 1 | x | repo | a.go | confirmed |  |\n' + tierSection;
   assert.match(checkLedger(md, piece, null).join('\n'), /## Claims is missing column\(s\): author/);
 });
+
+// Fix round 2: GFM makes a table row's outer pipes optional, so a row written without a leading `|` (or hidden
+// behind `>` or `- `) still renders as a row in any Markdown viewer — but the old table() silently skipped any
+// line that didn't start with `|`, so that row's marks were invisible to the gate. Separately, the duplicate-
+// heading check could be dodged with a whitespace or trailing-`#` variant of `## Claims`/`## Tier`, reopening the
+// fix-round-1 B9 case under a different spelling.
+
+test('fix round 2 (N1): a GFM row with no leading | is refused, not silently dropped', () => {
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n' + claimsHdr + okRepoRow + '2 | revenue doubled | source | https://x | confirmed |  |\n' + tierSection;
+  assert.match(checkLedger(md, piece, null).join('\n'), /looks like a table row but does not start with \|/);
+});
+
+test('fix round 2 (N3): a blockquoted "> | …" row is refused, not silently dropped', () => {
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n' + claimsHdr + okRepoRow + '> | 2 | revenue doubled | source | https://x | confirmed |  |  |\n' + tierSection;
+  assert.match(checkLedger(md, piece, null).join('\n'), /looks like a table row but does not start with \|/);
+});
+
+test('fix round 2 (N6): "##  Claims" (two spaces) is still a duplicate ## Claims heading', () => {
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n' + claimsHdr + '\n##  Claims\n\n' + claimsHdr + badSourceRow + tierSection;
+  assert.match(checkLedger(md, piece, null).join('\n'), /more than one ## Claims heading/);
+});
+
+test('fix round 2 (N18): a pipeless GFM row in ## Tier is refused, not silently dropped', () => {
+  const tierHdr = '| # | Sentence | Tier | Why | Resolution |\n|---|---|---|---|---|\n';
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n' + claimsHdr + '\n## Tier\n\n' + tierHdr + '2 | s | client | w | kept\n';
+  assert.match(checkLedger(md, piece, null).join('\n'), /looks like a table row but does not start with \|/);
+});
