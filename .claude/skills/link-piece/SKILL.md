@@ -18,9 +18,9 @@ Invoking this skill is the author's ask to reach `origin`.
 ## Steps — from any worktree of the repository
 
 1. `git fetch origin`; `git cat-file -e origin/main:<file>` — if it fails, stop: the piece is not published.
-2. `B=link/<slug>`; `W=.claude/worktrees/link-<slug>`; `git worktree add -b "$B" "$W" origin/main`.
+2. `<field>` is `linkedin` for a `www.linkedin.com` URL, `medium` for a `medium.com` one. `B=link/<slug>-<field>`; `W=.claude/worktrees/link-<slug>-<field>`. If `git rev-parse --verify --quiet "$B"` succeeds or `git ls-remote --exit-code origin "refs/heads/$B"` succeeds, stop and ask the author (an open PR, or a leftover branch). Then `git worktree add -b "$B" "$W" origin/main`.
 3. `go build -tags nodynamic -o .cache/site ./cmd/site && SITE=$PWD/.cache/site`; then `(cd "$W" && "$SITE" link <file> <url> && SOURCE_DATE_EPOCH=$(date +%s) "$SITE" check)` — `site link` refuses any host but `www.linkedin.com` and `medium.com`.
 4. `git -C "$W" commit -am "Link: <title> → LinkedIn"` (or `→ Medium`), `<title>` from the front matter. No trailer.
 5. `git -C "$W" push -u origin "$B"`; `gh pr create --base main --head "$B" --title "Link: <title> → LinkedIn" --body "Adds the discussion link. The page changes, so the full audit runs."`.
 6. Auto-merge only when both hold: `gh api repos/{owner}/{repo} --jq .allow_auto_merge` prints `true`, and `gh api repos/{owner}/{repo}/rulesets --jq '.[].id'` lists a ruleset whose rules (`gh api repos/{owner}/{repo}/rulesets/<id> --jq '.rules[].type'`) include `required_status_checks`. Then `gh pr merge "$B" --auto --squash`. Otherwise tell the author: "auto-merge is not set up; merge it yourself once CI is green."
-7. `git worktree remove "$W"`. Tell the author the PR's URL and whether it will auto-merge.
+7. `git worktree remove "$W"` and `git branch -D "$B"` (the branch is on `origin` now). Tell the author the PR's URL and whether it will auto-merge.

@@ -21,7 +21,7 @@ Invoking this skill is the author's ask to reach `origin`. Nothing is pushed bef
 2. **Base:** `BASE=origin/main`; with `--rehearse <base>`, `BASE=<base>`.
 3. **Scope:** `node .claude/skills/publish-piece/gate.mjs scope --base "$BASE"` — it prints the piece files, or refuses.
 4. **Gate:** `node .claude/skills/publish-piece/gate.mjs ledger <each piece file>`. For a translation (a `model-pass-<lang>.md` beside its ledger), also show how much the author changed: `git diff --no-index --stat <model pass> <piece>`.
-5. **Mode:** for each piece file, `git cat-file -e "$BASE:<file>"` fails → a publication; succeeds → a correction. Mixed → stop: publish and correct in separate runs.
+5. **Mode:** for each piece file, `git cat-file -e "$BASE:<file>"` fails → a publication; succeeds → a correction. Mixed → stop: publish and correct in separate runs. A correction must start from the published text: `git merge-base --is-ancestor "$BASE" HEAD` must succeed, or stop — "rebase `piece/<slug>` on `$BASE` first": copying an older copy over `$BASE` would silently undo what `main` changed since (a `linkedin:` line, an earlier `updated:`, an image).
 6. **Binary:** `go build -tags nodynamic -o .cache/site ./cmd/site` and `SITE=$PWD/.cache/site`.
 7. **Publish worktree:** `<slug>` is the first piece file's; `B=publish/<slug>` (a correction: `correct/<slug>`; a rehearsal: `rehearse/<slug>`); `W=.claude/worktrees/$(echo "$B" | tr / -)`.
    - `git rev-parse --verify --quiet "$B"` fails → `git worktree add -b "$B" "$W" "$BASE"`.
@@ -45,3 +45,5 @@ Invoking this skill is the author's ask to reach `origin`. Nothing is pushed bef
 
 ## After the merge
 Before the launch, the merge publishes the CI rows and deploys nothing; the launch commit re-stamps every piece dated before `launched:` (`site check` refuses them otherwise). After the launch, the piece is live a few minutes after the merge, once the audit is green. Then the author posts on LinkedIn, and `/link-piece` adds the post's URL.
+
+Delete the local publish branch once its PR is merged: `git branch -D publish/<slug>` (or `correct/<slug>`). A correction starts on a `piece/<slug>` branch cut from `origin/main` after the merge (or rebased onto it), so it carries the published text with its date; edit, `/review-piece`, then `/publish-piece`.
