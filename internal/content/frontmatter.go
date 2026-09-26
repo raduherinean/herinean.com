@@ -3,6 +3,7 @@ package content
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -120,9 +121,11 @@ func parseFrontMatter(file string, src []byte, lang string, now time.Time, draft
 			p.Updated = &u
 		}
 	}
-	for _, u := range []string{p.LinkedIn, p.Medium} {
-		if u != "" && !strings.HasPrefix(u, "https://") {
-			probs.Add(file, 1, "%q must be an https URL", u)
+	for _, d := range []struct{ field, url string }{{"linkedin", p.LinkedIn}, {"medium", p.Medium}} {
+		if d.url != "" {
+			if err := CheckDiscussionURL(d.field, d.url); err != nil {
+				probs.Add(file, 1, "%v", err)
+			}
 		}
 	}
 	return p, body, bodyLine, warnings, probs
@@ -154,4 +157,26 @@ func contains(xs []string, x string) bool {
 		}
 	}
 	return false
+}
+
+// discussionHosts maps each discussion field to the one host it may point at, compared exactly.
+var discussionHosts = map[string]string{"linkedin": "www.linkedin.com", "medium": "medium.com"}
+
+// CheckDiscussionURL reports whether raw is an https URL on field's host (no userinfo, no look-alike, no subdomain).
+func CheckDiscussionURL(field, raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" || u.User != nil || u.Host != discussionHosts[field] {
+		return fmt.Errorf("%s: %q must be an https URL on %s", field, raw, discussionHosts[field])
+	}
+	return nil
+}
+
+// DiscussionField names the front-matter field a discussion URL belongs in, by its host.
+func DiscussionField(raw string) (string, error) {
+	for _, f := range []string{"linkedin", "medium"} {
+		if CheckDiscussionURL(f, raw) == nil {
+			return f, nil
+		}
+	}
+	return "", fmt.Errorf("%q is not an https URL on www.linkedin.com or medium.com", raw)
 }

@@ -65,6 +65,18 @@ func load(o Options) (*build, error) {
 	} else {
 		s, probs = content.Load(o.Root, now)
 	}
+	// Pieces merged before the launch go live on launch day (spec §11): a date before `launched:` would make
+	// datePublished name a day on which the site was not public. The launch commit re-stamps them.
+	// controller ruling: a blank date is already refused above ("date is empty"); skip a zero Date here so it does
+	// not also produce a misleading "0001-01-01 is before launched" problem.
+	if cfg != nil && cfg.Launched != "" && s != nil {
+		launched, _ := time.ParseInLocation("2006-01-02", cfg.Launched, content.Bucharest) // validated by config.Load
+		for _, p := range s.Pieces {
+			if !p.Date.IsZero() && p.Date.Before(launched) {
+				probs.Add(p.File, 1, "date %s is before launched %s: dated before the launch; site stamp it", p.Date.Format("2006-01-02"), cfg.Launched)
+			}
+		}
+	}
 	if err := probs.Err(); err != nil {
 		if author != nil {
 			return nil, fmt.Errorf("%v\n%v", err, author) // %v, not %w: a content problem is exit 1 even with placeholders around
