@@ -14,6 +14,9 @@ fi
 if git diff --cached --name-only | grep -q '^worker/'; then
   (cd worker && node --test)
 fi
+if git diff --cached --name-only | grep -q '^\.claude/'; then
+  (cd .claude/skills/publish-piece && node --test)
+fi
 if git diff --cached --name-only | grep -q '^\.github/'; then
   go tool actionlint
 fi

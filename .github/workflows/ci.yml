@@ -28,6 +28,7 @@ jobs:
       - run: go tool actionlint
       - run: go test ./...
       - run: cd worker && node --test
+      - run: cd .claude/skills/publish-piece && node --test
       - run: go build -trimpath -o site ./cmd/site
       - run: ./site check
       - run: ./site build && scripts/dist-hash.sh > dist.sha256 && rm -rf dist && ./site build && scripts/dist-hash.sh | diff - dist.sha256
