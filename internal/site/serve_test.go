@@ -229,3 +229,51 @@ func TestServeStaticServesBuiltDistOnly(t *testing.T) {
 		t.Error("png must not be gzipped")
 	}
 }
+
+func fetch(t *testing.T, url string) (int, string) {
+	t.Helper()
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, string(b)
+}
+
+const brokenRO = "---\ntitle: \"Stricat\"\ndate: 2026-09-01\nkey: stricat\npillar: analysis\nsummary: \"Rezumat.\"\n---\n\nReţea cu sedilă.\n"
+
+// A failing rule mid-writing keeps the last good render on screen (the problem goes to stderr) instead of a 500 on
+// every page; fixing it brings the new page up on the next request.
+func TestServeKeepsTheLastGoodBuild(t *testing.T) {
+	root := fixtureRoot(t)
+	addr := startServe(t, Options{Root: root, Out: "dist"})
+	if code, _ := fetch(t, "http://"+addr+"/"); code != 200 {
+		t.Fatalf("before: status %d", code)
+	}
+	f := filepath.Join(root, "content", "ro", "stricat.md")
+	if err := os.WriteFile(f, []byte(brokenRO), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if code, body := fetch(t, "http://"+addr+"/"); code != 200 {
+		t.Fatalf("with a failing rule: status %d, want the last good build: %s", code, body)
+	}
+	if err := os.WriteFile(f, []byte(strings.Replace(brokenRO, "ţ", "ț", 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if code, body := fetch(t, "http://"+addr+"/ro/articole/stricat/"); code != 200 || !strings.Contains(body, "Rețea") {
+		t.Fatalf("after the fix: status %d, want the new page: %s", code, body)
+	}
+}
+
+// With no good build yet there is nothing to fall back on: the problem list is the page.
+func TestServeWithoutAGoodBuildShowsTheProblems(t *testing.T) {
+	root := fixtureRoot(t)
+	if err := os.WriteFile(filepath.Join(root, "content", "ro", "stricat.md"), []byte(brokenRO), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	addr := startServe(t, Options{Root: root, Out: "dist"})
+	if code, body := fetch(t, "http://"+addr+"/"); code != 500 || !strings.Contains(body, "comma-below") {
+		t.Fatalf("status %d, want 500 with the cedilla problem: %s", code, body)
+	}
+}

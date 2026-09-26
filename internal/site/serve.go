@@ -122,7 +122,9 @@ func Serve(o Options, host string, port int) error {
 	}
 	dist := filepath.Join(o.Root, o.Out)
 	var mu sync.Mutex
-	var built time.Time
+	var built, failed time.Time // start of the last good build; start of the last failed one since
+	var buildErr error
+	hasGood := func() bool { _, err := os.Stat(filepath.Join(dist, "index.html")); return err == nil }
 	serve404 := func(w http.ResponseWriter, r *http.Request) {
 		nf, _ := os.ReadFile(filepath.Join(dist, "404.html"))
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -130,9 +132,9 @@ func Serve(o Options, host string, port int) error {
 	}
 	// rebuild assumes the caller already holds mu: every read of dist/ (headers, files, the 404 page) and every
 	// read of built must be serialized against write()'s remove-then-rename swap of the output directory, so the
-	// whole request is one critical section rather than just the decision to rebuild. The watermark is taken
-	// BEFORE Build runs, so an input saved mid-build (whose mtime could otherwise land before the watermark) is
-	// still picked up by the next request.
+	// whole request is one critical section rather than just the decision to rebuild. The watermarks are taken
+	// BEFORE Build runs, so an input saved mid-build is still picked up by the next request; a failed build is not
+	// retried until an input changes again.
 	rebuild := func() error {
 		if o.Static {
 			if built.IsZero() {
@@ -145,11 +147,18 @@ func Serve(o Options, host string, port int) error {
 			return nil
 		}
 		start := time.Now()
-		if built.IsZero() || newestInput(o.Root).After(built) {
+		if (built.IsZero() && failed.IsZero()) || newestInput(o.Root).After(later(built, failed)) {
 			if err := Build(o); err != nil {
-				return err
+				failed, buildErr = start, err
+				if hasGood() {
+					fmt.Fprintf(os.Stderr, "site serve: build failed; serving the last good build:\n%v\n", err)
+				}
+			} else {
+				built, failed, buildErr = start, time.Time{}, nil
 			}
-			built = start
+		}
+		if buildErr != nil && !hasGood() {
+			return buildErr // nothing good to fall back on: the problem list is the page
 		}
 		return nil
 	}
@@ -240,4 +249,11 @@ func Serve(o Options, host string, port int) error {
 		return err
 	}
 	return nil
+}
+
+func later(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
 }
