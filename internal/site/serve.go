@@ -116,6 +116,11 @@ func writeBody(w http.ResponseWriter, r *http.Request, status int, b []byte) {
 	_, _ = w.Write(b)
 }
 
+// mtimeLag covers the gap between time.Now() and a file's mtime as stamped by the kernel's coarser clock: a file
+// written a fraction of a millisecond after a time.Now() reading can still get an mtime that reads as earlier.
+// Measured worst case on ext4/6.17 was 1.77ms; 50ms gives headroom without meaningfully delaying recovery.
+const mtimeLag = 50 * time.Millisecond
+
 func Serve(o Options, host string, port int) error {
 	if !o.Static {
 		o.Draft = true // the preview is where a piece gets written (spec §8): blanks render with defaults, not as a 500
@@ -133,8 +138,8 @@ func Serve(o Options, host string, port int) error {
 	// rebuild assumes the caller already holds mu: every read of dist/ (headers, files, the 404 page) and every
 	// read of built must be serialized against write()'s remove-then-rename swap of the output directory, so the
 	// whole request is one critical section rather than just the decision to rebuild. The watermarks are taken
-	// BEFORE Build runs, so an input saved mid-build is still picked up by the next request; a failed build is not
-	// retried until an input changes again.
+	// BEFORE Build runs and backdated by mtimeLag, so an input whose mtime lands just before or during Build is
+	// still picked up by the next request; a failed build is not retried until an input changes again.
 	rebuild := func() error {
 		if o.Static {
 			if built.IsZero() {
@@ -146,7 +151,7 @@ func Serve(o Options, host string, port int) error {
 			}
 			return nil
 		}
-		start := time.Now()
+		start := time.Now().Add(-mtimeLag)
 		if (built.IsZero() && failed.IsZero()) || newestInput(o.Root).After(later(built, failed)) {
 			if err := Build(o); err != nil {
 				failed, buildErr = start, err
