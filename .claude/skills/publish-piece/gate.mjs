@@ -144,7 +144,12 @@ export function table(md, heading) {
     if (isSepRow(cells)) continue;
     const norm = cells.map((c) => c.toLowerCase());
     if (norm.length === header.length && norm.every((c, j) => c === header[j])) continue;
-    rows.push(Object.fromEntries(header.map((h, j) => [h, cells[j] ?? ''])));
+    const row = Object.fromEntries(header.map((h, j) => [h, cells[j] ?? '']));
+    // __line is the row's own source line index (matching splitLines()' numbering below, since both split on the
+    // same `\r?\n` terminator) — setCells' only safe way to address one physical row when a `#` cell is blank or
+    // repeated (idProblems refuses that ledger anyway, but setCells does not trust text matching for its write).
+    Object.defineProperty(row, '__line', { value: i, enumerable: false });
+    rows.push(row);
   }
   Object.defineProperty(rows, 'header', { value: header, enumerable: false });
   return rows;
@@ -154,6 +159,27 @@ const AGENT = ['confirmed', 'wrong', 'unverifiable', 'blocked'];
 const RESOLUTIONS = { work: ['kept', 'changed'], client: ['signed-off', 'changed'] };
 const CLAIMS_COLUMNS = ['#', 'claim', 'kind', 'evidence', 'agent', 'author', 'note'];
 const TIER_COLUMNS = ['#', 'sentence', 'tier', 'why', 'resolution'];
+
+// missingColumns names every column in `columns` that `header` (a table()'s lower-cased header array) lacks.
+const missingColumns = (header, columns) => columns.filter((c) => !header.includes(c));
+
+// idProblems flags a Claims or Tier table whose own numbering can't be trusted to tell rows apart: a blank `#`
+// (nothing to address a mark to) or a `#` that repeats on more than one row. setCells addresses a row by its
+// physical line, not by re-searching for this text, but a ledger that cannot number its own rows is refused
+// outright — by checkLedger and by pendingItems alike — rather than left for a position-based write to paper over.
+function idProblems(rows, heading, label) {
+  const probs = [];
+  const seen = new Map();
+  let anyEmpty = false;
+  for (const r of rows) {
+    const id = (r['#'] ?? '').trim();
+    if (id === '') { anyEmpty = true; continue; }
+    seen.set(id, (seen.get(id) ?? 0) + 1);
+  }
+  if (anyEmpty) probs.push(`## ${heading}: a row has no number`);
+  for (const [id, count] of seen) if (count > 1) probs.push(`## ${heading}: ${label} number ${id} appears twice`);
+  return probs;
+}
 
 // readSection is checkLedger's front door onto table(): "no section" and "section present but unreadable" (a
 // GateTableError, or a header missing one of `columns`) are different refusals, but both leave nothing to
@@ -167,7 +193,7 @@ function readSection(ledger, heading, columns, probs) {
     return [];
   }
   if (rows === null) { probs.push(`the ledger has no ## ${heading} section`); return []; }
-  const missing = columns.filter((c) => !rows.header.includes(c));
+  const missing = missingColumns(rows.header, columns);
   if (missing.length) { probs.push(`## ${heading} is missing column(s): ${missing.join(', ')}`); return []; }
   return rows;
 }
@@ -180,6 +206,7 @@ export function checkLedger(ledger, piece, modelPass) {
   if (!h) probs.push('the ledger has no hash: line');
   else if (h[1] !== sha256(piece)) probs.push('the piece changed since the review (the hash differs); re-run /review-piece');
   const claims = readSection(ledger, 'Claims', CLAIMS_COLUMNS, probs);
+  for (const p of idProblems(claims, 'Claims', 'claim')) probs.push(p);
   for (const c of claims) {
     const id = `claim ${c['#'] || '?'}`;
     const kind = (c.kind ?? '').toLowerCase(), agent = (c.agent ?? '').toLowerCase(), author = c.author ?? '', note = c.note ?? '';
@@ -191,6 +218,7 @@ export function checkLedger(ledger, piece, modelPass) {
     else if (kind === 'repo' && agent !== 'confirmed' && !(author === '✓' && note !== '')) probs.push(`${id}: a repository claim the agent did not confirm needs the author's ✓ and a note`);
   }
   const tier = readSection(ledger, 'Tier', TIER_COLUMNS, probs);
+  for (const p of idProblems(tier, 'Tier', 'tier flag')) probs.push(p);
   for (const f of tier) {
     const id = `tier flag ${f['#'] || '?'}`;
     const t = (f.tier ?? '').toLowerCase(), r = (f.resolution ?? '').toLowerCase();
@@ -210,39 +238,54 @@ export function checkLedger(ledger, piece, modelPass) {
 // refuses it, and the fix is to the piece, not the ledger. A tier flag whose own `tier` cell is neither `work` nor
 // `client` is left out too: `mark`'s prompt (see markLedger) only knows those two menus, so it cannot offer one;
 // checkLedger still refuses it on its own terms.
+//
+// Before any of that, a section missing a required column, or one whose `#` numbering can't be trusted (blank, or
+// repeated on more than one row — see idProblems), is refused outright: the same message the gate itself would
+// give, thrown rather than returned, so `mark` never quietly offers "nothing pending" on a ledger the gate would
+// refuse for a different reason, and never risks resolving `id` to the wrong physical row (see setCells).
 export function pendingItems(md) {
   const items = [];
   const claims = table(md, 'Claims');
   if (claims) {
+    const missing = missingColumns(claims.header, CLAIMS_COLUMNS);
+    if (missing.length) throw new Error(`## Claims is missing column(s): ${missing.join(', ')}`);
+    const idProbs = idProblems(claims, 'Claims', 'claim');
+    if (idProbs.length) throw new Error(idProbs.join('; '));
     for (const c of claims) {
       const kind = (c.kind ?? '').toLowerCase();
       const agent = (c.agent ?? '').toLowerCase();
       const author = c.author ?? '';
       const note = c.note ?? '';
       if (author === '✗') continue;
-      if (kind === 'source' && author === '') items.push({ section: 'Claims', id: c['#'], row: c });
+      if (kind === 'source' && author === '') items.push({ section: 'Claims', id: c['#'], line: c.__line, row: c });
       else if (kind === 'repo' && agent !== 'confirmed' && !(author === '✓' && note !== '')) {
-        items.push({ section: 'Claims', id: c['#'], row: c });
+        items.push({ section: 'Claims', id: c['#'], line: c.__line, row: c });
       }
     }
   }
   const tier = table(md, 'Tier');
   if (tier) {
+    const missing = missingColumns(tier.header, TIER_COLUMNS);
+    if (missing.length) throw new Error(`## Tier is missing column(s): ${missing.join(', ')}`);
+    const idProbs = idProblems(tier, 'Tier', 'tier flag');
+    if (idProbs.length) throw new Error(idProbs.join('; '));
     for (const f of tier) {
       const t = (f.tier ?? '').toLowerCase();
       const r = (f.resolution ?? '').toLowerCase();
       const ok = RESOLUTIONS[t];
-      if (ok && !ok.includes(r)) items.push({ section: 'Tier', id: f['#'], row: f });
+      if (ok && !ok.includes(r)) items.push({ section: 'Tier', id: f['#'], line: f.__line, row: f });
     }
   }
   return items;
 }
 
 // splitLines splits `md` into {line, eol} pairs so a rewrite can touch one line and reproduce every other line's
-// own end-of-line bytes untouched — CRLF, bare LF, or (on the last line) none at all.
+// own end-of-line bytes untouched — CRLF, bare LF, or (on the last line) none at all. It splits on the same `\r?\n`
+// terminator table() does, so a source line index (a row's `__line`, from table()) means the same physical line in
+// both places.
 function splitLines(md) {
   const out = [];
-  const re = /\r\n|\r|\n/g;
+  const re = /\r?\n/g;
   let last = 0, m;
   while ((m = re.exec(md))) {
     out.push({ line: md.slice(last, m.index), eol: m[0] });
@@ -252,12 +295,20 @@ function splitLines(md) {
   return out;
 }
 
-// setCells replaces exactly the row identified by `section` ('Claims' or 'Tier') and `id` (its `#` cell) with
-// `patch` merged onto the row's current cells, keyed by lower-cased header name — so a header in any column order
-// still lands the value in the right cell. Every other line of `md` is byte-identical to before, EOL included; the
+// setCells replaces exactly one row of `section` ('Claims' or 'Tier') with `patch` merged onto its current cells,
+// keyed by lower-cased header name (a patch key that names no header column throws — a typo must not silently drop
+// a mark while still counting as written). Every other line of `md` is byte-identical to before, EOL included; the
 // rewritten row is re-serialised `| c1 | c2 | … |`, with a literal `|` in any cell written `\|` (splitRow's escape,
 // read back the same way by table()).
-export function setCells(md, section, id, patch) {
+//
+// The row is addressed by its physical position, not by re-searching `id` as text: `line` (from pendingItems'
+// `.line`, itself table()'s `__line`) names the exact source line, and setCells only checks that this line still
+// parses as a row whose own `#` cell equals `id` — refusing (rather than silently writing the wrong row, or the
+// right one under a different number) if the file has moved under it since `line` was read. `line` is optional so
+// direct, single-row callers (tests; any future non-mark caller) can still address by `id` alone — an id search is
+// exactly as safe as a positional one when checkLedger and pendingItems have already refused any ledger whose `#`
+// column is blank or repeated, which is the only case the two could disagree.
+export function setCells(md, section, id, patch, line) {
   const parts = splitLines(md);
   const target = section.toLowerCase();
   const names = parts.map((p) => headingName(p.line));
@@ -274,15 +325,35 @@ export function setCells(md, section, id, patch) {
   const headerCells = splitRow(parts[hIdx].line);
   const headerLower = headerCells.map((c) => c.toLowerCase());
   const idCol = headerLower.indexOf('#');
+  for (const key of Object.keys(patch)) {
+    if (!headerLower.includes(key)) throw new Error(`## ${section} has no column ${JSON.stringify(key)}`);
+  }
+
+  const writeAt = (i) => {
+    const cells = splitRow(parts[i].line);
+    const merged = headerLower.map((h, j) => (Object.prototype.hasOwnProperty.call(patch, h) ? String(patch[h]) : (cells[j] ?? '')));
+    const escaped = merged.map((c) => c.replace(/\|/g, '\\|'));
+    parts[i] = { line: '| ' + escaped.join(' | ') + ' |', eol: parts[i].eol };
+    return parts.map((p) => p.line + p.eol).join('');
+  };
+
+  if (line !== undefined) {
+    if (line < hIdx + 2 || line >= end || !parts[line].line.trim().startsWith('|')) {
+      throw new Error(`## ${section}: line ${line + 1} is no longer a row of this table; the ledger changed underneath`);
+    }
+    const cells = splitRow(parts[line].line);
+    if (isSepRow(cells) || (cells[idCol] ?? '') !== String(id)) {
+      throw new Error(`## ${section}: line ${line + 1} is no longer # ${id}; the ledger changed underneath`);
+    }
+    return writeAt(line);
+  }
+
   for (let i = hIdx + 2; i < end; i++) {
     if (!parts[i].line.trim().startsWith('|')) continue;
     const cells = splitRow(parts[i].line);
     if (isSepRow(cells)) continue;
     if ((cells[idCol] ?? '') !== String(id)) continue;
-    const merged = headerLower.map((h, j) => (Object.prototype.hasOwnProperty.call(patch, h) ? String(patch[h]) : (cells[j] ?? '')));
-    const escaped = merged.map((c) => c.replace(/\|/g, '\\|'));
-    parts[i] = { line: '| ' + escaped.join(' | ') + ' |', eol: parts[i].eol };
-    return parts.map((p) => p.line + p.eol).join('');
+    return writeAt(i);
   }
   throw new Error(`## ${section}: no row # ${id}`);
 }
@@ -314,17 +385,25 @@ export async function markLedger(md, ask, save) {
       const authorMark = answer === 'y' ? '✓' : '✗';
       const noteRequired = kind === 'repo' && agent !== 'confirmed' && answer === 'y';
       let note = '', escape = null;
-      for (;;) {
-        const a = (await ask('note (Enter for none): ')).trim();
-        if (a.toLowerCase() === 's') { escape = 's'; break; }
-        if (a.toLowerCase() === 'q') { escape = 'q'; break; }
-        if (noteRequired && a === '') continue;
-        note = a;
-        break;
+      if (noteRequired) {
+        // Only here can the author bail on the note itself: it exists to justify overriding the agent, so a blank
+        // note is never acceptable, but reconsidering the mark entirely (s) or stopping (q) still must be possible.
+        for (;;) {
+          const a = (await ask('note (required; s = skip this claim, q = quit): ')).trim();
+          if (a.toLowerCase() === 's') { escape = 's'; break; }
+          if (a.toLowerCase() === 'q') { escape = 'q'; break; }
+          if (a === '') continue;
+          note = a;
+          break;
+        }
+      } else {
+        // The note is optional here, so "s" or "q" is not a menu choice — it is the note, exactly as typed. Only
+        // Enter (nothing typed) means no note.
+        note = (await ask('note (Enter for none): ')).trim();
       }
       if (escape === 's') { skipped++; continue; }
       if (escape === 'q') { quit = true; break; }
-      current = setCells(current, 'Claims', item.id, { author: authorMark, note });
+      current = setCells(current, 'Claims', item.id, { author: authorMark, note }, item.line);
       if (save) await save(current);
       marked++;
     } else {
@@ -345,16 +424,16 @@ export async function markLedger(md, ask, save) {
       if (answer === 's') { skipped++; continue; }
       if (answer === 'q') { quit = true; break; }
       if (tier === 'work') {
-        current = setCells(current, 'Tier', item.id, { resolution: answer === 'k' ? 'kept' : 'changed' });
+        current = setCells(current, 'Tier', item.id, { resolution: answer === 'k' ? 'kept' : 'changed' }, item.line);
       } else if (answer === 'o') {
         let who = '';
         for (;;) {
           who = (await ask('who signed off, and when: ')).trim();
           if (who !== '') break;
         }
-        current = setCells(current, 'Tier', item.id, { resolution: 'signed-off', why: `${row.why ?? ''} — signed off: ${who}` });
+        current = setCells(current, 'Tier', item.id, { resolution: 'signed-off', why: `${row.why ?? ''} — signed off: ${who}` }, item.line);
       } else {
-        current = setCells(current, 'Tier', item.id, { resolution: 'changed' });
+        current = setCells(current, 'Tier', item.id, { resolution: 'changed' }, item.line);
       }
       if (save) await save(current);
       marked++;

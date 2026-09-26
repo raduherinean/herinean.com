@@ -359,6 +359,86 @@ test('markLedger: an invalid answer re-prompts', async () => {
   assert.equal(marked, 1);
 });
 
+test('markLedger: at the optional note prompt, "s" or "q" is the note itself, not an escape', async () => {
+  const md = ledger({ claims: [['1', 'revenue doubled', 'source', 'https://example.com', 'confirmed', '', '']] });
+  const { md: result, marked, skipped, quit } = await markLedger(md, scripted(['y', 'q']));
+  assert.equal(marked, 1);
+  assert.equal(skipped, 0);
+  assert.equal(quit, false);
+  assert.equal(table(result, 'Claims')[0].author, '✓');
+  assert.equal(table(result, 'Claims')[0].note, 'q');
+});
+
+test('markLedger: at the required note prompt, s skips the claim without writing', async () => {
+  const md = ledger({ claims: [['1', 'the cache halves latency', 'repo', 'no benchmark', 'unverifiable', '', '']] });
+  const { md: result, marked, skipped } = await markLedger(md, scripted(['y', 's']));
+  assert.equal(marked, 0);
+  assert.equal(skipped, 1);
+  assert.equal(table(result, 'Claims')[0].author, '');
+});
+
+test('markLedger: at the required note prompt, q quits without writing', async () => {
+  const md = ledger({ claims: [['1', 'the cache halves latency', 'repo', 'no benchmark', 'unverifiable', '', '']] });
+  const { md: result, marked, quit } = await markLedger(md, scripted(['y', 'q']));
+  assert.equal(marked, 0);
+  assert.equal(quit, true);
+  assert.equal(table(result, 'Claims')[0].author, '');
+});
+
+// --- fix round 1: duplicate/empty claim numbers, patch-key typos, positional writes ----------------------------
+
+test('checkLedger refuses a Claims section with a claim number repeated on two rows', () => {
+  const dupA = ['3', 'revenue tripled', 'source', 'https://example.com', 'wrong', '✗', ''];
+  const dupB = ['3', 'the market grew', 'source', 'https://example.com', 'confirmed', '', ''];
+  assert.match(checkLedger(ledger({ claims: [dupA, dupB] }), piece, null).join('\n'), /## Claims: claim number 3 appears twice/);
+});
+
+test('checkLedger refuses a Claims row with no number', () => {
+  const noId = ['', 'revenue doubled', 'source', 'https://example.com', 'confirmed', '', ''];
+  assert.match(checkLedger(ledger({ claims: [noId] }), piece, null).join('\n'), /## Claims: a row has no number/);
+});
+
+test('checkLedger refuses a Tier section with a flag number repeated on two rows', () => {
+  const md = ledger({ tier: [['1', 's1', 'work', 'w', 'kept'], ['1', 's2', 'client', 'w', 'signed-off']] });
+  assert.match(checkLedger(md, piece, null).join('\n'), /## Tier: tier flag number 1 appears twice/);
+});
+
+test('pendingItems throws on a duplicated or empty claim number, same wording as the gate', () => {
+  const dupA = ['3', 'revenue tripled', 'source', 'https://example.com', 'wrong', '✗', ''];
+  const dupB = ['3', 'the market grew', 'source', 'https://example.com', 'confirmed', '', ''];
+  assert.throws(() => pendingItems(ledger({ claims: [dupA, dupB] })), /## Claims: claim number 3 appears twice/);
+  const noId = ['', 'revenue doubled', 'source', 'https://example.com', 'confirmed', '', ''];
+  assert.throws(() => pendingItems(ledger({ claims: [noId] })), /## Claims: a row has no number/);
+});
+
+test('pendingItems throws on a Claims header missing a required column, same message as the gate', () => {
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n| # | Claim | Kind | Evidence | Agent | Note |\n|---|---|---|---|---|---|\n| 1 | x | repo | a.go | confirmed |  |\n' + tierSection;
+  assert.throws(() => pendingItems(md), /## Claims is missing column\(s\): author/);
+});
+
+test('setCells throws when a patch key names no header column, instead of silently dropping it', () => {
+  const md = ledger({ claims: [['1', 'revenue doubled', 'source', 'https://example.com', 'confirmed', '', '']] });
+  assert.throws(() => setCells(md, 'Claims', '1', { bogus: 'x' }), /## Claims has no column "bogus"/);
+});
+
+test('setCells writes the row at the given line, even when # is duplicated elsewhere in the table', () => {
+  const dupA = ['3', 'revenue tripled', 'source', 'https://example.com', 'wrong', '✗', ''];
+  const dupB = ['3', 'the market grew', 'source', 'https://example.com', 'confirmed', '', ''];
+  const md = ledger({ claims: [dupA, dupB] });
+  const rows = table(md, 'Claims');
+  const updated = setCells(md, 'Claims', '3', { author: '✓', note: 'confirmed by hand' }, rows[1].__line);
+  const after = table(updated, 'Claims');
+  assert.equal(after[0].author, '✗'); // the reviewer's repro: a mark on row 2 must never land on row 1
+  assert.equal(after[1].author, '✓');
+  assert.equal(after[1].note, 'confirmed by hand');
+});
+
+test('setCells refuses to write when the given line no longer matches the expected #', () => {
+  const md = ledger({ claims: [['1', 'revenue doubled', 'source', 'https://example.com', 'confirmed', '', '']] });
+  const rows = table(md, 'Claims');
+  assert.throws(() => setCells(md, 'Claims', '2', { author: '✓' }, rows[0].__line), /line \d+ is no longer # 2/);
+});
+
 test('CLI: mark refuses without a terminal', () => {
   const gatePath = new URL('../gate.mjs', import.meta.url).pathname;
   const result = spawnSync(process.execPath, [gatePath, 'mark'], { input: '', encoding: 'utf8' });
