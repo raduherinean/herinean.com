@@ -44,18 +44,26 @@ export function splitRow(line) {
 // evidence showed rows silently vanishing (a blank or prose line between rows, a bullet list, a lone data row
 // with no header) instead of refusing; fix-round-2 evidence showed the same for a GFM row with no leading `|`
 // (outer pipes are optional in GFM, but the gate is not a renderer and must not guess), a row hidden behind `>` or
-// `- `, and a duplicate heading dodged by extra whitespace or a trailing `##`. checkLedger turns this into a
-// refusal message; it is not a "no section" (that stays `table() === null`, since the ledger template always
-// writes header + separator, even with zero rows).
+// `- `, and a duplicate heading dodged by extra whitespace or a trailing `##`; fix-round-3 evidence showed the
+// pipeless-row check missed a whole fake table placed ABOVE the real header (it only looked from the header
+// onward), missed a lazy line with no pipe at all sitting directly under a row, and found the duplicate-heading
+// check still dodgeable by wrapping the name (`## **Claims**`) or extending it (`## Claims (continued)`).
+// checkLedger turns this into a refusal message; it is not a "no section" (that stays `table() === null`, since
+// the ledger template always writes header + separator, even with zero rows).
 class GateTableError extends Error {}
 
-// headingName reads a Markdown ATX heading's name, whitespace-collapsed and lower-cased — `##  Claims`, `##
-// Claims ##` and `##\tClaims` all read as `claims`, so a heading can't be duplicated by dodging an exact-string
-// match. Returns null when the line is not a `##`-level heading.
+// headingName reads a `##`-level ATX heading's raw name (the part after `##` and before an optional trailing
+// `##`), or null when the line is not such a heading. Whitespace variants (`##  Claims`, `##\tClaims ##`) are all
+// still headings; the name itself is normalised for comparison in headingLetters, not here.
 function headingName(line) {
   const m = /^##[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/.exec(line.trim());
-  return m ? m[1].replace(/[ \t]+/g, ' ').trim().toLowerCase() : null;
+  return m ? m[1] : null;
 }
+
+// headingLetters strips everything but letters and lower-cases what remains, so `**Claims**`, `Claims (continued)`
+// and `Claims` all compare as text starting with `claims` — a heading can't dodge duplicate detection by
+// decorating or extending its name.
+const headingLetters = (name) => name.replace(/[^a-zA-Z]/g, '').toLowerCase();
 
 // hasUnescapedPipe reports whether `s` contains a `|` not preceded by the same `\|` escape splitRow honours —
 // i.e. whether it looks like a table row GFM would render even without a leading `|`.
@@ -68,27 +76,53 @@ function hasUnescapedPipe(s) {
 }
 
 // table returns the rows of the first Markdown table under `## <heading>` (keyed by lower-cased header), or null
-// when the heading is absent. The section runs to the next `##`-level heading (by name, not by exact text — see
-// headingName) or EOF; every line in it that starts with `|` belongs to the table, however many blank or prose
-// lines fall between rows — a model-written ledger with a stray blank line must not lose a row. The header is the
-// section's first `|` line and must be followed, on the very next source line (no blank line permitted there), by
-// a separator row; otherwise, or if the section has no `|` line at all, this throws GateTableError. A later `|`
-// line that repeats the header or is itself a separator is skipped; anything else becomes a row, even a second,
-// differently-shaped table pasted in above — it then fails whatever value or column check applies to it. A
-// non-blank line in the section that is not a table row but still contains an unescaped `|` — GFM's outer pipes
-// are optional, so this can be a real row the gate must not silently drop — also throws, naming it every row
-// must start with `|`. `## <heading>` appearing more than once (any whitespace/`##`-suffix variant) also throws:
-// a duplicate can't be silently picked between.
+// when the heading is absent. The section runs from just after the (single, exact) `## <heading>` to the next
+// `##`-level heading of any name, or EOF.
+//
+// Before anything else, every non-blank line in that whole range (not just from the header down — a bypass could
+// be pasted in above the real header) must either start with `|`, or be safe prose: no unescaped `|` (GFM would
+// still render `2 | claim | ...` as a row even with no leading `|`), and not sitting directly under a `|` line
+// with no blank line between (GFM's lazy continuation reads that as part of the row above too). Either violation
+// throws GateTableError, naming the exact line.
+//
+// Only once that holds does table() look for the header: the section's first `|` line, which must be followed,
+// on the very next source line, by a separator row — otherwise, or if the section has no `|` line at all, this
+// throws too. A later `|` line that repeats the header or is itself a separator is skipped; anything else becomes
+// a row, even a second, differently-shaped table — it then fails whatever value or column check applies to it.
+//
+// `## <heading>` matching by letters-only name (see headingLetters) more than once — including a heading whose
+// letters-only name merely starts with the target's, such as `## Claims (continued)` under `## Claims` — also
+// throws: a duplicate can't be silently picked between. The first, real heading must still match exactly.
 export function table(md, heading) {
   const lines = md.split(/\r?\n/);
   const target = heading.toLowerCase();
-  const starts = [];
-  for (let i = 0; i < lines.length; i++) if (headingName(lines[i]) === target) starts.push(i);
-  if (starts.length === 0) return null;
-  if (starts.length > 1) throw new GateTableError(`more than one ## ${heading} heading`);
-  const start = starts[0];
+  const names = lines.map((l) => headingName(l));
+  let start = -1, exact = 0, loose = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (names[i] === null) continue;
+    const letters = headingLetters(names[i]);
+    if (letters === target) { exact++; if (start < 0) start = i; }
+    else if (letters.startsWith(target)) loose++;
+  }
+  if (exact === 0) return null;
+  if (exact > 1 || loose > 0) throw new GateTableError(`more than one ## ${heading} heading`);
+
   let end = lines.length;
-  for (let i = start + 1; i < end; i++) if (headingName(lines[i]) !== null) { end = i; break; }
+  for (let i = start + 1; i < end; i++) if (names[i] !== null) { end = i; break; }
+
+  let afterPipe = false;
+  for (let i = start + 1; i < end; i++) {
+    const l = lines[i].trim();
+    if (l === '') { afterPipe = false; continue; }
+    if (l.startsWith('|')) { afterPipe = true; continue; }
+    if (hasUnescapedPipe(l)) {
+      throw new GateTableError(`## ${heading} line ${i + 1}: a line with | must be a table row starting with |; move prose out of this section or write the pipe as \\|`);
+    }
+    if (afterPipe) {
+      throw new GateTableError(`## ${heading} line ${i + 1}: directly under the table, a line is read as a row; leave a blank line or write it as | … |`);
+    }
+    afterPipe = false;
+  }
 
   let hIdx = -1;
   for (let i = start + 1; i < end; i++) if (lines[i].trim().startsWith('|')) { hIdx = i; break; }
@@ -101,13 +135,7 @@ export function table(md, heading) {
   const rows = [];
   for (let i = hIdx + 2; i < end; i++) {
     const l = lines[i].trim();
-    if (l === '') continue;
-    if (!l.startsWith('|')) {
-      if (hasUnescapedPipe(l)) {
-        throw new GateTableError(`## ${heading}: line ${i + 1} looks like a table row but does not start with |; write every row as | … |`);
-      }
-      continue;
-    }
+    if (!l.startsWith('|')) continue; // blank, or safe prose already cleared above.
     const cells = splitRow(l);
     if (isSep(cells)) continue;
     const norm = cells.map((c) => c.toLowerCase());

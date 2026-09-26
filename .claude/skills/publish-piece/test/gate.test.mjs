@@ -158,12 +158,13 @@ test('fix round 1: a Claims header missing a required column is refused, naming 
 
 test('fix round 2 (N1): a GFM row with no leading | is refused, not silently dropped', () => {
   const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n' + claimsHdr + okRepoRow + '2 | revenue doubled | source | https://x | confirmed |  |\n' + tierSection;
-  assert.match(checkLedger(md, piece, null).join('\n'), /looks like a table row but does not start with \|/);
+  // fix round 3 renamed this message (see below); it is still a refusal, on the same line.
+  assert.match(checkLedger(md, piece, null).join('\n'), /a line with \| must be a table row starting with \|/);
 });
 
 test('fix round 2 (N3): a blockquoted "> | …" row is refused, not silently dropped', () => {
   const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n' + claimsHdr + okRepoRow + '> | 2 | revenue doubled | source | https://x | confirmed |  |  |\n' + tierSection;
-  assert.match(checkLedger(md, piece, null).join('\n'), /looks like a table row but does not start with \|/);
+  assert.match(checkLedger(md, piece, null).join('\n'), /a line with \| must be a table row starting with \|/);
 });
 
 test('fix round 2 (N6): "##  Claims" (two spaces) is still a duplicate ## Claims heading', () => {
@@ -174,5 +175,34 @@ test('fix round 2 (N6): "##  Claims" (two spaces) is still a duplicate ## Claims
 test('fix round 2 (N18): a pipeless GFM row in ## Tier is refused, not silently dropped', () => {
   const tierHdr = '| # | Sentence | Tier | Why | Resolution |\n|---|---|---|---|---|\n';
   const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n' + claimsHdr + '\n## Tier\n\n' + tierHdr + '2 | s | client | w | kept\n';
-  assert.match(checkLedger(md, piece, null).join('\n'), /looks like a table row but does not start with \|/);
+  assert.match(checkLedger(md, piece, null).join('\n'), /a line with \| must be a table row starting with \|/);
+});
+
+// Fix round 3 (controller ruling): re-review found the pipeless-row check only ran from the header down, so a
+// whole pipeless table pasted ABOVE the real header was never examined (X1/X1b); a lazy line with no pipe at all,
+// sitting directly under a real row with no blank line between, also passed (X2), though GFM still renders it as
+// part of that row; and the duplicate-heading check could still be dodged by decorating the name (`## **Claims**`)
+// or extending it (`## Claims (continued)`) rather than just varying its whitespace (X3/X4). The controller
+// rewrote the rule: every non-blank line anywhere in a ## Claims/## Tier section either starts with `|`, or is
+// safe prose (no unescaped `|`, and not immediately below a `|` line with no blank line between); and a later
+// heading counts as a duplicate whenever its letters-only, lower-cased name equals or starts with the target's.
+
+test('fix round 3 (X1): a pipeless fake table above the real header is refused, not ignored', () => {
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\nClaim | # | Kind | Evidence | Agent | Author | Note\n---|---|---|---|---|---|---\nrevenue doubled | 2 | source | https://x | confirmed |  | \n\n' + claimsHdr + okRepoRow + tierSection;
+  assert.match(checkLedger(md, piece, null).join('\n'), /a line with \| must be a table row starting with \|/);
+});
+
+test('fix round 3 (X2): a lazy line with no pipe directly under a row is refused', () => {
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n' + claimsHdr + okRepoRow + 'revenue doubled, source, unchecked\n' + tierSection;
+  assert.match(checkLedger(md, piece, null).join('\n'), /directly under the table, a line is read as a row/);
+});
+
+test('fix round 3 (X4): "## Claims (continued)" is still a duplicate ## Claims heading', () => {
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n' + claimsHdr + okRepoRow + '\n## Claims (continued)\n\n' + claimsHdr + badSourceRow + tierSection;
+  assert.match(checkLedger(md, piece, null).join('\n'), /more than one ## Claims heading/);
+});
+
+test('fix round 3: prose containing an unescaped | between tables is refused with the new message', () => {
+  const md = `hash: ${sha256(piece)}\n\n` + '## Claims\n\n' + claimsHdr + okRepoRow + '\nClaim 1 checked at v1.2 | v1.3.\n' + tierSection;
+  assert.match(checkLedger(md, piece, null).join('\n'), /## Claims line \d+: a line with \| must be a table row starting with \|; move prose out of this section or write the pipe as \\\|/);
 });
