@@ -134,7 +134,7 @@ jobs:
     outputs: { previous: "${{ steps.deploy.outputs.previous }}", current: "${{ steps.deploy.outputs.current }}" }
     steps:
       # First, so a secret missing after launch is one clear line, not a curl auth error deep in kv.sh.
-      - run: '[ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set (RUNBOOK, CI)"; exit 1; }'
+      - run: 'if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then echo "CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set (RUNBOOK, CI)"; exit 1; fi'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version-file: .node-version, cache: npm }
@@ -174,8 +174,8 @@ jobs:
       - if: failure()
         name: restore the scorecard the old build had
         run: |
-          [ -s stash/scorecard.html ] && scripts/kv.sh put scorecard stash/scorecard.html --metadata "$(cat stash/scorecard.meta)" || true
-          [ -s stash/scorecard.json ] && scripts/kv.sh put scorecard.json stash/scorecard.json || true
+          if [ -s stash/scorecard.html ]; then scripts/kv.sh put scorecard stash/scorecard.html --metadata "$(cat stash/scorecard.meta)" || true; fi
+          if [ -s stash/scorecard.json ]; then scripts/kv.sh put scorecard.json stash/scorecard.json || true; fi
   post:
     needs: [build, audit, deploy]
     # The workflow_dispatch branch also requires main: a dispatch from any other ref must never
@@ -212,8 +212,8 @@ jobs:
         with: { name: "kv-stash-${{ github.sha }}", path: stash }
       - if: failure() && steps.rollback.outcome == 'success'
         run: |
-          [ -s stash/scorecard.html ] && scripts/kv.sh put scorecard stash/scorecard.html --metadata "$(cat stash/scorecard.meta)" || true
-          [ -s stash/scorecard.json ] && scripts/kv.sh put scorecard.json stash/scorecard.json || true
+          if [ -s stash/scorecard.html ]; then scripts/kv.sh put scorecard stash/scorecard.html --metadata "$(cat stash/scorecard.meta)" || true; fi
+          if [ -s stash/scorecard.json ]; then scripts/kv.sh put scorecard.json stash/scorecard.json || true; fi
   post-rows:
     needs: [build, post]
     if: always() && needs.post.outputs.verified == 'true'
@@ -231,7 +231,7 @@ jobs:
     environment: production
     env: { CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}", CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" }
     steps:
-      - run: '[ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set (RUNBOOK, CI)"; exit 1; }'
+      - run: 'if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then echo "CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set (RUNBOOK, CI)"; exit 1; fi'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version-file: .node-version, cache: npm }
