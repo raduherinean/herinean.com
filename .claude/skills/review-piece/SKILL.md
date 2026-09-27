@@ -53,8 +53,8 @@ Put the claims it returns into the Claims table.
 
 For a translation (a `model-pass-<lang>.md` sits beside the ledger), also give the agent the source-language ledger (`ledger-<other lang>.md`): it matches each claim to its original, and every figure, date and name must cross unchanged — a number or date written in the target language's format per `.claude/skills/translate-piece/glossary.md` (for example 1,500 → 1.500) is the same figure, not a mismatch. A mismatch is `wrong`, with both versions in Evidence.
 
-### 6. LinkedIn post — the author writes it
-Propose, in the ledger's LinkedIn section: the angle in one line, three candidate opening lines, and the points from the piece worth carrying over. The author writes the post in `linkedin-<lang>.md` beside the ledger. When that file exists, check it: native and complete, not a teaser; at most 3,000 characters (`wc -m`); the piece's URL with `?ref=li` kept for the first comment, not in the post. Propose single-sentence reformulations only, as in pass 4.
+### 6. LinkedIn post — the author writes it, as the articles
+Suggest, in the ledger's LinkedIn section, the angle in one line and the points from the piece worth carrying over; draft no line of the post. The author writes the post in `linkedin-<lang>.md` beside the ledger. When that file exists, check it: native and complete, not a teaser; at most 3,000 characters (`wc -m`); the piece's URL with `?ref=li` kept for the first comment, not in the post. Then edit it as in pass 4: flag, question and suggest, and propose a reformulation of a sentence, never a rewritten paragraph.
 
 ## The ledger
 
