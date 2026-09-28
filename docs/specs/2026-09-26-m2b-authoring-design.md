@@ -1,6 +1,6 @@
 # M2b — Authoring: four skills, drafts that commit, one-commit publish: design
 
-**Status (2026-09-26):** implemented on `m2b/design` (plan: `docs/plans/2026-09-26-m2b-authoring.md`) and accepted on an invented piece (§10); this document now describes what was built. Each section was reviewed adversarially before approval, then the whole document against the north star, the repository's rules and the working specs and settings (findings folded in: corrections, the LinkedIn post, public skill examples, gate tests in CI, the spec amendments list, trailers, client sign-off). Pending: the parent-spec amendments of §11 (the plan's Task 11), which are written against the text after `colophon/one-ai-disclosure` and M2a reach `main`.
+**Status (2026-09-26):** implemented on `m2b/design` (plan: `docs/plans/2026-09-26-m2b-authoring.md`) and accepted on an invented piece (§10); this document now describes what was built. Each section was reviewed adversarially before approval, then the whole document against the north star, the repository's rules and the working specs and settings (findings folded in: corrections, the LinkedIn post, public skill examples, gate tests in CI, the spec amendments list, trailers, client sign-off). The parent-spec amendments of §11 (the plan's Task 11) are applied.
 
 **Parent spec:** `docs/specs/2026-09-17-herinean-com-design.md` — §8 (authoring and publishing), §10 (the AI disclosure), §11 (launch criteria), §13 (layout). **Sibling:** `docs/specs/2026-09-19-m2a-ci-bench-scorecard-design.md`, whose §2.2 listed M2b's scope. That list is now delivered in three parts: **M2b** (this document) — the path a piece takes from draft to `main`; **M2c** — the weekly job, the uptime monitor, the build id on the wire, CodeQL and OpenSSF Scorecard; **M2d** — the display-face probe and preload, the Android fallback face, the Newsreader name table, Worker tests under workerd. M2b stacks on M2a's branch; nothing in it needs M2a's first Actions run except the auto-merge in §7.
 
@@ -147,7 +147,6 @@ The gate's commands, from the repository root: `gate.mjs path <piece>` (the ledg
 ## 12. Waits for Radu
 
 - After M2a's first Actions run: add a required status check on the gate job to the `main` ruleset, and enable auto-merge in the repository settings. Until both exist, pull requests can merge with CI red (M2a's deploy still waits for a green audit, so red never goes live) and `/link-piece` does not auto-merge.
-- Merging `colophon/one-ai-disclosure` and M2a into `main`: the spec amendments of §11 are written against that text and wait for it.
 
 ## 13. Decisions for Radu (made in the design without a question; revertable)
 
