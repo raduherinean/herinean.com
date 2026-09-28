@@ -1,7 +1,7 @@
 // Command fontface prints a metric-matched fallback @font-face rule (spec §9, row 21).
 // A local font scaled and aligned to the web font means the swap moves nothing: CLS stays 0 however slowly the font arrives.
 //
-//	go run ./scripts/fontface -web assets/fonts/web/SourceSerif4-Regular.ttf -fallback /usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf -family "Source Serif 4 Fallback"
+//	go run ./scripts/fontface -web assets/fonts/web/SourceSerif4-Regular.ttf -fallback /usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf -family "Herinean Serif Fallback"
 package main
 
 import (

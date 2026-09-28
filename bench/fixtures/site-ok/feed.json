@@ -1,0 +1,15 @@
+{
+  "version": "https://jsonfeed.org/version/1.1",
+  "title": "Radu Herinean",
+  "home_page_url": "https://herinean.com/",
+  "feed_url": "https://herinean.com/feed.json",
+  "description": "I build AI systems and then have to live with them.",
+  "language": "en",
+  "authors": [
+    {
+      "name": "Radu Herinean",
+      "url": "https://herinean.com/"
+    }
+  ],
+  "items": []
+}

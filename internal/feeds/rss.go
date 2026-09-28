@@ -54,12 +54,14 @@ func pub(t time.Time) string { return t.Add(6 * time.Hour).Format(time.RFC1123Z)
 
 func RSS(cfg *config.Config, s *content.Site, lang string, now time.Time) ([]byte, error) {
 	pieces := s.Pieces
-	title, desc := cfg.Name, cfg.Tagline["en"]
+	title, desc, chLang := cfg.Name, cfg.Tagline["en"], lang
 	if lang != "" {
 		pieces = s.ByLang[lang]
 		desc = cfg.Tagline[lang]
+	} else {
+		chLang = "en" // the combined feed mixes languages like its English-default title/description; declare one rather than none
 	}
-	ch := channel{Title: title, Link: cfg.Abs(cfg.HomeURL(lang)), Description: desc, Language: lang,
+	ch := channel{Title: title, Link: cfg.Abs(cfg.HomeURL(lang)), Description: desc, Language: chLang,
 		LastBuildDate: now.Format(time.RFC1123Z), AtomLink: atomLink{Href: cfg.Abs(cfg.FeedURL(lang)), Rel: "self", Type: "application/rss+xml"}}
 	if lang == "" {
 		ch.Link = cfg.Abs("/")

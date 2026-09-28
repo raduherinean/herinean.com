@@ -127,3 +127,15 @@ ai_disclosure: {en: "e", ro: "⟨ro⟩"}`))
 		t.Fatalf("config = %+v, want the parsed config alongside the placeholder error", c)
 	}
 }
+
+func TestLaunchedIsEmptyOrADate(t *testing.T) {
+	if c, err := Load(write(t, sample)); err != nil || c.Launched != "" {
+		t.Fatalf("no launched field: %v %q", err, c.Launched)
+	}
+	if c, err := Load(write(t, sample+"launched: 2026-10-01\n")); err != nil || c.Launched != "2026-10-01" {
+		t.Fatalf("launched date: %v %q", err, c.Launched)
+	}
+	if _, err := Load(write(t, sample+"launched: soon\n")); err == nil || !strings.Contains(err.Error(), "launched") {
+		t.Fatalf("a non-date launched must fail: %v", err)
+	}
+}

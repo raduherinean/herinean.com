@@ -181,3 +181,27 @@ test("the asset layer's 307 canonicalisation redirect becomes a 301 with the sam
   await h.settle();
   assert.deepEqual(h.points, [], "a redirect is not a view");
 });
+
+const SECURITY = ["content-security-policy", "strict-transport-security", "x-content-type-options", "referrer-policy", "permissions-policy", "cross-origin-opener-policy", "cross-origin-resource-policy", "x-frame-options"];
+
+test("responses the Worker builds itself carry the security header set", async () => {
+  const kv = { getWithMetadata: async () => ({ value: null }), get: async (k) => (k === "scorecard.json" ? '[{"check":"x"}]' : null) };
+  const h = harness({ kv });
+  for (const [url, status] of [["https://preview.example.workers.dev/robots.txt", 200], ["https://mta-sts.herinean.com/", 404], ["https://herinean.com/colophon/scorecard.json", 200], ["https://preview.example.workers.dev/colophon/scorecard.json", 200]]) {
+    const res = await worker.fetch(req(url), h.env, h.ctx);
+    assert.equal(res.status, status, url);
+    for (const name of SECURITY) assert.ok(res.headers.get(name), `${url} lacks ${name}`);
+    assert.equal(res.headers.get("content-security-policy"), "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'", url);
+  }
+  const json = await worker.fetch(req("https://preview.example.workers.dev/colophon/scorecard.json"), h.env, h.ctx);
+  assert.equal(json.headers.get("content-type"), "application/json; charset=utf-8");
+  assert.equal(json.headers.get("cache-control"), "public, max-age=300");
+  assert.equal(json.headers.get("x-robots-tag"), "noindex, nofollow");
+});
+
+test("scorecard.json without a KV value is a 404 with the header set", async () => {
+  const h = harness({ kv: { getWithMetadata: async () => ({ value: null }), get: async () => null } });
+  const res = await worker.fetch(req("https://herinean.com/colophon/scorecard.json"), h.env, h.ctx);
+  assert.equal(res.status, 404);
+  assert.ok(res.headers.get("strict-transport-security"));
+});

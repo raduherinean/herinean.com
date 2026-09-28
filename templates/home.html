@@ -1,8 +1,8 @@
 {{define "content"}}
-<section class="about">
+<div class="about">
 {{if .Portrait}}<picture><source type="image/webp" srcset="{{.Portrait.Srcset}}" sizes="(max-width: 34rem) 30vw, 10rem"><img class="portrait" src="{{.Portrait.Src}}" width="{{.Portrait.Width}}" height="{{.Portrait.Height}}" alt="{{.SiteName}}" fetchpriority="high"></picture>{{end}}
 {{.Body}}
-</section>
+</div>
 <hr class="rule">
 <h2 class="label" id="latest">{{.T "home.latest"}}</h2>
 {{template "entries" .}}

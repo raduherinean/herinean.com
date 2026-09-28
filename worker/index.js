@@ -1,12 +1,26 @@
 // herinean.com edge function. Zero client-side JS is the site's rule; this runs at the edge only.
-// Hosts: production apex (assets; one analytics datapoint per HTML view, off the response path; colophon scorecard from KV);
-// mta-sts (one file, everything else 404); anything else is a preview (noindex, disallow-all robots, no analytics).
+// Hosts: production apex (assets; one analytics datapoint per HTML view, off the response path; colophon scorecard from KV,
+// its JSON on every host); mta-sts (one file, everything else 404); anything else is a preview (noindex, disallow-all robots, no analytics).
 // Any error here degrades to the plain asset response — the site never depends on this code to render.
 
 const MTA_STS_HOST = "mta-sts.herinean.com";
 const REFS = new Set(["li", "x", "nl", "md"]);
 const BOT_UA = /bot|crawl|spider|slurp|preview|fetch|lighthouse|headless|monitor|curl|wget|python-requests|facebookexternalhit|linkedinbot|twitterbot|whatsapp|telegram|discord|slack|skype|mastodon|http\.rb|bluesky|cardyb|go-http-client|okhttp|axios|node-fetch|java\/|ia_archiver|feed/i;
 const isPage = (p) => p.endsWith("/") || p.endsWith(".html");
+
+// The asset layer applies dist/_headers to what it serves; responses built here must carry the same set (spec §6.2, row 9).
+// Mirrors the /* block written by internal/edge — keep the two in step (verify-preview checks both on the live preview).
+const SECURITY_HEADERS = {
+  "content-security-policy": "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "permissions-policy": "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+  "cross-origin-opener-policy": "same-origin",
+  "cross-origin-resource-policy": "same-origin",
+  "x-frame-options": "DENY",
+};
+const own = (body, status, headers) => new Response(body, { status, headers: { ...SECURITY_HEADERS, ...headers } });
 
 export default {
   async fetch(request, env, ctx) {
@@ -16,23 +30,25 @@ export default {
 
       if (url.host === MTA_STS_HOST) {
         if (url.pathname === "/.well-known/mta-sts.txt") return env.ASSETS.fetch(request);
-        return new Response("Not found\n", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+        return own("Not found\n", 404, { "content-type": "text/plain; charset=utf-8" });
+      }
+
+      if (url.pathname === "/colophon/scorecard.json") {
+        const res = await scorecardJSON(env);
+        if (url.host === prodHost) return res;
+        const headers = new Headers(res.headers); headers.set("x-robots-tag", "noindex, nofollow");
+        return new Response(res.body, { status: res.status, headers });
       }
 
       if (url.host !== prodHost) {
         if (url.pathname === "/robots.txt") {
-          return new Response("User-agent: *\nDisallow: /\n", {
-            status: 200,
-            headers: { "content-type": "text/plain; charset=utf-8", "x-robots-tag": "noindex, nofollow" },
-          });
+          return own("User-agent: *\nDisallow: /\n", 200, { "content-type": "text/plain; charset=utf-8", "x-robots-tag": "noindex, nofollow" });
         }
         const res = await withScorecard(request, url, charset(permanent(request, await env.ASSETS.fetch(assetRequest(request, url)))), env);
         const headers = new Headers(res.headers);
         headers.set("x-robots-tag", "noindex, nofollow");
         return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
       }
-
-      if (url.pathname === "/colophon/scorecard.json") return await scorecardJSON(env);
 
       const res = await withScorecard(request, url, charset(permanent(request, await env.ASSETS.fetch(assetRequest(request, url)))), env);
       // A view is a GET for a page path answered 200 or 304: revalidations are the returning readers, and a 304 carries no content-type.
@@ -62,7 +78,8 @@ function permanent(request, res) {
   return new Response(null, { status: 301, headers });
 }
 
-// The asset layer sends pages and robots.txt without a charset (_headers already types llms.txt and security.txt); the Romanian pages are UTF-8 and say so.
+// _headers now types robots.txt too, alongside llms.txt and security.txt; the Worker still adds charset=utf-8 to bare
+// text/html/text/plain from the asset layer (pages above all — the Romanian ones are UTF-8 and say so).
 function charset(res) {
   const ct = res.headers.get("content-type");
   if (ct !== "text/html" && ct !== "text/plain") return res;
@@ -138,6 +155,6 @@ async function withScorecard(request, url, res, env) {
 
 async function scorecardJSON(env) {
   const body = env.SCORECARD ? await env.SCORECARD.get("scorecard.json").catch(() => null) : null;
-  if (!body) return new Response("Not found\n", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
-  return new Response(body, { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=300", "access-control-allow-origin": "*", "x-content-type-options": "nosniff" } });
+  if (!body) return own("Not found\n", 404, { "content-type": "text/plain; charset=utf-8" });
+  return own(body, 200, { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=300" });
 }

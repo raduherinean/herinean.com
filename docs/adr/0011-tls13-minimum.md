@@ -20,4 +20,4 @@ Verification links: https://internet.nl/site/herinean.com/4305743/ · https://ww
 ## Consequences
 - Readers on clients without TLS 1.3 cannot connect. Revisit if a real reader reports being blocked: `min_tls_version = "1.2"` in `infra/settings.tf` is the whole change, and the scorecard row for internet.nl then reads 95% with the reason.
 - The scorecard's SSL Labs row is redefined as "A+ where the rater allows it; A with the 1.3-only explanation otherwise" (spec §3 row 10 amended).
-- Re-verified weekly by `verify.yml` (M2); the manual TLS change made during this spike was reverted by the very next `tofu apply`, which is the drift detection working as designed.
+- Re-verified weekly by `verify.yml` (M2b); the manual TLS change made during this spike was reverted by the very next `tofu apply`, which is the drift detection working as designed.

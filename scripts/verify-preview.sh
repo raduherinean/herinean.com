@@ -17,7 +17,7 @@ for p in / /ro/ /writing/ /ro/articole/ /colophon/ /privacy/ /ro/confidentialita
 expect_status /nope/ 404; expect_body /nope/ 'Pagina nu există'
 expect_status /writing 301; expect_header /writing location '/writing/$'
 printf '\n== headers (asset layer applies _headers; the Worker adds only the charset)\n'
-expect_header / content-security-policy "^default-src 'none'; style-src 'sha256-[A-Za-z0-9+/=]+'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'$"
+expect_header / content-security-policy "^default-src 'none'; style-src 'sha256-[A-Za-z0-9+/=]+'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'$"
 expect_header / strict-transport-security 'max-age=63072000; includeSubDomains; preload'
 expect_header / cross-origin-resource-policy '^same-origin$'
 expect_header / cache-control '^public, max-age=0, must-revalidate$'
