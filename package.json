@@ -4,6 +4,6 @@
   "description": "Deploy tooling for herinean.com; the site itself has no JavaScript.",
   "engines": { "node": ">=24" },
   "devDependencies": {
-    "wrangler": "4.135.0"
+    "wrangler": "4.141.0"
   }
 }
