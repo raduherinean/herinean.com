@@ -2,7 +2,7 @@
 
 > I build AI systems and then have to live with them.
 
-The platform was designed and built with Claude Code from a written spec. Every piece is drafted with AI, then edited and signed off by me; before the first piece is published, a second pass checks its technical claims against the code and the commits. The judgment and the mistakes are mine.
+The site and its pages were built and drafted with Claude Code from a written spec and edited by me. The articles are written by me. Before one is published, an agent with access to the repositories the article is about checks every claim that code or its history can settle and marks it confirmed, wrong or unverifiable; the claims no repository can settle I check by hand against their sources. In editing, a model may flag, question and suggest, and may propose a reformulation of a sentence, never a rewritten paragraph. Translations start from a model’s pass and are rewritten by me. The judgment and the mistakes are mine.
 
 ## Optional
 
