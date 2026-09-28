@@ -157,7 +157,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with: { name: "kv-stash-${{ github.sha }}", path: stash/, overwrite: true }
       - run: chmod +x site && cp scorecard-ci.json scorecard.json && scripts/scorecard-publish.sh scorecard.json
-      # wrangler 4.135.0, verified locally: `deployments list --json` is OLDEST-first, so its [0] is
+      # wrangler 4.135.0 and 4.141.0, verified locally: `deployments list --json` is OLDEST-first, so its [0] is
       # wrong for "previous"; `deployments status --json` instead returns ONE object for the live
       # deployment — { id, source, strategy, author_email, annotations, versions: [{ version_id,
       # percentage }], created_on } — whose versions[0].version_id is the version live before this
