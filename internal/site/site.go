@@ -6,7 +6,7 @@ import "errors"
 type Options struct {
 	Root   string // repository root
 	Out    string // output directory (dist)
-	Draft  bool   // serve only: render pieces whose title/date/pillar/summary are still blank, with visible defaults
+	Draft  bool   // serve and check --draft: blank title/date/pillar/summary are warnings with visible defaults, not problems
 	Static bool   // serve only: serve dist/ as built — no rebuild, no draft mode; what CI audits is what deploys
 }
 

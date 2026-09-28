@@ -67,3 +67,42 @@ func TestCheckDiacritics(t *testing.T) {
 		t.Fatalf("got %+v", probs)
 	}
 }
+
+// A discussion link points at one host, compared exactly: a look-alike, a bare domain, a subdomain, a userinfo
+// trick or plain http is refused.
+func TestDiscussionHosts(t *testing.T) {
+	cases := []struct{ name, line, want string }{
+		{"linkedin ok", "linkedin: https://www.linkedin.com/feed/update/urn:li:activity:1", ""},
+		{"medium ok", "medium: https://medium.com/@someone/a-title-1", ""},
+		{"linkedin look-alike", "linkedin: https://www.linkedin.com.evil.example/posts/x", "www.linkedin.com"},
+		{"linkedin bare domain", "linkedin: https://linkedin.com/posts/x", "www.linkedin.com"},
+		{"linkedin userinfo", "linkedin: https://www.linkedin.com@evil.example/x", "www.linkedin.com"},
+		{"linkedin http", "linkedin: http://www.linkedin.com/posts/x", "https"},
+		{"medium subdomain", "medium: https://evil.medium.com/x", "medium.com"},
+	}
+	for _, c := range cases {
+		src := strings.Replace(good, "linkedin: https://www.linkedin.com/posts/x", c.line, 1)
+		_, _, _, probs := ParseFrontMatter("content/en/x.md", []byte(src), "en", now)
+		err := probs.Err()
+		switch {
+		case c.want == "" && err != nil:
+			t.Errorf("%s: want no problem, got %v", c.name, err)
+		case c.want != "" && (err == nil || !strings.Contains(err.Error(), c.want)):
+			t.Errorf("%s: want a problem containing %q, got %v", c.name, c.want, err)
+		}
+	}
+}
+
+func TestDiscussionField(t *testing.T) {
+	for raw, want := range map[string]string{
+		"https://www.linkedin.com/feed/update/urn:li:activity:1": "linkedin",
+		"https://medium.com/@someone/a-title-1":                  "medium",
+	} {
+		if got, err := DiscussionField(raw); err != nil || got != want {
+			t.Errorf("DiscussionField(%q) = %q, %v; want %q", raw, got, err, want)
+		}
+	}
+	if _, err := DiscussionField("https://example.com/x"); err == nil {
+		t.Error("DiscussionField(example.com): want an error")
+	}
+}

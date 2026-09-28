@@ -85,13 +85,13 @@ One Markdown file: `content/en/<slug>.md` or `content/ro/<slug>.md`. Front matte
 
 ```yaml
 title:     "Which AI projects are worth funding in 2027"
-date:      2026-09-27          # set by /publish-piece; Europe/Bucharest; must be ≤ commit date
+date:      2026-09-27          # set by site stamp (/publish-piece); Europe/Bucharest; ≤ commit date and ≥ launched:
 updated:   2026-10-03          # optional; shown, sets sitemap lastmod and JSON Feed date_modified; feed pubDate unchanged
 key:       ai-funding-2027     # pairs EN and RO; the language switch appears iff both exist
 pillar:    analysis            # build-log | opportunity | governance | analysis
 summary:   "≤ 160 chars. Meta description, OG description, index blurb, feed summary."
-linkedin:  https://…           # optional; added by /link-piece; renders "Also on LinkedIn"
-medium:    https://…           # optional; renders "· Medium"; Medium import sets canonical here
+linkedin:  https://…           # optional; set by site link (/link-piece); host www.linkedin.com; renders "Also on LinkedIn"
+medium:    https://…           # optional; set by site link; host medium.com; renders "· Medium"; Medium import sets canonical here
 ```
 
 There is no `draft` field: drafts are unpublished branches on the private remote (§8). Body: CommonMark + tables + footnotes + fenced code (highlighted at build with CSS classes), typographer per language („…” for `ro`, "…" for `en`). Comma-below diacritics are mandatory in Romanian content; cedilla forms fail the build.
@@ -110,14 +110,17 @@ Site UI strings live in `i18n/en.yaml` and `i18n/ro.yaml`; a string missing in o
 
 ## 5. The generator
 
-One Go module, one binary `site`, five verbs:
+One Go module, one binary `site`, seven verbs:
 
 ```
 site build        content/ + assets/ + templates/ + i18n/ → dist/    all-or-nothing, deterministic
 site check        every in-process validation; writes nothing       CI + pre-commit
 site check --dist post-build invariants on dist/                    CI
-site serve        local preview (:8080, --host), applies _headers, rebuilds on request when inputs changed
+site check --draft as check, but the blanks `site new` leaves are warnings     pre-commit on piece/*
+site serve        local preview (:8080, --host), applies _headers, rebuilds on request when inputs changed; a failing rule keeps the last good build on screen
 site new <lang> <slug>   scaffold from content/_template.md; empty date, blank pillar; writes one file, touches nothing else
+site stamp [--updated] <file>   today's date (Europe/Bucharest) into date: (or updated:)   /publish-piece
+site link <file> <url>   linkedin: or medium:, by the URL's host                             /link-piece
 site scorecard    scorecard.json (+ data/scorecard-manual.yaml) → validated HTML fragment for the colophon (CI only)
 ```
 
@@ -137,7 +140,7 @@ Target: under a dozen modules; the modules linked into the generator (from the b
 
 ### 5.2 Validation (`check`) — fails with `file:line`
 
-Missing/invalid front matter; empty `date`; `date` after commit date (Europe/Bucharest); unknown pillar; duplicate slug; slug not `[a-z0-9-]`; `key` used twice in one language; `summary` > 160 chars; image without alt; image file missing; i18n string missing in one language; internal link to a non-existent page; hreflang pair asymmetric; cedilla ş/ţ (U+015F/U+0163) in Romanian content; vendored font lacking U+0218–021B or ă â î (via `sfnt`).
+Missing/invalid front matter; empty `date` (with blank title, pillar and summary, a warning under `--draft`); `date` before `launched:`; `linkedin:`/`medium:` not an https URL on www.linkedin.com / medium.com; `date` after commit date (Europe/Bucharest); unknown pillar; duplicate slug; slug not `[a-z0-9-]`; `key` used twice in one language; `summary` > 160 chars; image without alt; image file missing; i18n string missing in one language; internal link to a non-existent page; hreflang pair asymmetric; cedilla ş/ţ (U+015F/U+0163) in Romanian content; vendored font lacking U+0218–021B or ă â î (via `sfnt`).
 
 `check --dist`: no executable `<script>` (data blocks allowed); no `style=` attributes; every page has canonical, og:*, twitter:card, JSON-LD, `<link rel=alternate>` feed; OG image exists, 1200×630, < 200 KB; weight budget (row 14); `_headers` covers every path class; CSP hash matches inlined CSS; no `Set-Cookie`.
 
@@ -207,7 +210,7 @@ $5/month (Workers Paid) beyond domains and Workspace.
 
 ## 7. CI, scorecard pipeline, colophon
 
-Audit tools live in `bench/` (Node/Rust/Python, pinned): Lighthouse CI, axe-core, html-validate, Nu checker, lychee (weekly job, M2b), feed validator + JSON Feed schema, JSON-LD field check, Playwright (font-swap layout test, dark/light axe), Observatory CLI, globalping. The platform has ~10 dependencies; the bench that audits it has hundreds — the right way around.
+Audit tools live in `bench/` (Node/Rust/Python, pinned): Lighthouse CI, axe-core, html-validate, Nu checker, lychee (weekly job, M2c), feed validator + JSON Feed schema, JSON-LD field check, Playwright (font-swap layout test, dark/light axe), Observatory CLI, globalping. The platform has ~10 dependencies; the bench that audits it has hundreds — the right way around.
 
 **`ci.yml` — every PR and push to `main`:**
 1. **build** — pinned Go; `gofmt`, `go vet`, `staticcheck`, `go test ./...`, `site check`, `site build`, `site check --dist`; `dist/` artifact.
@@ -226,14 +229,14 @@ Local requirements: Go, git, `gh`, Claude Code. Remotes: `gitea` (private; every
 
 1. `site new en <slug>` → one file (empty `date`, blank `pillar`). Branch `piece/<slug>`, tracking `gitea`.
 2. Write on `site serve` (`--host 0.0.0.0` to read on a phone over LAN).
-3. `/review-piece` — editorial template, tier check by judgement (no denylist of client names in a public repo), summary length, diacritics, embeds/charts constraints, an **editing pass** bound by one rule: the model may flag, question and suggest, and may propose a reformulation of a sentence, never a rewritten paragraph (the draft is the author's by construction, not by intention), a **fact-check pass** (an agent with access to the repositories the article is about — this one and any other it names — checks every claim that code or its history can settle and marks it confirmed, wrong or unverifiable, with the file, line or commit it rests on; claims no repository can settle the author checks by hand against their sources — the colophon describes this process, so it must exist before launch; M2b), and a **native LinkedIn post** (complete, not a teaser; link goes in the first comment). `/translate-piece` — either direction, shared `key`.
-4. `/publish-piece` — stamps `date` (Europe/Bucharest), runs `check`, pushes to `origin`, opens the PR. CI audits and comments the preview (the only real-edge preview; the cost of private drafts).
-5. Squash-merge: `Publish: <title>`, body written by the author. GitHub pre-fills it with the drafts’ messages and their trailers; a co-author line belongs on the commits that built the site, not on the one that introduces an article. Live a few minutes after the merge, once the audit is green (ADR-0015).
-6. Distribute: native LinkedIn post with `…?ref=li` in the first comment; X with `?ref=x`; Medium optional. `/link-piece` → `Link: <title> → LinkedIn` PR, auto-merge.
+3. `/review-piece` — editorial template, tier check by judgement (no denylist of client names in a public repo), summary length, diacritics, embeds/charts constraints, an **editing pass** bound by one rule: the model may flag, question and suggest, and may propose a reformulation of a sentence, never a rewritten paragraph (the draft is the author's by construction, not by intention), a **fact-check pass** (an agent with access to the repositories the article is about — this one and any other it names — checks every claim that code or its history can settle and marks it confirmed, wrong or unverifiable, with the file, line or commit it rests on; claims no repository can settle the author checks by hand against their sources — the colophon describes this process, so it must exist before launch; M2b), and help with the **native LinkedIn post**, which the author writes (complete, not a teaser; link goes in the first comment). Results go to a private ledger in the shared git directory; the skill never edits the piece. `/translate-piece` — either direction, shared `key`.
+4. `/publish-piece` — refuses without the author's marks in the ledger (every source claim ✓, every tier flag resolved) or with a ledger older than the piece; stamps `date` (Europe/Bucharest) on a one-commit `publish/<slug>` branch built from `origin/main` — the draft history never reaches `origin` — runs `check`, asks for the commit body in the author's words, pushes, opens the PR. CI audits and comments the preview (the only real-edge preview; the cost of private drafts).
+5. Squash-merge: the commit is already the author's `Publish: <title>`, its body in the author's words, with no co-author line (that belongs on the commits that built the site, not on the one that introduces an article). Live a few minutes after the merge, once the audit is green (ADR-0015).
+6. Distribute: native LinkedIn post with `…?ref=li` in the first comment; X with `?ref=x`; Medium optional. `/link-piece` → `Link: <title> → LinkedIn` PR, auto-merged once the `main` ruleset requires the CI check.
 7. `scripts/analytics.sh` decides what gets translated.
-8. Corrections set `updated:`; feeds don't re-notify. URLs never change; pieces are never deleted (a retraction is a note at the top).
+8. Corrections go through `/publish-piece` too: it stamps `updated:`, and the commit reads `Correct: <title>`; feeds don't re-notify. URLs never change; pieces are never deleted (a retraction is a note at the top).
 
-A pre-commit hook (`.githooks/`, installed by `scripts/setup.sh`) runs `gofmt` + `site check`. The repo `CLAUDE.md` and the four skills are public and written as if clients read them.
+A pre-commit hook (`.githooks/`, installed by `scripts/setup.sh`) runs `gofmt` + `site check` (`--draft` on `piece/*` branches). The repo `CLAUDE.md` and the four skills are public and written as if clients read them.
 
 ## 9. Design constraints
 
@@ -269,7 +272,7 @@ Pixels come from the Claude Design pass (`docs/design/claude-design-brief.md`); 
 
 - **M0 — one evening.** Cloudflare: 2FA; add four zones (verify imported Workspace records on `.com` before switching nameservers); nameservers at registrars; DS records at registrars; Workers Paid + billing alert; API tokens (infra, short-lived; CI, scoped). Workspace: DKIM 2048, `security@`, `dmarc@` aliases. Registrars: auto-renew + lock. GitHub: public repo under the `raduherinean` organisation (owned by the 2010 `rlucian` account — account age is a credibility signal, and GitHub allows one free personal account), 2FA, SSH signing key; Gitea private repo. Then as code: zone settings, injectors off, DNS/mail records (MX kept on all four; SPF `-all` and DMARC reject everywhere), DNSSEC, CAA, redirects, and a **placeholder Worker on the apex** (one noindex line with the full header set) so TLS/HSTS/internet.nl can be verified on the real domain and preload submitted early. TLS 1.3 spike.
 - **M1 — weekend one.** Generator, templates, content model, `check`, `serve`, `_headers`, Worker; home/index/colophon skeleton/privacy/404 with real About copy and portrait; Claude Design export as reference; deploy to a `noindex` preview only.
-- **M2 — weekend two plus evenings.** Bench, scorecard pipeline, KV colophon, post-deploy + weekly verify, RUNBOOK, ADRs, four skills, uptime monitor. Manual ext audits once. (split into M2a — CI, bench, scorecard pipeline — and M2b — weekly verify, uptime, skills, CodeQL; design: `docs/specs/2026-09-19-m2a-ci-bench-scorecard-design.md`)
+- **M2 — weekend two plus evenings.** Bench, scorecard pipeline, KV colophon, post-deploy + weekly verify, RUNBOOK, ADRs, four skills, uptime monitor. Manual ext audits once. (split into M2a — CI, bench, scorecard pipeline; M2b — authoring: the four skills, `CLAUDE.md`, drafts that commit; M2c — weekly verify, uptime, build id, CodeQL and OpenSSF Scorecard; M2d — fonts and Worker tests. Designs: `docs/specs/2026-09-19-m2a-ci-bench-scorecard-design.md`, `docs/specs/2026-09-26-m2b-authoring-design.md`)
 - **Launch =** scorecard green **and** real About + portrait **and ≥ 2 pieces** (written during the build weeks) **and** the AI disclosure matches `/review-piece` as it actually runs (the disclosure was written before the skill; re-read both on launch day and fix whichever is wrong). Then production cutover, HSTS preload submission, Search Console + Bing (DNS TXT), URL into LinkedIn contact info and website field. Cutover waits for green, not for a date.
 - **Then** pieces; "How this site was built" is written from the ADRs and this spec.
 
@@ -295,7 +298,7 @@ Pixels come from the Claude Design pass (`docs/design/claude-design-brief.md`); 
 
 ```
 herinean.com/
-  cmd/site/                 CLI (build, check, serve, new)
+  cmd/site/                 CLI (build, check, serve, new, scorecard, stamp, link)
   internal/{content,images,render,feeds,seo,edge,site}/
   templates/                base, home, index, piece, colophon, privacy, 404
   content/{en,ro}/          pieces, _home.md;  content/_template.md
@@ -306,8 +309,8 @@ herinean.com/
   infra/                    OpenTofu for the four zones
   bench/                    audit tools, pinned
   scripts/                  setup.sh, analytics.sh, audit helpers
-  .github/workflows/        ci.yml, audit.yml (M2a); verify.yml, codeql.yml (M2b)
-  .claude/                  CLAUDE.md, skills: review-piece, translate-piece, publish-piece, link-piece
+  .github/workflows/        ci.yml, audit.yml (M2a); verify.yml, codeql.yml (M2c)
+  .claude/                  CLAUDE.md, skills/: review-piece, translate-piece (+ glossary.md), publish-piece (+ gate.mjs, test/), link-piece
   docs/specs/               this spec;  docs/adr/;  docs/design/;  docs/plans/
   data/scorecard-manual.yaml
   README.md  RUNBOOK.md  LICENSE (MIT)  LICENSE-content (CC BY-NC-ND 4.0)

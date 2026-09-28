@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gofmt + vet + site check before every commit. Install with scripts/setup.sh.
+# gofmt + vet + site check (--draft on piece/* branches) before every commit. Install with scripts/setup.sh.
 set -euo pipefail
 export PATH="$HOME/.local/bin:$PATH"
 if git diff --cached --name-only | grep -q '\.go$'; then
@@ -14,6 +14,9 @@ fi
 if git diff --cached --name-only | grep -q '^worker/'; then
   (cd worker && node --test)
 fi
+if git diff --cached --name-only | grep -q '^\.claude/'; then
+  (cd .claude/skills/publish-piece && node --test)
+fi
 if git diff --cached --name-only | grep -q '^\.github/'; then
   go tool actionlint
 fi
@@ -24,7 +27,10 @@ if git diff --cached --name-only | grep -qE '^(content|i18n|assets|templates|sit
   bin=$(mktemp)
   trap 'rm -f "$bin"' EXIT
   go build -tags nodynamic -o "$bin" ./cmd/site
-  set +e; SOURCE_DATE_EPOCH="$(date +%s)" "$bin" check; rc=$?; set -e
+  # piece/* branches hold drafts (spec §8): the blanks `site new` leaves are warnings there; everywhere else they fail.
+  mode=
+  case "$(git symbolic-ref --quiet --short HEAD || true)" in piece/*) mode=--draft ;; esac
+  set +e; SOURCE_DATE_EPOCH="$(date +%s)" "$bin" check $mode; rc=$?; set -e
   if [ "$rc" -eq 3 ]; then
     echo "pre-commit: author inputs still missing (site check exit 3) — allowed before launch; CI will not allow it" >&2
   elif [ "$rc" -ne 0 ]; then

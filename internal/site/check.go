@@ -41,6 +41,9 @@ func Check(o Options) error {
 		return err
 	}
 	author := err
+	for _, w := range b.warnings {
+		fmt.Fprintln(os.Stderr, "site: draft:", w.Error())
+	}
 	var probs content.Problems
 	// templates parse and the CSS reads: a broken template is a real problem the pre-commit hook must catch, not
 	// something only `site build` discovers later
