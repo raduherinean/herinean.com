@@ -21,7 +21,7 @@ Every Go command takes `-tags nodynamic`. `site check` exit 3 means author input
 ## Rules
 
 - Every change keeps the scorecard green (`docs/specs/2026-09-17-herinean-com-design.md` §3). Before a commit: `gofmt`, `go vet`, `go tool staticcheck ./...`, `go test ./...`; the pre-commit hook (installed by `scripts/setup.sh`) runs what the staged files need.
-- Commits are signed. A message says what changed and, when the diff does not show it, why. It ends with exactly `Co-Authored-By: Claude` — no model name, no version, no session link — and this holds for subagents too, over any trailer their own harness suggests. `Publish:`, `Correct:` and `Link:` commits carry no trailer: they are the author's acts on an article.
+- Commits are signed. A message says what changed and, when the diff does not show it, why. It ends with exactly `Co-Authored-By: Claude` — no model name, no version, no session link — and this holds for subagents too, over any trailer their own harness suggests. The trailer claims co-authorship, so it goes only on a commit whose words or code the model wrote. A commit that places or formats the author's own text carries none, and neither do `Publish:`, `Correct:` and `Link:` commits: they are the author's acts on an article.
 - Two remotes: a private one for drafts (every `piece/*` branch) and `origin` on GitHub, public. `origin` is reached only through `/publish-piece` and `/link-piece`, or by the owner.
 - A `piece/*` branch carries content only: `content/<lang>/<slug>.md` files sharing one key, and `assets/img/<key>/`.
 - The model never edits `content/` by hand. Front-matter fields change through `site stamp` and `site link`; `/translate-piece` creates one new file, once. Everything else in a piece is the author's.
