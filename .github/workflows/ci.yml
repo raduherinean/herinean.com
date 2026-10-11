@@ -44,7 +44,7 @@ jobs:
       # files) would otherwise drop dist/.well-known/security.txt and mta-sts.txt.
       # overwrite: true on every upload in ci.yml and audit.yml: v4+ artifacts are immutable per
       # run, so re-running a job would otherwise fail its upload with a 409 on the existing name.
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: { name: "dist-${{ github.sha }}", path: "dist/\nsite\ndist.sha256", if-no-files-found: error, include-hidden-files: true, overwrite: true }
   audit:
     needs: build
@@ -154,7 +154,7 @@ jobs:
           scripts/kv.sh get scorecard --metadata > stash/scorecard.meta || echo '{}' > stash/scorecard.meta
           grep -q '^{' stash/scorecard.meta || echo '{}' > stash/scorecard.meta
           scripts/kv.sh get scorecard.json > stash/scorecard.json || : > stash/scorecard.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: { name: "kv-stash-${{ github.sha }}", path: stash/, overwrite: true }
       - run: chmod +x site && cp scorecard-ci.json scorecard.json && scripts/scorecard-publish.sh scorecard.json
       # wrangler 4.135.0 and 4.141.0, verified locally: `deployments list --json` is OLDEST-first, so its [0] is

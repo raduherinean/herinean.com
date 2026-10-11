@@ -36,7 +36,7 @@ jobs:
       # Filenames carry form-factor and job-index: two shards' rows would otherwise share the
       # name "rows-lighthouse.json" and one would overwrite the other under merge-multiple in `merge`.
       - run: node bench/audit.mjs "${{ inputs.base }}" --mode ${{ inputs.mode }} --only lighthouse --form-factor ${{ matrix.form-factor }} --shard ${{ matrix.shard }} --link "${{ inputs.link }}" --out rows-lighthouse-${{ matrix.form-factor }}-${{ strategy.job-index }}.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: { name: "rows-${{ inputs.mode }}-lighthouse-${{ matrix.form-factor }}-${{ strategy.job-index }}", path: rows-lighthouse-*.json*, overwrite: true }
   checks:
     runs-on: ubuntu-latest
@@ -62,7 +62,7 @@ jobs:
           chmod +x site && ./site serve --static --port 8080 &
           for _ in $(seq 1 50); do curl -sf -o /dev/null http://127.0.0.1:8080/ && break; sleep 0.2; done
       - run: node bench/audit.mjs "${{ inputs.base }}" --mode ${{ inputs.mode }} --only checks --dist dist --link "${{ inputs.link }}" --out rows-checks.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: { name: "rows-${{ inputs.mode }}-checks", path: rows-checks.json*, overwrite: true }
   merge:
     needs: [lighthouse, checks]
@@ -90,7 +90,7 @@ jobs:
           fi
           echo "pass=$pass" >> "$GITHUB_OUTPUT"
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: { name: "scorecard-${{ inputs.mode }}", path: "scorecard-${{ inputs.mode }}.json", overwrite: true }
       # ci mode: render the fragment these rows will become and validate it with Nu, exactly as
       # scripts/scorecard-publish.sh does before writing KV — so a pull request, which never
